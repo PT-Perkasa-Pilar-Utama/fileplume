@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,tsx,json,jsonc}"
+      run: bunx biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: "*.{ts,tsx}"
+      run: bun run typecheck
+    boundaries:
+      glob: "*.ts"
+      run: bun run scripts/check_module_boundaries.ts
+
+pre-push:
+  commands:
+    test:
+      run: bun test

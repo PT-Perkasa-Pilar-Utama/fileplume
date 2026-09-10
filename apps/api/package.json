@@ -1,0 +1,24 @@
+{
+  "name": "@archiva/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --target=bun --outdir=dist"
+  },
+  "dependencies": {
+    "@archiva/shared": "workspace:*",
+    "@archiva/config": "workspace:*",
+    "@archiva/tenancy": "workspace:*",
+    "@archiva/identity": "workspace:*",
+    "@archiva/catalog": "workspace:*",
+    "@archiva/classification": "workspace:*",
+    "@archiva/enrichment": "workspace:*",
+    "@archiva/search": "workspace:*",
+    "@archiva/activity": "workspace:*",
+    "@archiva/platform": "workspace:*",
+    "hono": "4.13.7",
+    "zod": "4.6.1"
+  }
+}

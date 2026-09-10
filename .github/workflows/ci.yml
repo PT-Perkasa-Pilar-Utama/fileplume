@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run scripts/check_module_boundaries.ts
+      - run: bun test
+      - run: bun run build
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python scripts/check_index.py --specs-dir docs/technical-specs
+      - run: python scripts/check_index.py --specs-dir docs/api-specs
+      - run: python scripts/check_ac_refs.py docs/TASK_BREAKDOWN.md --business-dir docs/business
+      - run: python scripts/recompute_summary.py docs/TASK_BREAKDOWN.md

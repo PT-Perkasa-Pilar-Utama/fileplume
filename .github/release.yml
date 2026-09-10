@@ -1,0 +1,16 @@
+changelog:
+  exclude:
+    labels: [type:chore]
+  categories:
+    - title: Features
+      labels: [type:feature]
+    - title: Fixes
+      labels: [type:bug]
+    - title: Refactoring
+      labels: [type:refactor]
+    - title: Documentation
+      labels: [type:docs]
+    - title: Infrastructure
+      labels: [area:infra]
+    - title: Other
+      labels: ["*"]

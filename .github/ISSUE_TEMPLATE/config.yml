@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Acceptance criteria
+    url: https://github.com/OWNER/REPO/blob/dev/docs/business/acceptance-criteria.md
+    about: The 113 criteria this project is judged on. Read before filing scope questions.
+  - name: Coding standard
+    url: https://github.com/OWNER/REPO/blob/dev/docs/CODING_STANDARD.md
+    about: The rules code review enforces verbatim.

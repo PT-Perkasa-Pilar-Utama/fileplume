@@ -161,6 +161,7 @@ Do not read everything. In this order, roughly two hours:
 | 4 | [CODING_STANDARD.md](CODING_STANDARD.md) | The rules review enforces verbatim |
 | 5 | [DEVELOPMENT_SCENARIO_GUIDE.md](DEVELOPMENT_SCENARIO_GUIDE.md) | How to complete a task end to end |
 | 6 | One file in [business/acceptance-criteria-breakdown/](business/acceptance-criteria-breakdown/) | What a criterion actually looks like |
+| 7 | [design/](design/) | The Figma file, if you are working on the frontend |
 
 Read the rest when a card points you at it. `technical-specs/06-data-model.md`, `api-specs/`, `12-document-processing-pipeline.md` and `13-search-indexing-strategy.md` are references, not reading material.
 

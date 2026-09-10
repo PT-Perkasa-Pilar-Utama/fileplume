@@ -13,7 +13,7 @@ Every row was confirmed during the technical-spec grill. Versions are pinned; se
 | Component | Technology | Justification |
 |---|---|---|
 | Runtime | Bun 1.3.8 | One binary for install, run, test and bundle. Native `Bun.password` and S3 client remove two dependencies. |
-| Language | TypeScript 5.9 | `strict: true`, `noUncheckedIndexedAccess: true` |
+| Language | TypeScript 7.0.2 | `strict: true`, `noUncheckedIndexedAccess: true`. 7.0 removed `baseUrl` and requires relative `paths`; see `tsconfig.json`. |
 | Module system | ESM only | Bun native, no dual-publish complexity in the workspace |
 
 ## 4.2 Backend
@@ -35,7 +35,7 @@ Every row was confirmed during the technical-spec grill. Versions are pinned; se
 | Component | Technology | Justification |
 |---|---|---|
 | Framework | React 19 | Named in the brief |
-| Build | Vite 7 | SPA served as static assets by Caddy; the Hono API stays the single backend |
+| Build | Vite 8 | SPA served as static assets by Caddy; the Hono API stays the single backend |
 | Rendering | Client-side SPA | Every screen is behind authentication, so SSR buys no SEO and no meaningful first paint here |
 | Routing | TanStack Router | Type-safe routes and search params, so US-34 and US-05 filter state lives in the URL |
 | Server state | TanStack Query | Cache, refetch and the polling that AC-44.01 status transitions need |

@@ -109,6 +109,7 @@ Read in this order. Each doc owns its subject; nothing is duplicated between the
 
 | Doc | Answers |
 |---|---|
+| [CLAUDE.md](CLAUDE.md) | Operating manual. Read before touching the repo. |
 | [ONBOARDING_GUIDE.md](docs/ONBOARDING_GUIDE.md) | How do I get set up and find my way around? |
 | [DEVELOPMENT_SCENARIO_GUIDE.md](docs/DEVELOPMENT_SCENARIO_GUIDE.md) | How do I complete a task end to end? |
 | [GLOSSARY.md](docs/GLOSSARY.md) | What does this word mean here? |

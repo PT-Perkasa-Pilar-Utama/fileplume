@@ -113,6 +113,7 @@ Read in this order. Each doc owns its subject; nothing is duplicated between the
 | [ONBOARDING_GUIDE.md](docs/ONBOARDING_GUIDE.md) | How do I get set up and find my way around? |
 | [DEVELOPMENT_SCENARIO_GUIDE.md](docs/DEVELOPMENT_SCENARIO_GUIDE.md) | How do I complete a task end to end? |
 | [GLOSSARY.md](docs/GLOSSARY.md) | What does this word mean here? |
+| [design/](docs/design/) | What should it look like? Figma source. |
 | [CODING_STANDARD.md](docs/CODING_STANDARD.md) | What rules does review enforce? |
 | [CODE_REVIEW_CHECKLIST.md](docs/CODE_REVIEW_CHECKLIST.md) | What do I check on a PR? |
 | [business/](docs/business/) | What must the system do? 30 stories, 113 acceptance criteria |

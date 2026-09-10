@@ -128,7 +128,11 @@ Move the operation from `SCAFFOLD` to `OK` in [api-specs/_index.md](api-specs/_i
 
 Worked example: `FE-S2-01`, the upload tray.
 
-### 4.1 Integrate against the mock immediately
+### 4.1 Read the design first
+
+The screen exists in Figma before it exists in code. Open the node the card names ([design/](design/)) and check it against the acceptance criteria. Where the mockup and a criterion disagree on copy, the criterion wins.
+
+### 4.2 Integrate against the mock immediately
 
 The endpoint already returns a contract-valid response, so start now:
 
@@ -138,11 +142,11 @@ bun run --filter '@archiva/api' dev     # terminal 1
 bun run --filter '@archiva/web' dev     # terminal 2, proxies /api to :3000
 ```
 
-### 4.2 Take types from the shared package
+### 4.3 Take types from the shared package
 
 Do not redeclare a response shape. `packages/shared` holds the Zod contracts both sides use, so a contract change breaks the client at compile time rather than at runtime.
 
-### 4.3 Render server-supplied copy, never client-invented copy
+### 4.4 Render server-supplied copy, never client-invented copy
 
 Empty states, error messages, status labels and action labels all arrive from the server. The client renders `meta.message`, `error.message`, `processingLabel` and `actionLabel` as given. This is why an AC string lives in exactly one place.
 
@@ -154,11 +158,11 @@ if (documents.length === 0) return <Empty>Belum ada dokumen...</Empty>;
 if (documents.length === 0) return <Empty>{meta.message}</Empty>;
 ```
 
-### 4.4 Put filter state in the URL
+### 4.5 Put filter state in the URL
 
 TanStack Router search params, so a filtered view is shareable and the back button works.
 
-### 4.5 Gate, commit, PR
+### 4.6 Gate, commit, PR
 
 Same as 3.5 through 3.7.
 

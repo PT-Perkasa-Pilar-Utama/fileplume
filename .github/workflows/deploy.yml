@@ -1,0 +1,99 @@
+name: Build and publish images
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        required: true
+        options: [sit, uat, production]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: pt-perkasa-pilar-utama
+
+jobs:
+  # The quality gate runs again here. A publishable image is one that passed
+  # the same checks a PR passes, on the exact commit being published.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+      - run: bun install --frozen-lockfile
+      - run: bun run complete-check
+      - run: bun run scripts/check_module_boundaries.ts
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, worker]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tagged by exact SHA. Never :latest, so a deploy names one immutable
+      # artifact and a rollback names the previous one.
+      # technical-specs/04-tech-stack.md 4.10.
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/archiva-${{ matrix.app }}
+          tags: |
+            type=sha,format=long,prefix=
+            type=semver,pattern={{version}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # The built SPA is static; Caddy serves it from a volume on the host.
+  web:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.8
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter '@archiva/web' build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist-${{ github.sha }}
+          path: apps/web/dist
+          retention-days: 30
+
+  summary:
+    needs: [build, web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report the deployable version
+        run: |
+          echo "### Deployable version" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "export ARCHIVA_VERSION=${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "Deploy per docs/DEPLOYMENT_PLAN.md section 6." >> $GITHUB_STEP_SUMMARY

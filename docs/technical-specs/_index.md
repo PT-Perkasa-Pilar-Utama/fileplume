@@ -55,12 +55,15 @@ Documents 12 and 13 are ad-hoc specifications for cross-cutting concerns. Each i
 | Combined US and AC source | [../us-ac/User-Stories-and-AC.md](../us-ac/User-Stories-and-AC.md) | Written |
 | Grooming decision record | [../grooming/grooming-archiva-interview.md](../grooming/grooming-archiva-interview.md) | Written |
 | Grooming question set | [../grooming/grooming-archiva-backlog.md](../grooming/grooming-archiva-backlog.md) | Written |
-| Glossary | [../GLOSSARY.md](../GLOSSARY.md) | Not yet written |
+| Glossary | [../GLOSSARY.md](../GLOSSARY.md) | Written |
+| Onboarding guide | [../ONBOARDING_GUIDE.md](../ONBOARDING_GUIDE.md) | Written |
+| Development scenario guide | [../DEVELOPMENT_SCENARIO_GUIDE.md](../DEVELOPMENT_SCENARIO_GUIDE.md) | Written |
 | API specifications | [../api-specs/](../api-specs/) | Written |
 | Coding standard | [../CODING_STANDARD.md](../CODING_STANDARD.md) | Written |
 | Code review checklist | [../CODE_REVIEW_CHECKLIST.md](../CODE_REVIEW_CHECKLIST.md) | Written |
 | Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Written |
-| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Not yet written |
+| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Written |
+| Troubleshooting guide | [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md) | Living skeleton |
 
 ## Next step in the pipeline
 

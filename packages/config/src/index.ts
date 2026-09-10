@@ -42,7 +42,8 @@ const schema = z
     AUTH_SECRET: z.string().min(32),
     SESSION_ABSOLUTE_TTL_DAYS: z.coerce.number().int().default(30),
     SESSION_IDLE_TTL_HOURS: z.coerce.number().int().default(8),
-    COOKIE_DOMAIN: z.string().optional(),
+    // No COOKIE_DOMAIN: the __Host- prefix forbids a Domain attribute, and a
+    // browser silently rejects a __Host- cookie that carries one.
 
     ENABLE_RESET_API: z.coerce.boolean().default(false),
     RESET_API_TOKEN: z.string().optional(),

@@ -160,10 +160,13 @@ Each needs a decision or an amendment before the affected operation is built. Fu
 | Acceptance criteria bodies | [../business/acceptance-criteria-breakdown/](../business/acceptance-criteria-breakdown/) | Written |
 | Sprint breakdown | [../business/sprint-breakdown.md](../business/sprint-breakdown.md) | Written |
 | Grooming decision record | [../grooming/grooming-archiva-interview.md](../grooming/grooming-archiva-interview.md) | Written |
-| Glossary | [../GLOSSARY.md](../GLOSSARY.md) | Not yet written |
+| Glossary | [../GLOSSARY.md](../GLOSSARY.md) | Written |
+| Onboarding guide | [../ONBOARDING_GUIDE.md](../ONBOARDING_GUIDE.md) | Written |
+| Development scenario guide | [../DEVELOPMENT_SCENARIO_GUIDE.md](../DEVELOPMENT_SCENARIO_GUIDE.md) | Written |
 | Coding standard | [../CODING_STANDARD.md](../CODING_STANDARD.md) | Written |
 | Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Next in the pipeline |
-| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Not yet written |
+| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Written |
+| Troubleshooting guide | [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md) | Living skeleton |
 
 ## Next step in the pipeline
 

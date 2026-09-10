@@ -10,3 +10,4 @@ bun.lock.tmp
 playwright-report/
 test-results/
 .turbo/
+*.tsbuildinfo

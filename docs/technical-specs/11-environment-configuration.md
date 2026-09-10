@@ -61,7 +61,7 @@ Five environments: `dev` (local), `test` (CI), `sit`, `uat`, `production`.
 | `AUTH_SECRET` | string | yes | At least 32 bytes. Rotating it ends every session. |
 | `SESSION_ABSOLUTE_TTL_DAYS` | int | no | 30 |
 | `SESSION_IDLE_TTL_HOURS` | int | no | 8, satisfies AC-40.04 |
-| `COOKIE_DOMAIN` | string | no | Absent locally, `.archiva.id` in deployed environments |
+| `COOKIE_DOMAIN` | | | **Removed.** The `__Host-` cookie prefix forbids a `Domain` attribute, so a browser rejects the session cookie outright if one is set. Each tenant subdomain therefore holds its own session, which matches the isolation posture and 01-overview.md 1.7 item 9. |
 
 ## 11.5 Operational endpoints
 

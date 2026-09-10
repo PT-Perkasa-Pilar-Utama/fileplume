@@ -57,9 +57,9 @@ Documents 12 and 13 are ad-hoc specifications for cross-cutting concerns. Each i
 | Grooming question set | [../grooming/grooming-archiva-backlog.md](../grooming/grooming-archiva-backlog.md) | Written |
 | Glossary | [../GLOSSARY.md](../GLOSSARY.md) | Not yet written |
 | API specifications | [../api-specs/](../api-specs/) | Written |
-| Coding standard | [../CODING_STANDARD.md](../CODING_STANDARD.md) | Not yet written |
-| Code review checklist | [../CODE_REVIEW_CHECKLIST.md](../CODE_REVIEW_CHECKLIST.md) | Not yet written |
-| Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Not yet written |
+| Coding standard | [../CODING_STANDARD.md](../CODING_STANDARD.md) | Written |
+| Code review checklist | [../CODE_REVIEW_CHECKLIST.md](../CODE_REVIEW_CHECKLIST.md) | Written |
+| Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Written |
 | Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Not yet written |
 
 ## Next step in the pipeline

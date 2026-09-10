@@ -15,4 +15,10 @@ pre-commit:
 pre-push:
   commands:
     test:
+      # lefthook derives the pre-push file list by diffing the remote default
+      # branch. On a clone with no local `dev` that is
+      # `git diff --name-only HEAD dev --`, which exits 128 and blocks the push.
+      # An explicit `files` command removes the branch dependency.
+      # A push that changes no files still skips, which is correct.
+      files: "git ls-files"
       run: bun test

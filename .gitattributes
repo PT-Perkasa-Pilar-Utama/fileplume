@@ -1,0 +1,14 @@
+# Normalise line endings. Without this, core.autocrlf=true on Windows gives a
+# CRLF working tree while CI on Linux sees LF, so `bun run format:check` fails
+# locally and passes in CI. A gate that disagrees with itself stops being trusted.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

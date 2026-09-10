@@ -41,85 +41,85 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /auth/login` | [02 2.2](02-authentication.md) | 1 | TODO |
-| `POST /auth/logout` | [02 2.3](02-authentication.md) | 1 | TODO |
-| `GET /auth/me` | [02 2.4](02-authentication.md) | 1 | TODO |
+| `POST /auth/login` | [02 2.2](02-authentication.md) | 1 | SCAFFOLD |
+| `POST /auth/logout` | [02 2.3](02-authentication.md) | 1 | SCAFFOLD |
+| `GET /auth/me` | [02 2.4](02-authentication.md) | 1 | SCAFFOLD |
 
 ### Tenants
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /tenants` | [03 3.1](03-tenants.md) | 1 | TODO |
-| `GET /tenants` | [03 3.2](03-tenants.md) | 1 | TODO |
-| `PATCH /tenants/:tenantId/quota` | [03 3.3](03-tenants.md) | 2 | TODO |
+| `POST /tenants` | [03 3.1](03-tenants.md) | 1 | SCAFFOLD |
+| `GET /tenants` | [03 3.2](03-tenants.md) | 1 | SCAFFOLD |
+| `PATCH /tenants/:tenantId/quota` | [03 3.3](03-tenants.md) | 2 | SCAFFOLD |
 
 ### Configuration and storage
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /configuration` | [04 4.2](04-configuration.md) | 2 | TODO |
-| `PATCH /configuration/:key` | [04 4.3](04-configuration.md) | 2 | TODO |
-| `DELETE /configuration/:key` | [04 4.4](04-configuration.md) | 2 | TODO |
-| `GET /storage` | [04 4.5](04-configuration.md) | 2 | TODO |
+| `GET /configuration` | [04 4.2](04-configuration.md) | 2 | SCAFFOLD |
+| `PATCH /configuration/:key` | [04 4.3](04-configuration.md) | 2 | SCAFFOLD |
+| `DELETE /configuration/:key` | [04 4.4](04-configuration.md) | 2 | SCAFFOLD |
+| `GET /storage` | [04 4.5](04-configuration.md) | 2 | SCAFFOLD |
 
 ### Documents
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /documents` | [05 5.2](05-documents.md) | 2 | TODO |
-| `GET /documents` | [05 5.4](05-documents.md) | 2 | TODO |
-| `GET /documents/:id` | [05 5.5](05-documents.md) | 2 | TODO |
-| `GET /documents/:id/versions` | [05 5.6](05-documents.md) | 2 | TODO |
-| `POST /documents/:id/versions` | [05 5.7](05-documents.md) | 2 | TODO |
-| `GET /documents/:id/preview` | [05 5.8](05-documents.md) | 4 | TODO |
-| `POST /documents/:id/download` | [05 5.9](05-documents.md) | 5 | TODO |
-| `POST /documents/download-bulk` | [05 5.10](05-documents.md) | 5 | TODO |
-| `GET /documents/download-bulk/:ticketId` | [05 5.11](05-documents.md) | 5 | TODO |
+| `POST /documents` | [05 5.2](05-documents.md) | 2 | SCAFFOLD |
+| `GET /documents` | [05 5.4](05-documents.md) | 2 | SCAFFOLD |
+| `GET /documents/:id` | [05 5.5](05-documents.md) | 2 | SCAFFOLD |
+| `GET /documents/:id/versions` | [05 5.6](05-documents.md) | 2 | SCAFFOLD |
+| `POST /documents/:id/versions` | [05 5.7](05-documents.md) | 2 | SCAFFOLD |
+| `GET /documents/:id/preview` | [05 5.8](05-documents.md) | 4 | SCAFFOLD |
+| `POST /documents/:id/download` | [05 5.9](05-documents.md) | 5 | SCAFFOLD |
+| `POST /documents/download-bulk` | [05 5.10](05-documents.md) | 5 | SCAFFOLD |
+| `GET /documents/download-bulk/:ticketId` | [05 5.11](05-documents.md) | 5 | SCAFFOLD |
 
 ### Categories and classification
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /categories` | [06 6.2](06-categories.md) | 3 | TODO |
-| `POST /categories` | [06 6.3](06-categories.md) | 3 | TODO |
-| `PATCH /categories/:id` | [06 6.4](06-categories.md) | 3 | TODO |
-| `PUT /categories/:id/download-permission` | [06 6.5](06-categories.md) | 5 | TODO |
-| `PUT /documents/:id/classification` | [06 6.6](06-categories.md) | 3 | TODO |
-| `GET /documents/unconfirmed` | [06 6.8](06-categories.md) | 3 | TODO |
+| `GET /categories` | [06 6.2](06-categories.md) | 3 | SCAFFOLD |
+| `POST /categories` | [06 6.3](06-categories.md) | 3 | SCAFFOLD |
+| `PATCH /categories/:id` | [06 6.4](06-categories.md) | 3 | SCAFFOLD |
+| `PUT /categories/:id/download-permission` | [06 6.5](06-categories.md) | 5 | SCAFFOLD |
+| `PUT /documents/:id/classification` | [06 6.6](06-categories.md) | 3 | SCAFFOLD |
+| `GET /documents/unconfirmed` | [06 6.8](06-categories.md) | 3 | SCAFFOLD |
 
 ### Enrichment
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /documents/:id/processing` | [07 7.2](07-enrichment.md) | 3 | TODO |
-| `PATCH /documents/:id/fields` | [07 7.4](07-enrichment.md) | 3 | TODO |
-| `PUT /documents/:id/tags` | [07 7.5](07-enrichment.md) | 3 | TODO |
-| `POST /documents/:id/reprocess` | [07 7.6](07-enrichment.md) | 3 | TODO |
-| `GET /tags/top` | [07 7.7](07-enrichment.md) | 3 | TODO |
+| `GET /documents/:id/processing` | [07 7.2](07-enrichment.md) | 3 | SCAFFOLD |
+| `PATCH /documents/:id/fields` | [07 7.4](07-enrichment.md) | 3 | SCAFFOLD |
+| `PUT /documents/:id/tags` | [07 7.5](07-enrichment.md) | 3 | SCAFFOLD |
+| `POST /documents/:id/reprocess` | [07 7.6](07-enrichment.md) | 3 | SCAFFOLD |
+| `GET /tags/top` | [07 7.7](07-enrichment.md) | 3 | SCAFFOLD |
 
 ### Search
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /search/titles` | [08 8.2](08-search.md) | 4 | TODO |
-| `GET /search/content` | [08 8.3](08-search.md) | 4 | TODO |
-| `GET /documents/:id/related` | [08 8.4](08-search.md) | 4 | TODO |
+| `GET /search/titles` | [08 8.2](08-search.md) | 4 | SCAFFOLD |
+| `GET /search/content` | [08 8.3](08-search.md) | 4 | SCAFFOLD |
+| `GET /documents/:id/related` | [08 8.4](08-search.md) | 4 | SCAFFOLD |
 
 ### Activity
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /audit-events` | [09 9.2](09-activity.md) | 5 | TODO |
-| `GET /analytics/dashboard` | [09 9.3](09-activity.md) | 5 | TODO |
+| `GET /audit-events` | [09 9.2](09-activity.md) | 5 | SCAFFOLD |
+| `GET /analytics/dashboard` | [09 9.3](09-activity.md) | 5 | SCAFFOLD |
 
 ### System
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /health/live` | [10 10.2](10-system.md) | 1 | TODO |
-| `GET /health/ready` | [10 10.3](10-system.md) | 1 | TODO |
-| `POST /admin/reset-state` | [10 10.4](10-system.md) | 1 | TODO |
-| `GET /admin/reset-state/:jobId` | [10 10.5](10-system.md) | 1 | TODO |
+| `GET /health/live` | [10 10.2](10-system.md) | 1 | SCAFFOLD |
+| `GET /health/ready` | [10 10.3](10-system.md) | 1 | SCAFFOLD |
+| `POST /admin/reset-state` | [10 10.4](10-system.md) | 1 | SCAFFOLD |
+| `GET /admin/reset-state/:jobId` | [10 10.5](10-system.md) | 1 | SCAFFOLD |
 
 **Total: 39 operations.** Sprint numbers follow [../business/sprint-breakdown.md](../business/sprint-breakdown.md); an operation is listed in the earliest sprint whose criteria need it.
 

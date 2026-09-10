@@ -12,7 +12,7 @@ Every row was confirmed during the technical-spec grill. Versions are pinned; se
 
 | Component | Technology | Justification |
 |---|---|---|
-| Runtime | Bun 1.2.x | One binary for install, run, test and bundle. Native `Bun.password` and S3 client remove two dependencies. |
+| Runtime | Bun 1.3.8 | One binary for install, run, test and bundle. Native `Bun.password` and S3 client remove two dependencies. |
 | Language | TypeScript 5.9 | `strict: true`, `noUncheckedIndexedAccess: true` |
 | Module system | ESM only | Bun native, no dual-publish complexity in the workspace |
 

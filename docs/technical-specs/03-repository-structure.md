@@ -53,7 +53,10 @@ archiva/
 │   └── config/                  Env parsing and validation, single source
 ├── scripts/
 │   ├── build_ac_index.py        Regenerates the business AC index
-│   └── check_index.py           Verifies technical-specs/_index.md matches disk
+│   ├── check_index.py           Verifies a numbered spec set matches disk
+│   ├── check_ac_refs.py         Verifies every AC a task card cites exists
+│   ├── recompute_summary.py     Recomputes the task board Summary table
+│   └── check_module_boundaries.ts  Fails on a cross-internal import
 ├── docs/                        business/, technical-specs/, api-specs/, grooming/
 ├── compose.yaml                 Dev and on-premises topology
 ├── compose.prod.yaml            Production overlay

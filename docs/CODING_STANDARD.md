@@ -12,7 +12,7 @@ Rules marked **(enforced)** are checked by a tool. A reviewer does not spend tim
 
 ## 1. Project and verification
 
-Bun workspace monorepo. TypeScript 5.9 strict, ESM only. Hono API, React SPA, BullMQ worker, PostgreSQL via Drizzle, OpenSearch, Valkey, S3. Eight domain modules under `packages/`, three deployables under `apps/`.
+Bun workspace monorepo. TypeScript 7 strict, ESM only. Hono API, React SPA, BullMQ worker, PostgreSQL via Drizzle, OpenSearch, Valkey, S3. Eight domain modules under `packages/`, three deployables under `apps/`.
 
 Architecture is fixed in [technical-specs/](technical-specs/). Endpoint contracts are fixed in [api-specs/](api-specs/). This document governs how the code that implements them is written.
 

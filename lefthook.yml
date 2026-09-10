@@ -15,4 +15,13 @@ pre-commit:
 pre-push:
   commands:
     test:
+      # `files` is set explicitly so lefthook never derives a changed-file list
+      # for this hook. Its default derivation diffs against the remote default
+      # branch, which produced two failures:
+      #   - no local `dev`: `git diff --name-only HEAD dev --` exits 128 and
+      #     blocks the push outright
+      #   - pushing `dev` itself: the diff is empty, so the suite was skipped
+      # `git ls-files` always succeeds and is never empty, so the suite runs.
+      files: "git ls-files"
+      glob: "*"
       run: bun test

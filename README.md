@@ -31,9 +31,9 @@ Five goals govern every design decision. They are the tie-breaker when two appro
 | Layer | Technology |
 |---|---|
 | Runtime | Bun 1.3.8 |
-| Language | TypeScript 5.9, strict, ESM only |
+| Language | TypeScript 7.0.2, strict, ESM only |
 | API | Hono 4, Zod 4 validation, OpenAPI generated from the same schemas |
-| Frontend | React 19, Vite 7, TanStack Router and Query, Tailwind 4, shadcn/ui |
+| Frontend | React 19, Vite 8, TanStack Router and Query, Tailwind 4, shadcn/ui |
 | Database | PostgreSQL 17 via Drizzle ORM |
 | Search | OpenSearch 2, one index document per page |
 | Queue and cache | BullMQ on Valkey 8 |

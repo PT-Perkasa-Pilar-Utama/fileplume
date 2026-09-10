@@ -1,0 +1,72 @@
+# Production overlay. Apply on top of compose.yaml:
+#   docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
+#
+# Differences from the dev topology:
+#   - images are pulled from GHCR at an exact SHA, never built on the host
+#   - no host port bindings except Caddy 80/443; datastores are reachable only
+#     on the compose network
+#   - Caddy terminates TLS and serves the built SPA
+#   - everything restarts unless explicitly stopped
+
+name: archiva
+
+services:
+  postgres:
+    ports: !reset []
+    restart: unless-stopped
+
+  opensearch:
+    ports: !reset []
+    restart: unless-stopped
+
+  valkey:
+    ports: !reset []
+    restart: unless-stopped
+
+  minio:
+    ports: !reset []
+    restart: unless-stopped
+
+  clamav:
+    ports: !reset []
+    restart: unless-stopped
+
+  gotenberg:
+    ports: !reset []
+    restart: unless-stopped
+
+  migrate:
+    build: !reset null
+    image: ghcr.io/pt-perkasa-pilar-utama/archiva-api:${ARCHIVA_VERSION:?set ARCHIVA_VERSION to a git sha}
+
+  api:
+    build: !reset null
+    image: ghcr.io/pt-perkasa-pilar-utama/archiva-api:${ARCHIVA_VERSION:?set ARCHIVA_VERSION to a git sha}
+    ports: !reset []
+    restart: unless-stopped
+
+  worker:
+    build: !reset null
+    image: ghcr.io/pt-perkasa-pilar-utama/archiva-worker:${ARCHIVA_VERSION:?set ARCHIVA_VERSION to a git sha}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ARCHIVA_DOMAIN: ${ARCHIVA_DOMAIN:?set ARCHIVA_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web-dist:/srv:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+
+volumes:
+  caddydata:
+  caddyconfig:

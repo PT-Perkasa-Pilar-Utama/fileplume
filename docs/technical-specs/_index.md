@@ -60,7 +60,7 @@ Documents 12 and 13 are ad-hoc specifications for cross-cutting concerns. Each i
 | Coding standard | [../CODING_STANDARD.md](../CODING_STANDARD.md) | Written |
 | Code review checklist | [../CODE_REVIEW_CHECKLIST.md](../CODE_REVIEW_CHECKLIST.md) | Written |
 | Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Written |
-| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Not yet written |
+| Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Written |
 
 ## Next step in the pipeline
 

@@ -1,0 +1,43 @@
+# Archiva reverse proxy and static SPA host.
+# Automatic TLS via Let's Encrypt. See docs/DEPLOYMENT_PLAN.md section 7.
+#
+# ARCHIVA_DOMAIN is supplied by compose from the environment file.
+
+{$ARCHIVA_DOMAIN} {
+	encode zstd gzip
+
+	# technical-specs/07-security.md 7.4. Caddy sets HSTS itself on TLS sites;
+	# the rest are declared here so a proxy misconfiguration cannot drop them.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; img-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'"
+		-Server
+	}
+
+	# The API is the only public entry point into the application.
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Liveness only. /health/ready is NOT exposed publicly: its per-dependency
+	# breakdown names internal topology. api-specs/10-system.md 10.1.
+	handle /health/live {
+		reverse_proxy api:3000
+	}
+
+	# Uploads stream and can be large; the body limit that matters is the
+	# tenant's max_file_size_mb, enforced in the application.
+	request_body {
+		max_size 210MB
+	}
+
+	# The built SPA. Client-side routing falls back to index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -61,6 +61,7 @@ Documents 12 and 13 are ad-hoc specifications for cross-cutting concerns. Each i
 | Code review checklist | [../CODE_REVIEW_CHECKLIST.md](../CODE_REVIEW_CHECKLIST.md) | Written |
 | Task breakdown | [../TASK_BREAKDOWN.md](../TASK_BREAKDOWN.md) | Written |
 | Deployment plan | [../DEPLOYMENT_PLAN.md](../DEPLOYMENT_PLAN.md) | Written |
+| Troubleshooting guide | [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md) | Living skeleton |
 
 ## Next step in the pipeline
 

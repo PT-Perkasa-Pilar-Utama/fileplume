@@ -26,7 +26,7 @@
     "complete-check": "bun run typecheck && bun run lint && bun run format:check && bun run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.12",
+    "@biomejs/biome": "2.5.13",
     "typescript": "7.0.2",
     "lefthook": "2.1.12",
     "@types/bun": "1.4.2"

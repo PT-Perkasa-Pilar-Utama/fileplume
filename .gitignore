@@ -9,5 +9,8 @@ coverage/
 bun.lock.tmp
 playwright-report/
 test-results/
+# Generated QA fixtures: 25 MB would bloat every clone, and a committed EICAR
+# file is quarantined on sight. Produced by scripts/generate_fixtures.ts.
+fixtures/generated/
 .turbo/
 *.tsbuildinfo

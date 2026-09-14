@@ -12,7 +12,9 @@ import { migrate } from "drizzle-orm/bun-sql/migrator";
  * Not exported past this module: only repository.test.ts uses it.
  */
 export async function startTestDatabase(): Promise<{ db: Db; stop: () => Promise<void> }> {
-  const container = await new PostgreSqlContainer("postgres:17").start();
+  const container = await new PostgreSqlContainer(
+    "postgres:17.2@sha256:3267c505060a0052e5aa6e5175a7b41ab6b04da2f8c4540fc6e98a37210aa2d3",
+  ).start();
   const sql = new SQL({ url: container.getConnectionUri() });
   const db: Db = drizzle({ client: sql });
 

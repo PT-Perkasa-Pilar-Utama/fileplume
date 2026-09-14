@@ -30,7 +30,7 @@ Five goals govern every design decision. They are the tie-breaker when two appro
 
 | Layer | Technology |
 |---|---|
-| Runtime | Bun 1.3.8 |
+| Runtime | Bun 1.4.2 |
 | Language | TypeScript 7.0.2, strict, ESM only |
 | API | Hono 4, Zod 4 validation, OpenAPI generated from the same schemas |
 | Frontend | React 19, Vite 8, TanStack Router and Query, Tailwind 4, shadcn/ui |
@@ -46,7 +46,7 @@ Full justification for every row, and what was deliberately rejected, is in [tec
 
 ## Quickstart
 
-Prerequisites: Bun 1.3.8, Docker with the compose plugin, Git.
+Prerequisites: Bun 1.4.2, Docker with the compose plugin, Git.
 
 ```bash
 # 1. Clone and install the workspace.

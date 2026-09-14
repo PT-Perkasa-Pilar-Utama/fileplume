@@ -9,6 +9,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # bun test starts a Testcontainers Postgres. A hang fails the job instead of
+    # holding a runner for six hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -22,6 +25,34 @@ jobs:
       - run: cp .env.example .env && bun run check:compose
       - run: bun test
       - run: bun run build
+
+  # technical-specs/04-tech-stack.md 4.7: e2e against a composed stack.
+  e2e:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: cp .env.example .env
+      # api and its dependency chain only. worker waits on ClamAV's first
+      # signature download, and no pipeline card is wired yet.
+      - run: docker compose up -d --build --wait api
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e --forbid-only
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7
+      - if: always()
+        run: docker compose down -v
 
   docs:
     runs-on: ubuntu-latest

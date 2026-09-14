@@ -11,19 +11,8 @@ import { createDrizzleTenancyRepository } from "./repository.ts";
  * proves the mock. This is the one thing the in-memory testing/ fixtures
  * cannot prove: that the reservation race is closed at the database, not
  * just in the in-memory model of it.
- *
- * SCAFFOLD: skipped, named TL-S0-08. The Postgres container starts and
- * passes its own health check (confirmed via `DEBUG=testcontainers*` and
- * Docker's own logs), but @testcontainers/postgresql's start() promise never
- * resolves back to the caller under Bun — reproduced across the default
- * named pipe, both Docker Desktop named-pipe endpoints, and a TCP daemon
- * connection, so this is a Bun/testcontainers compatibility gap, not a
- * Docker configuration issue. Unconfirmed whether it also hangs under Bun on
- * Linux CI. A hanging test blocks the whole run rather than failing one
- * check, so this stays skipped until TL-S0-08 confirms or fixes it on a real
- * CI runner.
  */
-describe.skip("createDrizzleTenancyRepository", () => {
+describe("createDrizzleTenancyRepository", () => {
   let db: Db;
   let stop: () => Promise<void>;
 

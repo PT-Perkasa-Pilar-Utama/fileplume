@@ -26,9 +26,10 @@ bun run scripts/check_module_boundaries.ts
 bun test
 bun run build
 bun run complete-check                   # typecheck, lint, format, test
+bun run test:e2e                         # Playwright, needs the compose stack up
 ```
 
-`complete-check` must pass before a PR is opened. CI runs all of the above plus the four Python document gates.
+`complete-check` must pass before a PR is opened. CI runs all of the above, Playwright against a composed stack, and the four Python document gates.
 
 ### 1.2 The two ad-hoc specs are single sources of truth
 

@@ -78,6 +78,7 @@
       "name": "@archiva/config",
       "version": "0.0.0",
       "dependencies": {
+        "@archiva/shared": "workspace:*",
         "zod": "4.6.2",
       },
     },

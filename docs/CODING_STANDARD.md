@@ -442,6 +442,5 @@ Recorded so a reviewer is not surprised, and so nobody cites a rule the code doe
 |---|---|---|
 | Five services are throwing `SCAFFOLD` stubs | `catalog`, `classification`, `enrichment`, `search`, `activity` | Their sprint cards |
 | Both seeds are throwing `SCAFFOLD` stubs | `packages/db/src/seeds/` | TL-S0-03 |
-| Only `tenancy` and the enums have a Drizzle schema | `packages/db/src/schema/` | TL-S0-02 |
 | Route handlers return mocks, so 4.3 is not yet exercised | `apps/api/src/routes/` | Each sprint's backend cards |
 | `.env.example` sync is a manual check, not a CI gate | 9.2 | Unscheduled, raise if it bites |

@@ -140,11 +140,9 @@ Each needs a decision or an amendment before the affected operation is built. Fu
 | # | Item | Blocks | Amend |
 |---|---|---|---|
 | 1 | AC-43.03 and AC-43.04 say status 403; the security spec says 404 for cross-tenant ids | [05 5.5](05-documents.md), [05 5.9](05-documents.md) | `../business/acceptance-criteria-breakdown/acceptance-criteria-sprint-1.md` |
-| 2 | `audit_action` has no member for a denied route access. AC-41.05 asserts one is written. | Every guarded operation | `../technical-specs/06-data-model.md` 6.9 |
-| 3 | `audit_action` has no member for a search. AC-12.02 needs search volume and zero-result rate. | [08 8.1](08-search.md), [09 9.3](09-activity.md) | `../technical-specs/06-data-model.md` 6.9 |
-| 4 | `tenancy.setConfigValue` has no reset path; AC-42.05 requires one | [04 4.4](04-configuration.md) | `../technical-specs/05-module-definitions.md` 5.1 |
-| 5 | No address is defined for a tenant-less Super Admin principal. This set reserves the `admin` subdomain. | [03](03-tenants.md) | `../technical-specs/09-authentication-authorization.md` 9.4 |
-| 6 | AC-42.01 lists storage quota on the Configuration page without a read-only marker | [04 4.2](04-configuration.md) | Already flagged in `../technical-specs/01-overview.md` 1.7 item 11 |
+| 2 | `tenancy.setConfigValue` has no reset path; AC-42.05 requires one | [04 4.4](04-configuration.md) | `../technical-specs/05-module-definitions.md` 5.1 |
+| 3 | No address is defined for a tenant-less Super Admin principal. This set reserves the `admin` subdomain. | [03](03-tenants.md) | `../technical-specs/09-authentication-authorization.md` 9.4 |
+| 4 | AC-42.01 lists storage quota on the Configuration page without a read-only marker | [04 4.2](04-configuration.md) | Already flagged in `../technical-specs/01-overview.md` 1.7 item 11 |
 
 ## Companion documents
 

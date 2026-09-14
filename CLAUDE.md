@@ -344,7 +344,6 @@ Do not follow a step that cannot work. Each names what clears it.
 
 | Limitation | Cleared by |
 |---|---|
-| Both seeds throw `SCAFFOLD`; `db:seed:*` fails | `TL-S0-03` |
 | Five services are throwing stubs; routes return mocks | Their sprint cards |
 | No e2e specs written | Each wiring card writes its own |
 | Branch protection unavailable | A paid GitHub plan |

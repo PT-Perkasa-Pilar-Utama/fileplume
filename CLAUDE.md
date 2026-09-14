@@ -345,7 +345,7 @@ Do not follow a step that cannot work. Each names what clears it.
 | Limitation | Cleared by |
 |---|---|
 | Five services are throwing stubs; routes return mocks | Their sprint cards |
-| No e2e specs written | Each wiring card writes its own |
+| No acceptance-criterion e2e specs; `e2e/` holds only the stack smoke spec | Each wiring card writes its own `*.e2e.ts` |
 | Branch protection unavailable | A paid GitHub plan |
 
 ---

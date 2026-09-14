@@ -1,14 +1,36 @@
 import { describe, expect, test } from "bun:test";
-import type { Config } from "@archiva/config";
-import { BASE_CONFIG, buildTestApp, errorOf, TOKENS, tenantRequest } from "./testing/test-app.ts";
+import { parseConfig } from "@archiva/config";
+import { buildTestApp, errorOf, TOKENS, tenantRequest } from "./testing/test-app.ts";
 
-const productionConfig: Config = {
-  ...BASE_CONFIG,
+// Parsed, not hand-built: the app under test gets a config the production
+// loader accepts, so a schema refinement cannot drift out from under the gate.
+const parsedProductionConfig = parseConfig({
   APP_ENV: "production",
-  ENABLE_RESET_API: undefined,
-  RESET_API_TOKEN: undefined,
-  RESET_DEFAULT_SEED: undefined,
-};
+  WEB_ORIGIN: "https://app.archiva.test",
+  TENANT_BASE_HOST: "archiva.test",
+  DATABASE_URL: "postgres://archiva:archiva@localhost:5432/archiva",
+  VALKEY_URL: "redis://localhost:6379",
+  OPENSEARCH_URL: "http://localhost:9200",
+  OPENSEARCH_USERNAME: "admin",
+  OPENSEARCH_PASSWORD: "secret",
+  OPENSEARCH_INDEX_PREFIX: "archiva",
+  S3_ENDPOINT: "http://localhost:9000",
+  S3_REGION: "us-east-1",
+  S3_BUCKET: "archiva",
+  S3_ACCESS_KEY_ID: "archiva",
+  S3_SECRET_ACCESS_KEY: "archiva-secret",
+  CLAMAV_HOST: "localhost",
+  GOTENBERG_URL: "http://localhost:3001",
+  AI_PROVIDER: "anthropic",
+  AI_API_KEY: "sk-test",
+  OCR_PROVIDER: "fixture",
+  AUTH_SECRET: "0123456789abcdef0123456789abcdef",
+  HEALTH_TOKEN: "prod-health-token",
+});
+if (!parsedProductionConfig.ok) {
+  throw new Error(`production fixture refused: ${parsedProductionConfig.error.join("; ")}`);
+}
+const productionConfig = parsedProductionConfig.value;
 
 describe("reset-state route registration", () => {
   test("is reachable outside production", async () => {

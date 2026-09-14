@@ -264,5 +264,5 @@ These block some steps above today. Each names what clears it.
 | Both seeds throw `SCAFFOLD` | `db:seed:*`, so no e2e against real data | `TL-S0-03` |
 | No migrations generated | `db:migrate` applies nothing | `TL-S0-02` |
 | Only `tenancy` is modelled | Any card needing another table | `TL-S0-02` |
-| No e2e specs written yet | Wiring card exit criteria | Each wiring card writes its own |
+| No acceptance-criterion e2e specs yet; `e2e/` holds only the stack smoke spec | Wiring card exit criteria | Each wiring card writes its own `*.e2e.ts` |
 | Branch protection unavailable | The one-review rule is convention | A paid GitHub plan |

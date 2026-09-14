@@ -20,8 +20,8 @@ env:
   OWNER: pt-perkasa-pilar-utama
 
 jobs:
-  # The quality gate runs again here. A publishable image is one that passed
-  # the same checks a PR passes, on the exact commit being published.
+  # complete-check and the boundary check run again on the exact commit being
+  # published. The e2e job runs on the PR only.
   verify:
     runs-on: ubuntu-latest
     steps:

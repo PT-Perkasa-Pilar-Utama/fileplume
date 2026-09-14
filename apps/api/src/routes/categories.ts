@@ -1,20 +1,19 @@
 import { one } from "@archiva/shared";
-import { Hono } from "hono";
-import type { AppEnv } from "../middleware/context.ts";
-import { requireRole } from "../middleware/guards.ts";
+import {
+  createCategory,
+  listCategories,
+  renameCategory,
+  setDownloadPermission,
+} from "./definitions/categories.ts";
 import { listOf, MOCK_CATEGORY } from "./mocks.ts";
+import { createRouter } from "./router.ts";
 
 /** api-specs/06-categories.md. Cards BE-S3-03, BE-S5-03, FE-S3-02, FE-S5-03. */
-export const categoryRoutes = new Hono<AppEnv>()
-  // 6.2
-  .get("/", requireRole("member"), (c) => c.json(listOf(MOCK_CATEGORY)))
+export const categoryRoutes = createRouter()
+  .openapi(listCategories, (c) => c.json(listOf(MOCK_CATEGORY), 200))
   // 6.3, a new category is always Inactive
-  .post("/", requireRole("head_of_team"), (c) =>
-    c.json(one({ ...MOCK_CATEGORY, downloadActive: false }), 201),
-  )
-  // 6.4
-  .patch("/:id", requireRole("head_of_team"), (c) => c.json(one(MOCK_CATEGORY)))
-  // 6.5
-  .put("/:id/download-permission", requireRole("head_of_team"), (c) =>
-    c.json(one({ ...MOCK_CATEGORY, downloadActive: true })),
+  .openapi(createCategory, (c) => c.json(one({ ...MOCK_CATEGORY, downloadActive: false }), 201))
+  .openapi(renameCategory, (c) => c.json(one(MOCK_CATEGORY), 200))
+  .openapi(setDownloadPermission, (c) =>
+    c.json(one({ ...MOCK_CATEGORY, downloadActive: c.req.valid("json").downloadActive }), 200),
   );

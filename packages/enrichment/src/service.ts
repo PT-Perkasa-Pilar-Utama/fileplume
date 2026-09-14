@@ -1,17 +1,17 @@
-import type { DocumentId, Result, TenantId, UserId } from "@archiva/shared";
+import type {
+  DocumentId,
+  FailureReason,
+  ProcessingState,
+  Result,
+  TenantId,
+  UserId,
+} from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { AiProvider, JobQueue, MalwareScanner, TextExtractor } from "./ports.ts";
 import type { EnrichmentRepository } from "./repository.ts";
 
-/** technical-specs/12-document-processing-pipeline.md 12.1. Nothing else exists. */
-export type ProcessingState = "queued" | "processing" | "ready" | "failed";
-
-export type FailureReason =
-  | "password_protected"
-  | "unreadable_content"
-  | "extraction_timeout"
-  | "ai_unavailable"
-  | "index_failed";
+/** technical-specs/12-document-processing-pipeline.md 12.1. Declared once, in @archiva/shared. */
+export type { FailureReason, ProcessingState };
 
 /** Fixed, not configurable. Scanning first is a security property. */
 export const STAGES = ["scan", "extract", "classify", "index"] as const;

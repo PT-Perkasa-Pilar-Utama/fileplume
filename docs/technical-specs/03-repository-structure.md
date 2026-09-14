@@ -38,6 +38,7 @@ archiva/
 │   │   │   ├── schema/          One file per module's tables
 │   │   │   ├── migrations/      drizzle-kit output, resolved via import.meta.dir
 │   │   │   ├── seeds/           dev.ts and qa.ts, both idempotent
+│   │   │   │   └── internal/    Seed datasets, writers, and stable-key derivation
 │   │   │   ├── client.ts        Connection from DATABASE_URL
 │   │   │   └── migrate.ts       Migration runner, see 06-data-model.md 6.8
 │   │   └── drizzle.config.ts
@@ -56,7 +57,10 @@ archiva/
 │   ├── check_index.py           Verifies a numbered spec set matches disk
 │   ├── check_ac_refs.py         Verifies every AC a task card cites exists
 │   ├── recompute_summary.py     Recomputes the task board Summary table
-│   └── check_module_boundaries.ts  Fails on a cross-internal import
+│   ├── check_module_boundaries.ts  Fails on a cross-internal import
+│   └── generate_fixtures.ts     Writes the QA fixture files
+├── fixtures/                    Files the criteria name, uploaded by tests, never seeded
+│   └── generated/               25 MB and EICAR fixtures. Gitignored, see fixtures/README.md
 ├── docs/                        business/, technical-specs/, api-specs/, grooming/
 ├── compose.yaml                 Dev and on-premises topology
 ├── compose.prod.yaml            Production overlay

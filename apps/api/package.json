@@ -19,6 +19,6 @@
     "@archiva/activity": "workspace:*",
     "@archiva/platform": "workspace:*",
     "hono": "4.13.7",
-    "zod": "4.6.1"
+    "zod": "4.6.2"
   }
 }

@@ -1,3 +1,5 @@
+import { page } from "@archiva/shared";
+
 /**
  * Typed mock constants. Every stub returns a contract-valid response matching
  * docs/api-specs/, so the frontend integrates from day one and no one is
@@ -74,5 +76,4 @@ export const MOCK_DOCUMENT_DETAIL = {
 
 export const MOCK_META = { page: 1, limit: 10, total: 1, totalPages: 1 };
 
-export const listOf = <T>(item: T) => ({ data: [item], meta: MOCK_META });
-export const one = <T>(item: T) => ({ data: item });
+export const listOf = <T>(item: T) => page([item], MOCK_META);

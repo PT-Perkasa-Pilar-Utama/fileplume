@@ -18,7 +18,11 @@ export type ConfigKey = keyof typeof CONFIG_KEYS;
 
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
 
+export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
+
 export interface TenancyService {
+  /** Step 1 of api-specs/01-conventions.md 1.12. Subdomains are citext, so case never matters. */
+  resolveTenant(subdomain: string): Promise<Tenant | null>;
   getConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number>;
   setConfigValue(
     tenantId: TenantId,
@@ -50,6 +54,8 @@ export function createTenancyService(deps: {
   const { repository } = deps;
 
   return {
+    resolveTenant: (subdomain) => repository.findTenantBySubdomain(subdomain),
+
     async getConfigValue(tenantId, key) {
       const stored = await repository.findConfigValue(tenantId, key);
       return stored ?? CONFIG_KEYS[key].default;

@@ -1,6 +1,6 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import type { TenancyRepository } from "../repository.ts";
-import type { ConfigKey, QuotaReservation } from "../service.ts";
+import type { ConfigKey, QuotaReservation, Tenant } from "../service.ts";
 
 /**
  * Ships with the module so every module is importable in a test with no
@@ -8,8 +8,9 @@ import type { ConfigKey, QuotaReservation } from "../service.ts";
  * technical-specs/03-repository-structure.md 3.3.
  */
 export function inMemoryTenancyRepository(
-  initial: { quotaBytes?: number; usedBytes?: number } = {},
+  initial: { quotaBytes?: number; usedBytes?: number; tenants?: Tenant[] } = {},
 ): TenancyRepository & { reservations: QuotaReservation[] } {
+  const tenants = initial.tenants ?? [];
   const config = new Map<string, number>();
   const reservations: QuotaReservation[] = [];
   let usedBytes = initial.usedBytes ?? 0;
@@ -18,6 +19,10 @@ export function inMemoryTenancyRepository(
 
   return {
     reservations,
+    async findTenantBySubdomain(subdomain) {
+      const wanted = subdomain.toLowerCase();
+      return tenants.find((tenant) => tenant.subdomain.toLowerCase() === wanted) ?? null;
+    },
     async findConfigValue(t, k) {
       return config.get(key(t, k)) ?? null;
     },

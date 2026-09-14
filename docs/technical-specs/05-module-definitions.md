@@ -59,7 +59,7 @@ type Role = "member" | "head_of_team" | "admin_tenant" | "super_admin"
 authenticate(email: string, password: string): Promise<Result<Session, InvalidCredentials>>
 resolveSession(cookie: string): Promise<Result<Principal, SessionExpired | SessionRevoked>>
 endSession(sessionId): Promise<void>
-requireRole(floor: Role): MiddlewareHandler
+requireRole(floor: Role | "authenticated"): MiddlewareHandler  // served by apps/api, which owns Hono
 hasRoleAtLeast(principal: Principal, floor: Role): boolean
 ```
 

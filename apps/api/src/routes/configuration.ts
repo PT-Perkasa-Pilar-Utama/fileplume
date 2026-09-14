@@ -1,8 +1,8 @@
+import { one } from "@archiva/shared";
 import { CONFIG_KEYS } from "@archiva/tenancy";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { requireRole } from "../middleware/guards.ts";
-import { one } from "./mocks.ts";
 
 const LABELS: Record<keyof typeof CONFIG_KEYS, string> = {
   max_file_size_mb: "Max File Size",

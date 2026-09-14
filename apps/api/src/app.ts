@@ -2,24 +2,45 @@ import type { Config } from "@archiva/config";
 import type { DependencyProbe } from "@archiva/platform";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { secureHeaders } from "hono/secure-headers";
 import type { AppEnv } from "./middleware/context.ts";
-import { errorHandler } from "./middleware/errors.ts";
-import { resolveTenantAndSession } from "./middleware/guards.ts";
+import { errorHandler, notFound } from "./middleware/errors.ts";
+import { jsonBodyLimit, originCheck, securityHeaders } from "./middleware/hardening.ts";
+import {
+  mountRateLimits,
+  type RateLimitStoreFactory,
+  resetStateLimit,
+} from "./middleware/rate-limits.ts";
+import { type RequestContextDeps, requestContext } from "./middleware/request-context.ts";
 import { activityRoutesMount } from "./routes/index.ts";
 import { healthRoutes, resetStateRoutes } from "./routes/system.ts";
 
-export function createApp(config: Config, probes: DependencyProbe[] = []) {
+export type AppDeps = Pick<RequestContextDeps, "tenancy" | "identity"> & {
+  rateLimitStores: RateLimitStoreFactory;
+  probes: DependencyProbe[];
+};
+
+export function createApp(config: Config, deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   app.onError(errorHandler);
-  app.use("*", secureHeaders());
+  app.notFound(notFound);
+  app.use("*", securityHeaders());
   app.use("/api/*", cors({ origin: config.WEB_ORIGIN, credentials: true }));
+  app.use("/api/*", originCheck(config.WEB_ORIGIN));
+  app.use("/api/*", jsonBodyLimit());
 
-  app.route("/health", healthRoutes(config, probes));
+  app.route("/health", healthRoutes(config, deps.probes));
 
   const api = new Hono<AppEnv>();
-  api.use("*", resolveTenantAndSession);
+  api.use(
+    "*",
+    requestContext({
+      tenancy: deps.tenancy,
+      identity: deps.identity,
+      baseHost: config.TENANT_BASE_HOST,
+    }),
+  );
+  mountRateLimits(api, deps.rateLimitStores);
   activityRoutesMount(api);
   app.route("/api/v1", api);
 
@@ -30,6 +51,7 @@ export function createApp(config: Config, probes: DependencyProbe[] = []) {
    * as any unknown URL.
    */
   if (config.APP_ENV !== "production" && config.ENABLE_RESET_API) {
+    app.post("/admin/reset-state", resetStateLimit(deps.rateLimitStores));
     app.route("/admin", resetStateRoutes(config));
   }
 

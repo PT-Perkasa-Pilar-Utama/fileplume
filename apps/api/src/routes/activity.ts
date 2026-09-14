@@ -1,7 +1,8 @@
+import { one } from "@archiva/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { requireRole } from "../middleware/guards.ts";
-import { MOCK_META, one } from "./mocks.ts";
+import { MOCK_META } from "./mocks.ts";
 
 const AUDIT_ROW = {
   id: "10241",

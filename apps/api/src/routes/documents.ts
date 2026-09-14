@@ -1,7 +1,8 @@
+import { one } from "@archiva/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { requireRole } from "../middleware/guards.ts";
-import { listOf, MOCK_DOCUMENT, MOCK_DOCUMENT_DETAIL, MOCK_VERSION, one } from "./mocks.ts";
+import { listOf, MOCK_DOCUMENT, MOCK_DOCUMENT_DETAIL, MOCK_VERSION } from "./mocks.ts";
 
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
 export const documentRoutes = new Hono<AppEnv>()

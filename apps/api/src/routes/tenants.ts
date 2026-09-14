@@ -1,7 +1,8 @@
+import { one } from "@archiva/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { requireRole } from "../middleware/guards.ts";
-import { listOf, one } from "./mocks.ts";
+import { listOf } from "./mocks.ts";
 
 const MOCK_TENANT_ROW = {
   id: "1a2b3c4d-5e6f-4071-8a9b-0c1d2e3f4a5b",

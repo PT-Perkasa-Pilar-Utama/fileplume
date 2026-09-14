@@ -1,6 +1,11 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-/** technical-specs/06-data-model.md 6.1: native enums, mirrored in packages/shared. */
+/**
+ * technical-specs/06-data-model.md 6.1: native enums, mirrored as TS unions in
+ * each owning module's service.ts (e.g. enrichment.ProcessingState). Role is
+ * the exception: it lives in packages/shared/roles.ts since apps/web needs it
+ * without depending on this package.
+ */
 export const tenantStatus = pgEnum("tenant_status", ["active", "suspended"]);
 
 export const configKey = pgEnum("config_key", [
@@ -44,10 +49,7 @@ export const aiField = pgEnum("ai_field", [
 
 export const auditOutcome = pgEnum("audit_outcome", ["allowed", "denied"]);
 
-/**
- * The last two members are additions required by AC-41.05 and AC-12.02.
- * See api-specs/_index.md open items 2 and 3, and TL-S0-02.
- */
+/** `access.denied` and `search.performed` were additions required by AC-41.05 and AC-12.02 respectively, closed by TL-S0-02. */
 export const auditAction = pgEnum("audit_action", [
   "document.upload",
   "document.download",

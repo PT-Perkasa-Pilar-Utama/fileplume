@@ -20,6 +20,12 @@ export const MAX_TAGS = 3;
 
 export type AiField = "category" | "document_type" | "tag" | "author" | "extracted_field";
 
+/** technical-specs/06-data-model.md 6.8: document_text.extraction_method. */
+export type ExtractionMethod = "native" | "ocr" | "mixed";
+
+/** technical-specs/06-data-model.md 6.8: document_tags.source. */
+export type TagSource = "ai" | "user";
+
 /** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
 export const STATE_LABEL: Record<ProcessingState, string> = {
   queued: "Antre",

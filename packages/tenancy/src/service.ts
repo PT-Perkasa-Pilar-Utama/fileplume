@@ -4,6 +4,9 @@ import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
 
+/** technical-specs/06-data-model.md 6.3. */
+export type TenantStatus = "active" | "suspended";
+
 /** technical-specs/06-data-model.md 6.3. A closed union, never a free string. */
 export const CONFIG_KEYS = {
   max_file_size_mb: { default: 20, min: 1, max: 200, unit: "MB", tenantEditable: true },

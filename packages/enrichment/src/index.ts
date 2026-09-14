@@ -4,8 +4,10 @@ export type { EnrichmentRepository } from "./repository.ts";
 export type {
   AiField,
   EnrichmentService,
+  ExtractionMethod,
   FailureReason,
   ProcessingState,
+  TagSource,
 } from "./service.ts";
 export {
   canTransition,

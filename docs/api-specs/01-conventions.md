@@ -249,8 +249,6 @@ Recorded here rather than resolved silently. Each needs an amendment to the sour
 |---|---|---|---|---|
 | Cross-tenant document detail | AC-43.03: status 403 | `404` | Existence must not leak across a tenant boundary | `docs/business/` AC-43.03 |
 | Cross-tenant download | AC-43.04: status 403 | `404` | Same | `docs/business/` AC-43.04 |
-| Denied admin route audit | AC-41.05: recorded in the audit log | Requires a new `access.denied` action | `audit_action` is a closed enum with no member for it | `../technical-specs/06-data-model.md` 6.9 |
-| Search analytics | AC-12.02: search volume and zero-result rate | Requires a new `search.performed` action | Same, and analytics reads rollups fed from the ledger | `../technical-specs/06-data-model.md` 6.9 |
 | Configuration reset to default | AC-42.05 | `DELETE /configuration/:key` | `tenancy.setConfigValue` has no reset path | `../technical-specs/05-module-definitions.md` 5.1 |
 | Super Admin address | Not stated | Reserved subdomain `admin` | Tenant resolution needs an address for a tenant-less principal | `../technical-specs/09-authentication-authorization.md` 9.4 |
 

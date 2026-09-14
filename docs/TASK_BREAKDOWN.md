@@ -36,7 +36,6 @@ Sprint 0 produces a scaffold with the API contract stable. From Sprint 1 onward,
 
 | Item | Effect | Source |
 |---|---|---|
-| `audit_action` has no `access.denied` or `search.performed` member | `TL-S0-02` adds both to the enum. Without them AC-41.05 and AC-12.02 cannot pass. | [api-specs/_index.md](api-specs/_index.md) open items 2 and 3 |
 | AC-43.03 and AC-43.04 say 403; the security spec says 404 | Cards implement 404 and the AC text needs amending. Raise via `/grooming`. | [api-specs/01-conventions.md](api-specs/01-conventions.md) 1.13 |
 | AC-43.02 is a Sprint 1 criterion that needs search | Deferred to `BE-S4-07`, which proves it once the index exists. Flagged rather than moved silently. | [business/sprint-breakdown.md](business/sprint-breakdown.md) |
 | No AC covers user administration | Users are created by an administrator ([technical-specs/09-authentication-authorization.md](technical-specs/09-authentication-authorization.md) 9.5) but no story covers the screen. Seeds cover it for release 1. Raise via `/grooming` if a UI is expected. | |

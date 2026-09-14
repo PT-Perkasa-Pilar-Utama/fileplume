@@ -345,8 +345,6 @@ Do not follow a step that cannot work. Each names what clears it.
 | Limitation | Cleared by |
 |---|---|
 | Both seeds throw `SCAFFOLD`; `db:seed:*` fails | `TL-S0-03` |
-| No migrations generated; `db:migrate` applies nothing | `TL-S0-02` |
-| Only `tenancy` and the enums are modelled | `TL-S0-02` |
 | Five services are throwing stubs; routes return mocks | Their sprint cards |
 | No e2e specs written | Each wiring card writes its own |
 | Branch protection unavailable | A paid GitHub plan |

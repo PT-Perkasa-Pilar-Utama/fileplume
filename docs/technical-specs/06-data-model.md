@@ -295,7 +295,7 @@ This table is the AI accuracy metric in AC-12.03. Without `original_value` the o
 | metadata | jsonb | yes | | |
 | created_at | timestamptz | no | now() | IDX |
 
-`audit_action` in release 1: `document.upload`, `document.download`, `document.download_bulk`, `document.preview`, `document.delete`, `document.version_add`, `category.create`, `category.permission_change`, `config.change`, `ai.override`, `auth.login`, `auth.logout`, `auth.login_failed`, `admin.reset_state`, `malware.detected`.
+`audit_action` in release 1: `document.upload`, `document.download`, `document.download_bulk`, `document.preview`, `document.delete`, `document.version_add`, `category.create`, `category.permission_change`, `config.change`, `ai.override`, `auth.login`, `auth.logout`, `auth.login_failed`, `admin.reset_state`, `malware.detected`, `tenant.create`, `access.denied`, `search.performed`.
 
 ### ANALYTICS_ROLLUPS
 

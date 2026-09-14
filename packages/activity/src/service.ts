@@ -3,8 +3,7 @@ import type { Clock } from "./ports.ts";
 import type { ActivityRepository } from "./repository.ts";
 
 /**
- * technical-specs/06-data-model.md 6.9, plus the two additions flagged in
- * api-specs/_index.md open items 2 and 3. One generic shape from day one, so
+ * technical-specs/06-data-model.md 6.9. One generic shape from day one, so
  * adding an action costs a union member rather than a migration.
  */
 export const AUDIT_ACTIONS = [
@@ -30,6 +29,19 @@ export const AUDIT_ACTIONS = [
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export type AuditOutcome = "allowed" | "denied";
+
+/** technical-specs/06-data-model.md 6.9: analytics_rollups.metric. */
+export const ANALYTICS_METRICS = [
+  "documents_total",
+  "documents_uploaded",
+  "searches_performed",
+  "searches_zero_result",
+  "documents_opened",
+  "category_overrides",
+  "field_overrides",
+] as const;
+
+export type AnalyticsMetric = (typeof ANALYTICS_METRICS)[number];
 
 export type AuditEvent = {
   tenantId: TenantId;

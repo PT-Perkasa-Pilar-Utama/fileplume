@@ -45,7 +45,7 @@ const base: Config = {
 const productionConfig: Config = {
   ...base,
   APP_ENV: "production",
-  ENABLE_RESET_API: false,
+  ENABLE_RESET_API: undefined,
   RESET_API_TOKEN: undefined,
   RESET_DEFAULT_SEED: undefined,
 } as Config;

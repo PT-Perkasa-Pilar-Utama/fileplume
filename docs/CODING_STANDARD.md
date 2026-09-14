@@ -310,7 +310,7 @@ const config = loadConfig();
 
 ### 9.2 A new variable touches three places in one commit
 
-The Zod schema, `.env.example`, and `technical-specs/11-environment-configuration.md`. Not yet tool-enforced; a reviewer checks this by hand.
+The Zod schema, `.env.example`, and `technical-specs/11-environment-configuration.md`. **(enforced)** for `.env.example` by `packages/config/src/env-example.test.ts`, which fails when a schema key is missing from it. The spec table is still checked by hand.
 
 ### 9.3 No secret in the repository, no secret in an image
 
@@ -442,4 +442,3 @@ Recorded so a reviewer is not surprised, and so nobody cites a rule the code doe
 |---|---|---|
 | Five services are throwing `SCAFFOLD` stubs | `catalog`, `classification`, `enrichment`, `search`, `activity` | Their sprint cards |
 | Route handlers return mocks, so 4.3 is not yet exercised | `apps/api/src/routes/` | Each sprint's backend cards |
-| `.env.example` sync is a manual check, not a CI gate | 9.2 | Unscheduled, raise if it bites |

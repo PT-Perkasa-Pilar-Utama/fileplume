@@ -9,7 +9,7 @@ import type { Role } from "@archiva/shared";
 import { asSessionId, asTenantId, asUserId } from "@archiva/shared";
 import type { Tenant } from "@archiva/tenancy";
 import { createTenancyService, inMemoryTenancyRepository } from "@archiva/tenancy";
-import type { Hono } from "hono";
+import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
 import { createApp } from "../app.ts";
 import type { AppEnv } from "../middleware/context.ts";
@@ -99,7 +99,7 @@ function seeded(token: string, role: Role, tenant: Tenant | null, lastSeenAt = N
 }
 
 /** A fresh app per call, so limiter windows never leak between tests. */
-export function buildTestApp(config: Config = BASE_CONFIG): Hono<AppEnv> {
+export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
     repository: inMemoryTenancyRepository({ tenants: [TENANT_A, TENANT_B] }),

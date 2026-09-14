@@ -1,18 +1,26 @@
-import type { Result, TenantId, UserId } from "@archiva/shared";
+import type { ConfigKeyName, Result, TenantId, TenantStatus, UserId } from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
 
-/** technical-specs/06-data-model.md 6.3. */
-export type TenantStatus = "active" | "suspended";
+/** technical-specs/06-data-model.md 6.3. Declared once, in @archiva/shared. */
+export type { TenantStatus };
 
-/** technical-specs/06-data-model.md 6.3. A closed union, never a free string. */
+type ConfigKeySpec = {
+  default: number;
+  min: number;
+  max: number;
+  unit: string;
+  tenantEditable: boolean;
+};
+
+/** technical-specs/06-data-model.md 6.3. Keyed by the shared closed union, so a missing key fails to compile. */
 export const CONFIG_KEYS = {
   max_file_size_mb: { default: 20, min: 1, max: 200, unit: "MB", tenantEditable: true },
   pending_confirmation_days: { default: 7, min: 1, max: 90, unit: "hari", tenantEditable: true },
   storage_quota_gb: { default: 50, min: 1, max: 10000, unit: "GB", tenantEditable: false },
-} as const;
+} as const satisfies Record<ConfigKeyName, ConfigKeySpec>;
 
 export type ConfigKey = keyof typeof CONFIG_KEYS;
 

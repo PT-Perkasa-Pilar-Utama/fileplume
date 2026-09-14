@@ -14,6 +14,7 @@ export const ERROR_MESSAGES = {
   INTERNAL_ERROR: "Terjadi kesalahan pada sistem",
   SERVICE_UNAVAILABLE: "Layanan sedang tidak tersedia",
   UNSUPPORTED_TYPE: "Tipe file tidak didukung. Tipe yang diterima: PDF, DOCX, XLSX, TXT",
+  FILE_TOO_LARGE: "Ukuran file melebihi batas {n} MB",
   BATCH_TOO_LARGE: "Maksimal 20 file per unggahan",
   QUOTA_EXCEEDED: "Kapasitas penyimpanan penuh",
   DUPLICATE_CONTENT: "File ini sudah ada di sistem",
@@ -26,6 +27,7 @@ export const ERROR_MESSAGES = {
   QUERY_TOO_SHORT: "Masukkan minimal 2 karakter untuk mencari",
   DUPLICATE_NAME: "Kategori dengan nama tersebut sudah ada",
   INVALID_CONFIG_VALUE: "Nilai harus berupa angka",
+  VALUE_OUT_OF_RANGE: "Nilai harus antara {min} dan {max} {unit}",
   NOT_EDITABLE_BY_TENANT: "Parameter ini hanya dapat diubah oleh Super Admin",
   SYSTEM_CATEGORY_IMMUTABLE: "Kategori sistem tidak dapat diubah",
   TOO_MANY_TAGS: "Maksimal 3 tag per dokumen",
@@ -49,6 +51,7 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   INTERNAL_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
   UNSUPPORTED_TYPE: 422,
+  FILE_TOO_LARGE: 422,
   BATCH_TOO_LARGE: 422,
   QUOTA_EXCEEDED: 422,
   DUPLICATE_CONTENT: 409,
@@ -61,6 +64,7 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   QUERY_TOO_SHORT: 422,
   DUPLICATE_NAME: 409,
   INVALID_CONFIG_VALUE: 422,
+  VALUE_OUT_OF_RANGE: 422,
   NOT_EDITABLE_BY_TENANT: 403,
   SYSTEM_CATEGORY_IMMUTABLE: 422,
   TOO_MANY_TAGS: 422,
@@ -69,13 +73,28 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   SUBDOMAIN_TAKEN: 409,
 };
 
+/**
+ * Fills `{name}` placeholders from the AC's interpolated messages. A missing
+ * value throws, because a raw brace on the wire is a contract violation.
+ */
+export function formatErrorMessage(
+  code: ErrorCode,
+  params: Readonly<Record<string, string | number>> = {},
+): string {
+  return ERROR_MESSAGES[code].replace(/\{(\w+)\}/g, (_, name: string) => {
+    const value = params[name];
+    if (value === undefined) throw new Error(`${code} message needs {${name}}`);
+    return String(value);
+  });
+}
+
 export class AppError extends Error {
   constructor(
     readonly code: ErrorCode,
     readonly details?: ErrorDetail[],
     message?: string,
   ) {
-    super(message ?? ERROR_MESSAGES[code]);
+    super(message ?? formatErrorMessage(code));
     this.name = "AppError";
   }
   get status(): number {

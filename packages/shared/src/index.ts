@@ -1,3 +1,4 @@
+export * from "./contracts/index.ts";
 export * from "./envelope.ts";
 export * from "./errors.ts";
 export * from "./ids.ts";

@@ -1,6 +1,6 @@
 import type { Config } from "@archiva/config";
 import type { DependencyProbe } from "@archiva/platform";
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import type { AppEnv } from "./middleware/context.ts";
 import { errorHandler, notFound } from "./middleware/errors.ts";
@@ -11,7 +11,9 @@ import {
   resetStateLimit,
 } from "./middleware/rate-limits.ts";
 import { type RequestContextDeps, requestContext } from "./middleware/request-context.ts";
+import { registerSecuritySchemes } from "./openapi.ts";
 import { activityRoutesMount } from "./routes/index.ts";
+import { createRouter } from "./routes/router.ts";
 import { healthRoutes, resetStateRoutes } from "./routes/system.ts";
 
 export type AppDeps = Pick<RequestContextDeps, "tenancy" | "identity"> & {
@@ -19,8 +21,8 @@ export type AppDeps = Pick<RequestContextDeps, "tenancy" | "identity"> & {
   probes: DependencyProbe[];
 };
 
-export function createApp(config: Config, deps: AppDeps): Hono<AppEnv> {
-  const app = new Hono<AppEnv>();
+export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
+  const app = new OpenAPIHono<AppEnv>();
 
   app.onError(errorHandler);
   app.notFound(notFound);
@@ -31,7 +33,7 @@ export function createApp(config: Config, deps: AppDeps): Hono<AppEnv> {
 
   app.route("/health", healthRoutes(config, deps.probes));
 
-  const api = new Hono<AppEnv>();
+  const api = createRouter();
   api.use(
     "*",
     requestContext({
@@ -55,5 +57,6 @@ export function createApp(config: Config, deps: AppDeps): Hono<AppEnv> {
     app.route("/admin", resetStateRoutes(config));
   }
 
+  registerSecuritySchemes(app);
   return app;
 }

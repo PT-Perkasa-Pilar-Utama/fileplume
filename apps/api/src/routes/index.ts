@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppEnv } from "../middleware/context.ts";
 import { analyticsRoutes, auditRoutes } from "./activity.ts";
 import { authRoutes } from "./auth.ts";
@@ -10,7 +10,7 @@ import { tagRoutes } from "./tags.ts";
 import { tenantRoutes } from "./tenants.ts";
 
 /** Every resource file from docs/api-specs/, mounted under /api/v1. */
-export function activityRoutesMount(api: Hono<AppEnv>) {
+export function activityRoutesMount(api: OpenAPIHono<AppEnv>) {
   api.route("/auth", authRoutes);
   api.route("/tenants", tenantRoutes);
   api.route("/configuration", configurationRoutes);

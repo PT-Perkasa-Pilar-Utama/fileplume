@@ -12,7 +12,7 @@ test("liveness answers from the API container", async ({ request }) => {
 });
 
 test("an unseeded tenant subdomain is refused by the API, not the proxy", async ({ request }) => {
-  // The Host survives the proxy and the tenant lookup reaches real Postgres.
+  // The JSON envelope is the API's own 404, so the request crossed the preview proxy.
   const res = await request.get("/api/v1/auth/me");
   expect(res.status()).toBe(404);
   expect(res.headers()["content-type"]).toContain("application/json");

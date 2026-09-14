@@ -1,3 +1,4 @@
+import { loadConfig } from "@archiva/config";
 import { sql as connection, db } from "../client.ts";
 import { DEV_DOCUMENTS } from "./internal/dev-documents.ts";
 import {
@@ -5,10 +6,12 @@ import {
   DEV_CATEGORIES,
   DEV_CONFIG,
   DEV_PASSWORD,
+  DEV_SESSIONS,
   DEV_TENANT,
   DEV_USERS,
 } from "./internal/dev-tenant.ts";
 import { writeDocuments } from "./internal/write-documents.ts";
+import { writeSessions } from "./internal/write-sessions.ts";
 import { writeTenancy } from "./internal/write-tenancy.ts";
 
 /**
@@ -42,6 +45,12 @@ export async function seedDev(): Promise<void> {
       userIdByEmail: ids.userIdByEmail,
       categoryIdByName: ids.categoryIdByName,
       documents: DEV_DOCUMENTS,
+    });
+
+    await writeSessions(tx, {
+      sessions: DEV_SESSIONS,
+      userIdByEmail: ids.userIdByEmail,
+      absoluteTtlDays: loadConfig().SESSION_ABSOLUTE_TTL_DAYS,
     });
   });
 }

@@ -1,11 +1,13 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { TenantId, UserId } from "@archiva/shared";
+import { asTenantId } from "@archiva/shared";
 import { and, eq, gt, sql, sum } from "drizzle-orm";
-import type { ConfigKey, QuotaReservation } from "./service.ts";
+import type { ConfigKey, QuotaReservation, Tenant } from "./service.ts";
 
 /** Drizzle queries scoped to this module's own tables. */
 export interface TenancyRepository {
+  findTenantBySubdomain(subdomain: string): Promise<Tenant | null>;
   findConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number | null>;
   upsertConfigValue(t: TenantId, key: ConfigKey, value: number, actor: UserId): Promise<void>;
   deleteConfigValue(t: TenantId, key: ConfigKey, actor: UserId): Promise<void>;
@@ -29,6 +31,19 @@ const { tenants, tenantConfig, quotaReservations } = schema;
  */
 export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
   return {
+    async findTenantBySubdomain(subdomain) {
+      const [row] = await db
+        .select({
+          id: tenants.id,
+          name: tenants.name,
+          subdomain: tenants.subdomain,
+          status: tenants.status,
+        })
+        .from(tenants)
+        .where(eq(tenants.subdomain, subdomain));
+      return row ? { ...row, id: asTenantId(row.id) } : null;
+    },
+
     async findConfigValue(tenantId, key) {
       const [row] = await db
         .select({ value: tenantConfig.value })

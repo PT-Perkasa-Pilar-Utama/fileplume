@@ -1,7 +1,8 @@
+import { one } from "@archiva/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { requireRole } from "../middleware/guards.ts";
-import { listOf, MOCK_CATEGORY, one } from "./mocks.ts";
+import { listOf, MOCK_CATEGORY } from "./mocks.ts";
 
 /** api-specs/06-categories.md. Cards BE-S3-03, BE-S5-03, FE-S3-02, FE-S5-03. */
 export const categoryRoutes = new Hono<AppEnv>()

@@ -44,6 +44,20 @@ export const DEV_USERS: SeedUser[] = [
 
 export const DEV_ADMIN_EMAIL = "admin@archiva-demo.test";
 
+export type SeedSession = { email: string; token: string };
+
+/**
+ * One session per seeded user, so the SPA reaches guarded routes before
+ * BE-S1-02 ships login. Set the `__Host-archiva_session` cookie to a token at
+ * http://archiva-demo.localhost:5173 (the super admin's at admin.localhost).
+ * Dev only, fixtures like DEV_PASSWORD. Idle expiry is real: after 8 hours
+ * without a request, rerun `bun run db:seed:dev`.
+ */
+export const DEV_SESSIONS: SeedSession[] = DEV_USERS.map((user) => ({
+  email: user.email,
+  token: `dev-session-${user.role}`,
+}));
+
 /**
  * Written explicitly rather than left to the service defaults, so AC-01.06's
  * "Admin Tenant telah menetapkan Max File Size sebesar 20 MB" is true of the

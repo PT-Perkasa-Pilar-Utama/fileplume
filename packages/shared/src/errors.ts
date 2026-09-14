@@ -1,3 +1,5 @@
+import type { ErrorDetail } from "./envelope.ts";
+
 /** api-specs/01-conventions.md 1.8. Codes are English and stable; messages are Indonesian. */
 export const ERROR_MESSAGES = {
   VALIDATION_ERROR: "Data yang dikirim tidak valid",
@@ -70,7 +72,7 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
 export class AppError extends Error {
   constructor(
     readonly code: ErrorCode,
-    readonly details?: unknown,
+    readonly details?: ErrorDetail[],
     message?: string,
   ) {
     super(message ?? ERROR_MESSAGES[code]);

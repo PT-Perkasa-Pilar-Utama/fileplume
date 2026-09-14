@@ -13,3 +13,4 @@ export const asUserId = (v: string) => v as UserId;
 export const asDocumentId = (v: string) => v as DocumentId;
 export const asVersionId = (v: string) => v as VersionId;
 export const asCategoryId = (v: string) => v as CategoryId;
+export const asSessionId = (v: string) => v as SessionId;

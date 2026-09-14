@@ -8,6 +8,7 @@ import { parseConfig } from "./load-config.ts";
 const VALID_ENV = {
   APP_ENV: "dev",
   WEB_ORIGIN: "http://localhost:5173",
+  TENANT_BASE_HOST: "localhost",
   DATABASE_URL: "postgres://archiva:archiva@localhost:5432/archiva",
   VALKEY_URL: "redis://localhost:6379",
   OPENSEARCH_URL: "http://localhost:9200",

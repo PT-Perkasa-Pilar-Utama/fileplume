@@ -10,18 +10,31 @@ export const metaSchema = z.object({
   notice: z.string().nullish(),
 });
 
+export type Meta = z.infer<typeof metaSchema>;
+
 export const dataOf = <T extends z.ZodTypeAny>(inner: T) => z.object({ data: inner });
 
 export const collectionOf = <T extends z.ZodTypeAny>(item: T) =>
   z.object({ data: z.array(item), meta: metaSchema });
 
+export const errorDetailSchema = z.object({ field: z.string(), issue: z.string() });
+export type ErrorDetail = z.infer<typeof errorDetailSchema>;
+
 export const errorSchema = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
-    details: z.array(z.object({ field: z.string(), issue: z.string() })).optional(),
+    details: z.array(errorDetailSchema).optional(),
   }),
 });
+
+export function one<T>(data: T): { data: T } {
+  return { data };
+}
+
+export function page<T>(data: T[], meta: Meta): { data: T[]; meta: Meta } {
+  return { data, meta };
+}
 
 export const paginationQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),

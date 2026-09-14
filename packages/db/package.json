@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@archiva/config": "workspace:*",
+    "@archiva/shared": "workspace:*",
     "drizzle-orm": "0.45.2"
   },
   "devDependencies": {

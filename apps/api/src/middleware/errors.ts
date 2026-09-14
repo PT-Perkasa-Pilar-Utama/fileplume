@@ -1,37 +1,59 @@
-import { AppError, ERROR_MESSAGES, type ErrorCode } from "@archiva/shared";
-import type { Context, ErrorHandler } from "hono";
+import type { ErrorCode, ErrorDetail } from "@archiva/shared";
+import { AppError, ERROR_MESSAGES, HTTP_STATUS } from "@archiva/shared";
+import type { Context, ErrorHandler, NotFoundHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { ZodError } from "zod";
+
+/** Statuses that framework middleware signals with an HTTPException, named in the taxonomy. */
+const CODE_FOR_STATUS: Partial<Record<number, ErrorCode>> = {
+  401: "UNAUTHENTICATED",
+  403: "FORBIDDEN",
+  404: "NOT_FOUND",
+  413: "PAYLOAD_TOO_LARGE",
+  429: "RATE_LIMITED",
+};
+
+function errorBody(code: ErrorCode, message: string, details?: ErrorDetail[]) {
+  return { error: { code, message, ...(details ? { details } : {}) } };
+}
 
 /** api-specs/01-conventions.md 1.6. Never a stack trace, never a driver message. */
-export function fail(c: Context, code: ErrorCode, details?: unknown) {
-  const error = new AppError(code, details);
-  return c.json(
-    { error: { code, message: error.message, ...(details ? { details } : {}) } },
-    error.status as 400,
-  );
+export function fail(c: Context, code: ErrorCode, details?: ErrorDetail[]): Response {
+  // Hono types the status as a literal union; HTTP_STATUS holds only 1.7 codes.
+  return c.json(errorBody(code, ERROR_MESSAGES[code], details), HTTP_STATUS[code] as 400);
+}
+
+function fieldOf(path: readonly PropertyKey[]): string {
+  return path.reduce<string>((field, key) => {
+    if (typeof key === "number") return `${field}[${key}]`;
+    return field === "" ? String(key) : `${field}.${String(key)}`;
+  }, "");
+}
+
+/** 1.8 `VALIDATION_ERROR`: one `details` entry per Zod issue, `files[2]` style paths. */
+export function validationFailed(c: Context, error: ZodError): Response {
+  const details = error.issues.map((issue) => ({ field: fieldOf(issue.path), issue: issue.code }));
+  return fail(c, "VALIDATION_ERROR", details);
+}
+
+export const notFound: NotFoundHandler = (c) => fail(c, "NOT_FOUND");
+
+function fromHttpException(c: Context, err: HTTPException): Response {
+  const upstream = err.getResponse();
+  const code = CODE_FOR_STATUS[err.status];
+  if (code === undefined) return upstream;
+  const challenge = upstream.headers.get("WWW-Authenticate");
+  if (challenge !== null) c.header("WWW-Authenticate", challenge);
+  return fail(c, code);
 }
 
 export const errorHandler: ErrorHandler = (err, c) => {
   if (err instanceof AppError) {
-    return c.json(
-      {
-        error: {
-          code: err.code,
-          message: err.message,
-          ...(err.details ? { details: err.details } : {}),
-        },
-      },
-      err.status as 400,
-    );
+    // Hono types the status as a literal union; AppError.status comes from HTTP_STATUS.
+    return c.json(errorBody(err.code, err.message, err.details), err.status as 400);
   }
-
-  // Middleware such as bearerAuth signals with an HTTPException. Its status is
-  // the answer; swallowing it into a 500 would report a fault where the caller
-  // was simply refused.
-  if (err instanceof HTTPException) {
-    return err.getResponse();
-  }
+  if (err instanceof HTTPException) return fromHttpException(c, err);
 
   console.error({ msg: "unhandled", err: err.message });
-  return c.json({ error: { code: "INTERNAL_ERROR", message: ERROR_MESSAGES.INTERNAL_ERROR } }, 500);
+  return fail(c, "INTERNAL_ERROR");
 };

@@ -13,6 +13,9 @@ export const schema = z
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     WEB_ORIGIN: z.url(),
+    // Tenants are addressed as <subdomain>.<TENANT_BASE_HOST>; no default, so
+    // a deploy that forgets it refuses to boot instead of 404ing every tenant.
+    TENANT_BASE_HOST: z.string().regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/),
     APP_VERSION: z.string().default("dev"),
 
     DATABASE_URL: z.url(),

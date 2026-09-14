@@ -12,6 +12,27 @@ const build = (opts?: { quotaBytes?: number; usedBytes?: number }) => {
   return { repository, service: createTenancyService({ repository, clock }) };
 };
 
+describe("resolveTenant", () => {
+  const tenant = {
+    id: TENANT,
+    name: "PT Contoh Baru",
+    subdomain: "contohbaru",
+    status: "active" as const,
+  };
+  const service = createTenancyService({
+    repository: inMemoryTenancyRepository({ tenants: [tenant] }),
+    clock,
+  });
+
+  test("resolves a subdomain regardless of case", async () => {
+    expect(await service.resolveTenant("ContohBaru")).toEqual(tenant);
+  });
+
+  test("an unknown subdomain resolves to null", async () => {
+    expect(await service.resolveTenant("tidak-ada")).toBeNull();
+  });
+});
+
 describe("configuration", () => {
   test("an unset key resolves to its default", async () => {
     const { service } = build();

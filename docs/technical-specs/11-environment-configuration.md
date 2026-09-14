@@ -19,6 +19,7 @@ Five environments: `dev` (local), `test` (CI), `sit`, `uat`, `production`.
 | `PORT` | int | 3000 | 3000 | 3000 | 3000 | |
 | `LOG_LEVEL` | enum | debug | error | info | info | pino |
 | `WEB_ORIGIN` | url | `http://localhost:5173` | same | `https://sit.archiva.id` | `https://app.archiva.id` | Sole CORS origin |
+| `TENANT_BASE_HOST` | host | `localhost` | `localhost` | `sit.archiva.id` / `uat.archiva.id` | `archiva.id` | Tenants resolve from `<subdomain>.<TENANT_BASE_HOST>`; the reserved `admin` label resolves to no tenant ([../api-specs/01-conventions.md 1.1](../api-specs/01-conventions.md)) |
 | `APP_VERSION` | string | `dev` | `test` | git sha | git sha | Reported by `/health` |
 
 ## 11.2 Datastores

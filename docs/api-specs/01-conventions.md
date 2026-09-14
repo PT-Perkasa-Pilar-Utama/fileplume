@@ -251,6 +251,8 @@ Recorded here rather than resolved silently. Each needs an amendment to the sour
 | Cross-tenant download | AC-43.04: status 403 | `404` | Same | `docs/business/` AC-43.04 |
 | Configuration reset to default | AC-42.05 | `DELETE /configuration/:key` | `tenancy.setConfigValue` has no reset path | `../technical-specs/05-module-definitions.md` 5.1 |
 | Super Admin address | Not stated | Reserved subdomain `admin` | Tenant resolution needs an address for a tenant-less principal | `../technical-specs/09-authentication-authorization.md` 9.4 |
+| Origin-check refusal | 1.8: every `403` writes a denied audit event | `403 FORBIDDEN` with no audit row | The origin check runs before the session is read, so there is no principal or tenant to record against | This document 1.8 |
+| Any-role operations | 1.11: every floor is a role | Floor `authenticated` on `POST /auth/logout` and `GET /auth/me` | "Any authenticated principal, any role" includes `super_admin`, which no role floor admits | This document 1.11 |
 
 ## 1.14 What has no operation
 

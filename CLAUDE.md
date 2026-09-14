@@ -29,7 +29,7 @@ Two docs are the sole source for their concern. Cite them; never restate their r
 
 | Layer | Technology |
 |---|---|
-| Runtime | Bun 1.3.8 |
+| Runtime | Bun 1.4.2 |
 | Language | TypeScript 7.0.2, strict, `noUncheckedIndexedAccess`, ESM only |
 | API | Hono 4, Zod 4, OpenAPI generated from the same schemas |
 | Frontend | React 19, Vite 8, TanStack Router and Query, Tailwind 4, shadcn/ui |

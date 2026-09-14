@@ -64,15 +64,19 @@ Internet
 | `postgres` | `postgres:17.2` | none | Primary database |
 | `opensearch` | `opensearchproject/opensearch:2.19.0` | none | Page-level search index |
 | `valkey` | `valkey/valkey:8.1` | none | BullMQ backing and cache |
-| `minio` | `minio/minio` | none | S3-compatible blob store |
+| `minio` | `quay.io/minio/minio` | none | S3-compatible blob store |
+| `minio-init` | `quay.io/minio/mc` | none | One-shot, creates the bucket before `api` starts |
 | `clamav` | `clamav/clamav:1.4` | none | Malware scanning |
 | `gotenberg` | `gotenberg/gotenberg:8.15.0` | none | Office to PDF conversion |
+
+Every third-party image pins its tag and a digest. MinIO comes from `quay.io`, its official registry; Docker Hub no longer serves the pinned release.
 
 **Network boundary.** In production only Caddy binds host ports; every datastore is reachable on the compose network alone. Confirm after any compose change:
 
 ```bash
-# Expect exactly 3 published ports, all Caddy (80, 443, 443/udp).
-docker compose -f compose.yaml -f compose.prod.yaml config | grep -c 'published:'
+# Fails on an unpinned image, a dependency without a healthcheck, or a
+# published port on anything but Caddy (80, 443, 443/udp).
+bun run check:compose
 ```
 
 ## 3. Artifacts and registry
@@ -102,15 +106,21 @@ cp .env.example .env
 chmod 600 .env
 ```
 
-`.env` is gitignored and must never be committed. `docker compose up` fails without it, because `api` and `worker` declare `env_file: [.env]`.
+`.env` is gitignored and must never be committed. `docker compose up` fails without it, because `api`, `worker` and `migrate` declare `env_file: [.env]`.
 
-Generate the three secrets that have no external source:
+Generate the secrets that have no external source:
 
 ```bash
 openssl rand -hex 32   # AUTH_SECRET, min 32 bytes. Rotating it ends every session.
 openssl rand -hex 24   # HEALTH_TOKEN
 openssl rand -hex 24   # RESET_API_TOKEN, non-production only
+openssl rand -hex 24   # POSTGRES_PASSWORD. Postgres reads it only when its volume is empty.
+openssl rand -hex 24   # MINIO_ROOT_PASSWORD. Also set MINIO_ROOT_USER.
 ```
+
+Hex keeps both passwords URL-safe, because compose embeds them in `DATABASE_URL` and the MinIO client URL. The production overlay refuses to render while either is unset. It cannot detect the dev values copied from `.env.example`, so replace them.
+
+For containers, `compose.yaml` sets the in-network URLs (`DATABASE_URL`, `VALKEY_URL`, `OPENSEARCH_URL`, `S3_ENDPOINT`, `CLAMAV_HOST`, `GOTENBERG_URL`) and the S3 credentials. The matching values in `.env` serve only processes run on the host.
 
 **Production must not set `ENABLE_RESET_API` or `RESET_API_TOKEN` at all.** The config schema refuses to boot if either is present while `APP_ENV=production`.
 
@@ -146,6 +156,10 @@ dig +short "$ARCHIVA_DOMAIN"
 
 # 80 and 443 must be free and reachable, or ACME issuance fails.
 sudo ss -lntp | grep -E ':(80|443) ' || echo "80 and 443 free"
+
+# OpenSearch refuses to start below 262144 memory map areas.
+echo 'vm.max_map_count=262144' | sudo tee /etc/sysctl.d/99-opensearch.conf
+sudo sysctl --system && sysctl vm.max_map_count
 ```
 
 ### 5.3 Fetch the deployment files

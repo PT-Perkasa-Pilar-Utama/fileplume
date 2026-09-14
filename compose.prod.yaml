@@ -5,6 +5,8 @@
 #   - images are pulled from GHCR at an exact SHA, never built on the host
 #   - no host port bindings except Caddy 80/443; datastores are reachable only
 #     on the compose network
+#   - datastore credentials have no default; compose refuses to render
+#     without them
 #   - Caddy terminates TLS and serves the built SPA
 #   - everything restarts unless explicitly stopped
 
@@ -14,6 +16,8 @@ services:
   postgres:
     ports: !reset []
     restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
 
   opensearch:
     ports: !reset []
@@ -26,6 +30,9 @@ services:
   minio:
     ports: !reset []
     restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
 
   clamav:
     ports: !reset []
@@ -51,7 +58,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     restart: unless-stopped
     ports:
       - "80:80"
@@ -64,6 +71,11 @@ services:
       - ./web-dist:/srv:ro
       - caddydata:/data
       - caddyconfig:/config
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     depends_on:
       - api
 

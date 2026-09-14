@@ -1,11 +1,28 @@
 name: archiva
 
+# Third-party images pin a minor tag and a digest. technical-specs/04-tech-stack.md 4.10.
+# Refresh a digest in the monthly dependency batch with:
+#   docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'
+# scripts/check_compose.ts fails CI on an unpinned image or a missing healthcheck.
+
+# api, worker and migrate reach the datastores by service name. These override
+# the localhost URLs in .env, which serve processes run on the host.
+x-in-network-environment: &in-network-environment
+  DATABASE_URL: postgres://archiva:${POSTGRES_PASSWORD:-archiva}@postgres:5432/archiva
+  VALKEY_URL: redis://valkey:6379
+  OPENSEARCH_URL: http://opensearch:9200
+  S3_ENDPOINT: http://minio:9000
+  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-archiva}
+  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-archiva-secret}
+  CLAMAV_HOST: clamav
+  GOTENBERG_URL: http://gotenberg:3000
+
 services:
   postgres:
-    image: postgres:17.2
+    image: postgres:17.2@sha256:3267c505060a0052e5aa6e5175a7b41ab6b04da2f8c4540fc6e98a37210aa2d3
     environment:
       POSTGRES_USER: archiva
-      POSTGRES_PASSWORD: archiva
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archiva}
       POSTGRES_DB: archiva
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
@@ -15,42 +32,81 @@ services:
       retries: 10
 
   opensearch:
-    image: opensearchproject/opensearch:2.19.0
+    image: opensearchproject/opensearch:2.19.0@sha256:1f8b88245a6af61e7aa500afe0e87d43401e4b33140bb47230a919428ce3f7cb
     environment:
       discovery.type: single-node
       DISABLE_SECURITY_PLUGIN: "true"
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
     ports: ["9200:9200"]
     volumes: [osdata:/usr/share/opensearch/data]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
 
   valkey:
-    image: valkey/valkey:8.1
+    image: valkey/valkey:8.1@sha256:3fbd2e3e4b6e85e046c1e7c215e8f79087bc0357789184305806664e320996f3
     ports: ["6379:6379"]
     volumes: [valkeydata:/data]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      retries: 10
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: archiva
-      MINIO_ROOT_PASSWORD: archiva-secret
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-archiva}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-archiva-secret}
     ports: ["9000:9000", "9001:9001"]
     volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      retries: 10
+
+  # One-shot: creates the bucket api and worker write to, then exits.
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-05-21T01-59-54Z@sha256:09f93f534cde415d192bb6084dd0e0ddd1715fb602f8a922ad121fd2bf0f8b44
+    command: ["mb", "--ignore-existing", "local/${S3_BUCKET:-archiva}"]
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER:-archiva}:${MINIO_ROOT_PASSWORD:-archiva-secret}@minio:9000
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
 
   clamav:
-    image: clamav/clamav:1.4
+    image: clamav/clamav:1.4@sha256:f156095071757e3838caa50265d65e36cdf7f934a27aacf851ea6d2fadbe8200
     ports: ["3310:3310"]
     volumes: [clamdb:/var/lib/clamav]
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # First boot downloads the signature database before clamd listens.
+      start_period: 300s
 
   gotenberg:
-    image: gotenberg/gotenberg:8.15.0
+    image: gotenberg/gotenberg:8.15.0@sha256:59eab80c51ad02b72eb1a972182bae71004b5522644b1f43dfdc48249e996acd
     ports: ["3001:3000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 10s
+      retries: 10
 
   migrate:
     build: { context: ., dockerfile: apps/api/Dockerfile }
     command: ["bun", "run", "packages/db/src/migrate.ts"]
-    environment:
-      DATABASE_URL: postgres://archiva:archiva@postgres:5432/archiva
+    env_file: [.env]
+    environment: *in-network-environment
     depends_on:
       postgres: { condition: service_healthy }
     restart: "no"
@@ -58,15 +114,25 @@ services:
   api:
     build: { context: ., dockerfile: apps/api/Dockerfile }
     env_file: [.env]
+    environment: *in-network-environment
     ports: ["3000:3000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+      opensearch: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      gotenberg: { condition: service_healthy }
 
   worker:
     build: { context: ., dockerfile: apps/worker/Dockerfile }
     env_file: [.env]
+    environment: *in-network-environment
     depends_on:
       migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+      opensearch: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      clamav: { condition: service_healthy }
 
 volumes:
   pgdata:

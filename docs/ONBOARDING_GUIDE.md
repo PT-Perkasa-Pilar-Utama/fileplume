@@ -37,7 +37,7 @@ The system is judged on 113 acceptance criteria across 30 user stories. Those cr
 
 | Tool | Version | Check |
 |---|---|---|
-| Bun | 1.3.8 | `bun --version` |
+| Bun | 1.4.2 | `bun --version` |
 | Docker with compose plugin | any recent | `docker compose version` |
 | Git | any recent | `git --version` |
 | Python | 3.11 or later | `python --version` |

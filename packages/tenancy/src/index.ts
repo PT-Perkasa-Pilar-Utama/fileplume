@@ -4,9 +4,12 @@ export type { TenancyRepository } from "./repository.ts";
 export { createDrizzleTenancyRepository } from "./repository.ts";
 export type {
   ConfigKey,
+  ListTenantsSort,
   QuotaReservation,
   TenancyService,
   Tenant,
+  TenantCreated,
+  TenantListed,
   TenantStatus,
 } from "./service.ts";
 export { CONFIG_KEYS, createTenancyService } from "./service.ts";

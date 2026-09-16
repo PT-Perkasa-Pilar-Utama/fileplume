@@ -27,11 +27,13 @@ describe("createDrizzleTenancyRepository", () => {
   });
 
   async function seedTenant(quotaBytes: number): Promise<TenantId> {
+    // api-specs/03-tenants.md 3.1: name is unique across the platform.
+    const slug = crypto.randomUUID().slice(0, 8);
     const [row] = await db
       .insert(schema.tenants)
       .values({
-        name: "Test Tenant",
-        subdomain: `test-${crypto.randomUUID().slice(0, 8)}`,
+        name: `Test Tenant ${slug}`,
+        subdomain: `test-${slug}`,
         storageQuotaBytes: quotaBytes,
       })
       .returning({ id: schema.tenants.id });
@@ -102,5 +104,36 @@ describe("createDrizzleTenancyRepository", () => {
 
     await repository.deleteConfigValue(tenantId, "max_file_size_mb", actor);
     expect(await repository.findConfigValue(tenantId, "max_file_size_mb")).toBeNull();
+  });
+
+  test("createTenant rejects duplicate name and subdomain against real PostgreSQL", async () => {
+    // AC-43.01
+    const repository = createDrizzleTenancyRepository(db);
+    const tenantId = await seedTenant(100);
+    const actor = await seedUser(tenantId);
+
+    const first = await repository.createTenant(
+      { name: "Duplikat Corp", subdomain: "duplikat", storageQuotaBytes: 100 },
+      actor,
+    );
+    expect(first.ok).toBe(true);
+
+    const duplicateSubdomain = await repository.createTenant(
+      { name: "Beda Corp", subdomain: "duplikat", storageQuotaBytes: 100 },
+      actor,
+    );
+    expect(duplicateSubdomain.ok).toBe(false);
+    if (!duplicateSubdomain.ok) {
+      expect(duplicateSubdomain.error.kind).toBe("SubdomainTaken");
+    }
+
+    const duplicateName = await repository.createTenant(
+      { name: "Duplikat Corp", subdomain: "beda-subdomain", storageQuotaBytes: 100 },
+      actor,
+    );
+    expect(duplicateName.ok).toBe(false);
+    if (!duplicateName.ok) {
+      expect(duplicateName.error.kind).toBe("TenantNameTaken");
+    }
   });
 });

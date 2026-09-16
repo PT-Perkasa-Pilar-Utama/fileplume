@@ -10,7 +10,7 @@ import { citext } from "./internal/citext.ts";
 
 export const tenants = pgTable("tenants", {
   id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   subdomain: citext("subdomain").notNull().unique(),
   status: tenantStatus("status").notNull().default("active"),
   storageQuotaBytes: bigint("storage_quota_bytes", { mode: "number" })

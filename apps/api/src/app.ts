@@ -1,5 +1,6 @@
 import type { Config } from "@archiva/config";
 import type { DependencyProbe } from "@archiva/platform";
+import type { TenancyService } from "@archiva/tenancy";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import type { AppEnv } from "./middleware/context.ts";
@@ -16,7 +17,9 @@ import { activityRoutesMount } from "./routes/index.ts";
 import { createRouter } from "./routes/router.ts";
 import { healthRoutes, resetStateRoutes } from "./routes/system.ts";
 
-export type AppDeps = Pick<RequestContextDeps, "tenancy" | "identity"> & {
+export type AppDeps = {
+  tenancy: TenancyService;
+  identity: RequestContextDeps["identity"];
   rateLimitStores: RateLimitStoreFactory;
   probes: DependencyProbe[];
 };
@@ -43,7 +46,7 @@ export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
     }),
   );
   mountRateLimits(api, deps.rateLimitStores);
-  activityRoutesMount(api);
+  activityRoutesMount(api, { tenancy: deps.tenancy });
   app.route("/api/v1", api);
 
   /**

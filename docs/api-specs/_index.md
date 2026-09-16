@@ -49,8 +49,8 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /tenants` | [03 3.1](03-tenants.md) | 1 | SCAFFOLD |
-| `GET /tenants` | [03 3.2](03-tenants.md) | 1 | SCAFFOLD |
+| `POST /tenants` | [03 3.1](03-tenants.md) | 1 | OK |
+| `GET /tenants` | [03 3.2](03-tenants.md) | 1 | OK |
 | `PATCH /tenants/:tenantId/quota` | [03 3.3](03-tenants.md) | 2 | SCAFFOLD |
 
 ### Configuration and storage

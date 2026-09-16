@@ -1,4 +1,12 @@
-import type { ConfigKeyName, Result, TenantId, TenantStatus, UserId } from "@archiva/shared";
+import type {
+  ConfigKeyName,
+  Result,
+  TenantId,
+  TenantListItem,
+  TenantStatus,
+  TenantView,
+  UserId,
+} from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
@@ -23,10 +31,27 @@ export const CONFIG_KEYS = {
 } as const satisfies Record<ConfigKeyName, ConfigKeySpec>;
 
 export type ConfigKey = keyof typeof CONFIG_KEYS;
-
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
-
 export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
+
+/** Raw row returned by the repository after a tenant insert. */
+export type TenantCreated = {
+  id: TenantId;
+  name: string;
+  subdomain: string;
+  status: TenantStatus;
+  storageQuotaBytes: number;
+  storageUsedBytes: number;
+  createdAt: Date;
+};
+
+/** Raw row returned by the repository for tenant list queries. */
+export type TenantListed = TenantCreated & {
+  documentCount: number;
+  userCount: number;
+};
+
+export type ListTenantsSort = "createdAt" | "name" | "storageUsedBytes";
 
 export interface TenancyService {
   /** Step 1 of api-specs/01-conventions.md 1.12. Subdomains are citext, so case never matters. */
@@ -53,6 +78,18 @@ export interface TenancyService {
   ): Promise<Result<QuotaReservation, E.QuotaExceeded>>;
   commitQuota(reservation: QuotaReservation): Promise<void>;
   releaseQuota(reservation: QuotaReservation): Promise<void>;
+  /** AC-43.01. Provisions the Uncategorized system category inside the same transaction. */
+  createTenant(
+    input: { name: string; subdomain: string; storageQuotaGb: number },
+    actorId: UserId,
+  ): Promise<Result<TenantView, E.TenantNameTaken | E.SubdomainTaken>>;
+  listTenants(filter: {
+    q?: string;
+    sort: ListTenantsSort;
+    order: "asc" | "desc";
+    page: number;
+    limit: number;
+  }): Promise<{ rows: TenantListItem[]; total: number }>;
 }
 
 export function createTenancyService(deps: {
@@ -93,5 +130,46 @@ export function createTenancyService(deps: {
 
     commitQuota: (r) => repository.commitReservation(r),
     releaseQuota: (r) => repository.releaseReservation(r),
+
+    async createTenant(input, actorId) {
+      const storageQuotaBytes = input.storageQuotaGb * 1024 ** 3;
+      const result = await repository.createTenant(
+        { name: input.name, subdomain: input.subdomain, storageQuotaBytes },
+        actorId,
+      );
+      if (!result.ok) return result;
+      const t = result.value;
+      return ok({
+        id: t.id,
+        name: t.name,
+        subdomain: t.subdomain,
+        status: t.status,
+        storageQuotaBytes: t.storageQuotaBytes,
+        storageUsedBytes: t.storageUsedBytes,
+        createdAt: t.createdAt.toISOString(),
+      });
+    },
+
+    async listTenants(filter) {
+      const { rows, total } = await repository.listTenants(filter);
+      return {
+        total,
+        rows: rows.map((t) => ({
+          id: t.id,
+          name: t.name,
+          subdomain: t.subdomain,
+          status: t.status,
+          storageQuotaBytes: t.storageQuotaBytes,
+          storageUsedBytes: t.storageUsedBytes,
+          createdAt: t.createdAt.toISOString(),
+          storagePercent:
+            t.storageQuotaBytes === 0
+              ? 0
+              : Math.floor((t.storageUsedBytes / t.storageQuotaBytes) * 100),
+          documentCount: t.documentCount,
+          userCount: t.userCount,
+        })),
+      };
+    },
   };
 }

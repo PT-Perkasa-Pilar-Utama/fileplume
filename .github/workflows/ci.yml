@@ -40,7 +40,11 @@ jobs:
       - run: cp .env.example .env
       # api and its dependency chain only. worker waits on ClamAV's first
       # signature download, and no pipeline card is wired yet.
-      - run: docker compose up -d --build --wait api
+      - run: | 
+          for attemp in {1..3}; do
+            echo "Attempt $attemp..."
+            docker compose up -d --build --wait api && break || sleep sleep $((2 ** attempt))
+          done      
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e --forbid-only
       - if: failure()

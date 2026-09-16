@@ -33,13 +33,15 @@ export async function checkAuthBeforeLoad(locationHref: string): Promise<void> {
     store.setPrincipal(principal);
   } catch (error: unknown) {
     if (isRedirect(error)) throw error;
-    if (error instanceof ApiError && error.status === 401) {
-      store.setSessionExpired(error.message);
+    if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
+      if (error.status === 401) {
+        store.setSessionExpired(error.message);
+      }
       throw redirect({
         to: "/login",
         search: {
           redirect: locationHref === "/" ? undefined : locationHref,
-          expired: true,
+          expired: error.status === 401,
         },
       });
     }

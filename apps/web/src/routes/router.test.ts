@@ -74,6 +74,34 @@ describe("checkAuthBeforeLoad route guard", () => {
     fetchSpy.mockRestore();
   });
 
+  test("redirects to login without expired alert on 404 ApiError", async () => {
+    const fetchSpy = spyOn(authApi, "fetchCurrentPrincipal").mockRejectedValue(
+      new ApiError(404, "NOT_FOUND", "Tenant tidak ditemukan"),
+    );
+
+    try {
+      await checkAuthBeforeLoad("/documents");
+      expect().fail("should have thrown redirect");
+    } catch (err: unknown) {
+      expect(isRedirect(err)).toBe(true);
+      if (isRedirect(err)) {
+        expect(err.options.to).toBe("/login");
+        expect(typeof err.options.search).toBe("object");
+        expect(err.options.search).toMatchObject({
+          redirect: "/documents",
+          expired: false,
+        });
+      }
+    }
+
+    const state = useAuthStore.getState();
+    expect(state.status).toBe("unauthenticated");
+    expect(state.principal).toBeNull();
+    expect(state.sessionExpiredMessage).toBeNull();
+
+    fetchSpy.mockRestore();
+  });
+
   test("re-throws without redirecting to login on 500 ApiError", async () => {
     const fetchSpy = spyOn(authApi, "fetchCurrentPrincipal").mockRejectedValue(
       new ApiError(500, "INTERNAL_ERROR", "Terjadi kesalahan pada sistem"),

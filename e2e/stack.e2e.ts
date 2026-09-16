@@ -20,5 +20,6 @@ test("an unseeded tenant subdomain is refused by the API, not the proxy", async 
 
 test("the SPA shell renders", async ({ page }) => {
   await page.goto("/");
+  await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { name: "Archiva" })).toBeVisible();
 });

@@ -114,3 +114,108 @@ describe("stubbed endpoints return contract-valid shapes", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("tenant management (BE-S1-01, AC-43.01)", () => {
+  const app = buildTestApp();
+
+  test("super admin creates a tenant with 201 and Location header", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.superAdmin,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "PT Baru Mandiri",
+          subdomain: "baru-mandiri",
+          storageQuotaGb: 25,
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(res.headers.get("location")).toMatch(/^\/api\/v1\/tenants\//);
+    const body = (await res.json()) as {
+      data: { name: string; subdomain: string; status: string };
+    };
+    expect(body.data.name).toBe("PT Baru Mandiri");
+    expect(body.data.subdomain).toBe("baru-mandiri");
+    expect(body.data.status).toBe("active");
+  });
+
+  test("duplicate subdomain returns 409 SUBDOMAIN_TAKEN", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.superAdmin,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "PT Lainnya",
+          subdomain: "contohbaru", // matches TENANT_A
+        }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(await errorOf(res)).toEqual({
+      code: "SUBDOMAIN_TAKEN",
+      message: "Subdomain sudah digunakan",
+    });
+  });
+
+  test("duplicate name returns 409 TENANT_NAME_TAKEN", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.superAdmin,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: "PT Contoh Baru", // matches TENANT_A
+          subdomain: "nama-lain",
+        }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(await errorOf(res)).toEqual({
+      code: "TENANT_NAME_TAKEN",
+      message: "Nama organisasi sudah digunakan",
+    });
+  });
+
+  test("super admin lists tenants with pagination", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.superAdmin,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: unknown[]; meta: { total: number } };
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.meta.total).toBeGreaterThan(0);
+  });
+
+  test("tenant admin in a tenant is refused with 403 (server refuses what UI hides)", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "contohbaru",
+        token: TOKENS.adminA,
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await errorOf(res)).toEqual({
+      code: "FORBIDDEN",
+      message: "Anda tidak memiliki akses ke halaman ini",
+    });
+  });
+
+  test("tenant user targeting admin subdomain is 404 (cross-tenant mismatch)", async () => {
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.memberA,
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+});

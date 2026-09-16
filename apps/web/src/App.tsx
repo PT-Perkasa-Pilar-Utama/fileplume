@@ -1,15 +1,25 @@
-import { readStoredTheme } from "./lib/theme.ts";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
+import { type JSX, useEffect } from "react";
+import { queryClient } from "./lib/query-client.ts";
+import { applyTheme, readStoredTheme } from "./lib/theme.ts";
+import { useThemeStore } from "./lib/theme-store.ts";
+import { router } from "./routes/router.tsx";
 
-/**
- * The shell is built in FE-S1-01: TanStack Router, TanStack Query, the auth
- * guard and the role-derived navigation. This placeholder exists so the tree
- * is committable and the build gate is real rather than skipped.
- */
-export function App() {
+export function App(): JSX.Element {
+  const theme = useThemeStore((s) => s.theme);
+
+  useEffect(() => {
+    applyTheme(readStoredTheme());
+  }, []);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   return (
-    <main data-theme={readStoredTheme()}>
-      <h1>Archiva</h1>
-      <p>Scaffold. Lihat docs/TASK_BREAKDOWN.md, kartu FE-S1-01.</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }

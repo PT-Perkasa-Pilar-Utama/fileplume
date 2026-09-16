@@ -24,3 +24,14 @@ export function storeTheme(theme: Theme): void {
     // A theme that cannot be remembered is not a failure worth surfacing.
   }
 }
+
+export function applyTheme(theme: Theme): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  root.setAttribute("data-theme", theme);
+  if (theme === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+}

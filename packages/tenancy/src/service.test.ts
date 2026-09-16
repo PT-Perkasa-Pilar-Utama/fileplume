@@ -101,3 +101,100 @@ describe("quota reservation", () => {
     expect((await service.reserveQuota(TENANT, 60)).ok).toBe(false);
   });
 });
+
+describe("createTenant", () => {
+  test("creates a tenant with active status and stored quota", async () => {
+    // AC-43.01
+    const { service } = build();
+    const result = await service.createTenant(
+      { name: "PT Contoh Baru", subdomain: "contohbaru", storageQuotaGb: 50 },
+      ACTOR,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.name).toBe("PT Contoh Baru");
+    expect(result.value.status).toBe("active");
+    expect(result.value.storageQuotaBytes).toBe(50 * 1024 ** 3);
+    expect(result.value.storageUsedBytes).toBe(0);
+  });
+
+  test("rejects a duplicate name", async () => {
+    // AC-43.01
+    const { service } = build();
+    await service.createTenant({ name: "PT Unik", subdomain: "ptuniq", storageQuotaGb: 50 }, ACTOR);
+    const result = await service.createTenant(
+      { name: "PT Unik", subdomain: "ptuniq2", storageQuotaGb: 50 },
+      ACTOR,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("TenantNameTaken");
+  });
+
+  test("rejects a duplicate subdomain", async () => {
+    // AC-43.01
+    const { service } = build();
+    await service.createTenant(
+      { name: "PT Alfa", subdomain: "samadomain", storageQuotaGb: 50 },
+      ACTOR,
+    );
+    const result = await service.createTenant(
+      { name: "PT Beta", subdomain: "samadomain", storageQuotaGb: 50 },
+      ACTOR,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.kind).toBe("SubdomainTaken");
+  });
+});
+
+describe("listTenants", () => {
+  test("returns created tenants with storagePercent derived", async () => {
+    // AC-43.01
+    const { service } = build();
+    await service.createTenant(
+      { name: "PT Daftar", subdomain: "daftar", storageQuotaGb: 20 },
+      ACTOR,
+    );
+    const { rows, total } = await service.listTenants({
+      sort: "createdAt",
+      order: "desc",
+      page: 1,
+      limit: 10,
+    });
+    expect(total).toBe(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.name).toBe("PT Daftar");
+    expect(rows[0]?.storagePercent).toBe(0);
+    expect(rows[0]?.documentCount).toBe(0);
+    expect(rows[0]?.userCount).toBe(0);
+  });
+
+  test("filters by q against name and subdomain", async () => {
+    const { service } = build();
+    await service.createTenant({ name: "PT Alpha", subdomain: "alpha", storageQuotaGb: 10 }, ACTOR);
+    await service.createTenant({ name: "PT Beta", subdomain: "beta", storageQuotaGb: 10 }, ACTOR);
+    const { rows, total } = await service.listTenants({
+      q: "alpha",
+      sort: "name",
+      order: "asc",
+      page: 1,
+      limit: 10,
+    });
+    expect(total).toBe(1);
+    expect(rows[0]?.name).toBe("PT Alpha");
+  });
+
+  test("paginates results correctly", async () => {
+    const { service } = build();
+    await service.createTenant({ name: "PT Satu", subdomain: "satu", storageQuotaGb: 10 }, ACTOR);
+    await service.createTenant({ name: "PT Dua", subdomain: "dua", storageQuotaGb: 10 }, ACTOR);
+    await service.createTenant({ name: "PT Tiga", subdomain: "tiga", storageQuotaGb: 10 }, ACTOR);
+    const { rows, total } = await service.listTenants({
+      sort: "name",
+      order: "asc",
+      page: 2,
+      limit: 2,
+    });
+    expect(total).toBe(3);
+    expect(rows).toHaveLength(1);
+  });
+});

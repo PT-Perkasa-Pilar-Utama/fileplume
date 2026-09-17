@@ -93,9 +93,34 @@ export interface ActivityService {
   dashboard(tenantId: TenantId): Promise<Record<string, unknown>>;
 }
 
-export function createActivityService(_deps: {
+export function createActivityService(deps: {
   repository: ActivityRepository;
   clock: Clock;
 }): ActivityService {
-  throw new Error("SCAFFOLD: implement in BE-S5-04, BE-S5-05");
+  return {
+    async record(event: AuditEvent): Promise<void> {
+      try {
+        await deps.repository.append(event.tenantId, {
+          ...event,
+          createdAt: deps.clock.now(),
+        });
+      } catch (e) {
+        // A failure to audit is alerted, but does not fail a download the user
+        // was entitled to. packages/activity invariant 4, CODING_STANDARD 6.3.
+        console.error({
+          msg: "audit write failed",
+          err: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    async listAudit(): Promise<{
+      total: number;
+      rows: (AuditEvent & { id: string; createdAt: Date })[];
+    }> {
+      throw new Error("SCAFFOLD: implement in BE-S5-04");
+    },
+    async dashboard(): Promise<Record<string, unknown>> {
+      throw new Error("SCAFFOLD: implement in BE-S5-05");
+    },
+  };
 }

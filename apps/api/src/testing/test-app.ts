@@ -1,3 +1,8 @@
+import {
+  createActivityService,
+  type InMemoryActivityRepository,
+  inMemoryActivityRepository,
+} from "@archiva/activity";
 import type { Config } from "@archiva/config";
 import type { SeededSession, UserRow } from "@archiva/identity";
 import {
@@ -69,6 +74,9 @@ export const TENANT_B: Tenant = {
   subdomain: "mitra-rahasia",
   status: "active",
 };
+
+export const DOC_A_ID = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
+export const RAHASIA_B_DOC_ID = "991ba4a4-6a73-5755-8118-260707e7d4d1";
 
 export const TOKENS = {
   memberA: "token-member-a",
@@ -153,8 +161,15 @@ export const TEST_USERS: UserRow[] = [
   },
 ];
 
+export type TestApp = OpenAPIHono<AppEnv> & {
+  activityRepository: InMemoryActivityRepository;
+};
+
 /** A fresh app per call, so limiter windows never leak between tests. */
-export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> {
+export function buildTestApp(
+  config: Config = BASE_CONFIG,
+  options?: { activityRepository?: InMemoryActivityRepository },
+): TestApp {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
     repository: inMemoryTenancyRepository({ tenants: [TENANT_A, TENANT_B] }),
@@ -182,13 +197,21 @@ export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> 
     clock,
     idleTtlHours: config.SESSION_IDLE_TTL_HOURS,
   });
+  const activityRepository = options?.activityRepository ?? inMemoryActivityRepository();
+  const activity = createActivityService({
+    repository: activityRepository,
+    clock,
+  });
 
-  return createApp(config, {
+  const app = createApp(config, {
     tenancy,
     identity,
+    activity,
     rateLimitStores: () => new MemoryStore<AppEnv>(),
     probes: [],
   });
+
+  return Object.assign(app, { activityRepository });
 }
 
 type RequestOptions = {

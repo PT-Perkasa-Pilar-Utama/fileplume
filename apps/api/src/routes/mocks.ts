@@ -37,6 +37,17 @@ const CATEGORY_ID = "7b2f0c93-1d84-4a6e-9b52-6c7d8e9f0a1b";
 const VERSION_ID = "aa11b2c3-4d5e-4f60-8a1b-2c3d4e5f6071";
 const TICKET_ID = "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b";
 
+export const MOCK_TENANT_A_ID = TENANT_ID;
+export const MOCK_TENANT_B_ID = "5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f10";
+export const MOCK_DOC_ID = DOC_ID;
+export const MOCK_TENANT_B_DOC_ID = "991ba4a4-6a73-5755-8118-260707e7d4d1";
+
+export function isDocumentInTenant(documentId: string, tenantId: string | null): boolean {
+  if (tenantId === MOCK_TENANT_A_ID && documentId === MOCK_DOC_ID) return true;
+  if (tenantId === MOCK_TENANT_B_ID && documentId === MOCK_TENANT_B_DOC_ID) return true;
+  return false;
+}
+
 export const MOCK_UPLOADER: z.infer<typeof personRefSchema> = { id: USER_ID, name: "Budi Santoso" };
 
 export const MOCK_SESSION: z.infer<typeof sessionSchema> = {

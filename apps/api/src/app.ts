@@ -1,3 +1,4 @@
+import type { ActivityService } from "@archiva/activity";
 import type { Config } from "@archiva/config";
 import type { IdentityService } from "@archiva/identity";
 import type { DependencyProbe } from "@archiva/platform";
@@ -21,6 +22,7 @@ import { healthRoutes, resetStateRoutes } from "./routes/system.ts";
 export type AppDeps = {
   tenancy: TenancyService;
   identity: IdentityService;
+  activity: ActivityService;
   rateLimitStores: RateLimitStoreFactory;
   probes: DependencyProbe[];
 };
@@ -38,6 +40,10 @@ export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
   app.route("/health", healthRoutes(config, deps.probes));
 
   const api = createRouter();
+  api.use("*", async (c, next) => {
+    c.set("activity", deps.activity);
+    await next();
+  });
   api.use(
     "*",
     requestContext({

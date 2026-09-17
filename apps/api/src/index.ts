@@ -1,3 +1,4 @@
+import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
 import { loadConfig } from "@archiva/config";
 import { createDb } from "@archiva/db";
 import { createDrizzleIdentityRepository, createIdentityService } from "@archiva/identity";
@@ -22,10 +23,15 @@ const identity = createIdentityService({
   clock: systemClock,
   idleTtlHours: config.SESSION_IDLE_TTL_HOURS,
 });
+const activity = createActivityService({
+  repository: createDrizzleActivityRepository(db),
+  clock: systemClock,
+});
 
 const app = createApp(config, {
   tenancy,
   identity,
+  activity,
   rateLimitStores: createValkeyRateLimitStores(new RedisClient(config.VALKEY_URL)),
   // SCAFFOLD: real dependency probes are built in BE-S1-04, one per row of
   // api-specs/10-system.md 10.3.

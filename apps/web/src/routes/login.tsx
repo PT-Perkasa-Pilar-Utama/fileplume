@@ -1,7 +1,9 @@
-import { ERROR_MESSAGES } from "@archiva/shared";
+import { ERROR_MESSAGES, type LoginBody, loginBody } from "@archiva/shared";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { getRouteApi } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { type JSX, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Alert, AlertDescription } from "../components/ui/alert.tsx";
 import { Button } from "../components/ui/button.tsx";
 import {
@@ -15,6 +17,7 @@ import { Input } from "../components/ui/input.tsx";
 import { Label } from "../components/ui/label.tsx";
 import { loginRequest } from "../features/auth/api.ts";
 import { useAuthStore } from "../features/auth/auth-store.ts";
+import { ApiError } from "../lib/api.ts";
 
 export interface LoginSearchParams {
   redirect?: string;
@@ -28,22 +31,28 @@ export function LoginPage(): JSX.Element {
   const sessionExpiredMessage = useAuthStore((s) => s.sessionExpiredMessage);
   const setPrincipal = useAuthStore((s) => s.setPrincipal);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const showExpiredAlert = search.expired || Boolean(sessionExpiredMessage);
   const expiredText = sessionExpiredMessage ?? ERROR_MESSAGES.SESSION_EXPIRED;
 
-  // SCAFFOLD: FE-S1-02 replaces this interim manual form with React Hook Form + @archiva/shared Zod resolver.
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginBody>({
+    resolver: zodResolver(loginBody),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (values: LoginBody): Promise<void> => {
+    setServerError(null);
 
     try {
-      const principal = await loginRequest({ email, password });
+      const principal = await loginRequest(values);
       setPrincipal(principal);
       const target =
         search.redirect?.startsWith("/") && !search.redirect.startsWith("//")
@@ -53,13 +62,17 @@ export function LoginPage(): JSX.Element {
         window.location.href = target;
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
+      if (err instanceof ApiError) {
+        if (err.code === "INVALID_CREDENTIALS") {
+          setServerError(ERROR_MESSAGES.INVALID_CREDENTIALS);
+        } else {
+          setServerError(err.message);
+        }
+      } else if (err instanceof Error) {
+        setServerError(err.message);
       } else {
-        setError(ERROR_MESSAGES.INTERNAL_ERROR);
+        setServerError(ERROR_MESSAGES.INTERNAL_ERROR);
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -78,25 +91,27 @@ export function LoginPage(): JSX.Element {
             </Alert>
           ) : null}
 
-          {error ? (
+          {serverError ? (
             <Alert variant="destructive">
               <AlertCircle className="size-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="nama@perusahaan.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(errors.email)}
+                {...register("email")}
               />
+              {errors.email ? (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -104,14 +119,16 @@ export function LoginPage(): JSX.Element {
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(errors.password)}
+                {...register("password")}
               />
+              {errors.password ? (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              ) : null}
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Memproses..." : "Masuk"}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Memproses..." : "Login"}
             </Button>
           </form>
         </CardContent>

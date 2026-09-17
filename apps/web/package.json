@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@archiva/shared": "workspace:*",
+    "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "5.102.8",
     "@tanstack/react-router": "1.170.36",
     "class-variance-authority": "0.7.1",
@@ -17,6 +18,7 @@
     "lucide-react": "1.46.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-hook-form": "^7.88.0",
     "tailwind-merge": "3.7.0",
     "tailwindcss": "4.3.3",
     "zod": "4.6.2",

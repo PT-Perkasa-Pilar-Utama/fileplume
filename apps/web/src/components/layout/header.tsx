@@ -1,6 +1,6 @@
 import type { PrincipalView } from "@archiva/shared";
-import { LogOut, Moon, Sun } from "lucide-react";
-import type { JSX } from "react";
+import { LogOut, Moon, Settings, Sun } from "lucide-react";
+import { type JSX, useEffect, useRef, useState } from "react";
 import { logoutRequest } from "../../features/auth/api.ts";
 import { useAuthStore } from "../../features/auth/auth-store.ts";
 import { cn } from "../../lib/cn.ts";
@@ -13,7 +13,7 @@ interface HeaderProps {
   className?: string;
 }
 
-function getInitials(name: string): string {
+export function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 0) return "U";
   const first = parts[0];
@@ -27,8 +27,29 @@ function getInitials(name: string): string {
 export function Header({ principal, className }: HeaderProps): JSX.Element {
   const { theme, toggleTheme } = useThemeStore();
   const clearSession = useAuthStore((s) => s.clearSession);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // SCAFFOLD: FE-S1-02 finalizes profile display with avatar fallback and profile menu logout.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handlePointerDown = (e: MouseEvent): void => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
   const handleLogout = async (): Promise<void> => {
     try {
       await logoutRequest();
@@ -67,28 +88,60 @@ export function Header({ principal, className }: HeaderProps): JSX.Element {
           {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         </Button>
 
-        <div className="flex items-center gap-3">
-          <Avatar className="size-8">
-            {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.name} /> : null}
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col text-left">
-            <span className="font-medium text-sm leading-none">{user.name}</span>
-            <span className="text-xs text-muted-foreground capitalize">
-              {user.role.replace("_", " ")}
-            </span>
-          </div>
-        </div>
+        <div className="relative" ref={menuRef}>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <Avatar className="size-8">
+                {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.name} /> : null}
+                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col text-left">
+                <span className="font-medium text-sm leading-none">{user.name}</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  {user.role.toUpperCase()}
+                </span>
+              </div>
+            </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleLogout}
-          aria-label="Logout"
-          className="size-8 text-muted-foreground hover:text-destructive"
-        >
-          <LogOut className="size-4" />
-        </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-label="Pengaturan profil"
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              className="size-8 text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="size-4" />
+            </Button>
+          </div>
+
+          {menuOpen ? (
+            <div
+              role="menu"
+              aria-label="Menu profil"
+              className="absolute right-0 z-50 mt-2 w-56 rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+            >
+              <div className="px-2 py-1.5 text-left">
+                <p className="font-medium text-sm leading-none">{user.name}</p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+                  {user.role.toUpperCase()}
+                </p>
+              </div>
+              <div className="my-1 border-t border-border" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-destructive/10 focus:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="size-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </header>
   );

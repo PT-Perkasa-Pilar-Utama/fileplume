@@ -49,7 +49,8 @@ export function resetStateRoutes(config: Config, runner?: ResetRunner) {
   return createRouter()
     .openapi({ ...resetState, middleware }, async (c) => {
       const body = c.req.valid("json");
-      const result = activeRunner.start(body.confirm, body.seed);
+      const seed = body.seed ?? config.RESET_DEFAULT_SEED ?? "dev";
+      const result = activeRunner.start(body.confirm, seed);
 
       if (!result.ok) {
         if (result.error.kind === "ConfirmMismatch") {

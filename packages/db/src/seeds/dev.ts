@@ -1,5 +1,4 @@
-import { loadConfig } from "@archiva/config";
-import { sql as connection, db } from "../client.ts";
+import type { Db } from "../create-db.ts";
 import { DEV_DOCUMENTS } from "./internal/dev-documents.ts";
 import {
   DEV_ADMIN_EMAIL,
@@ -26,7 +25,10 @@ import { writeTenancy } from "./internal/write-tenancy.ts";
  * searchable. Fixtures that have to survive the pipeline are files under
  * `fixtures/`, uploaded by the test that needs them.
  */
-export async function seedDev(): Promise<void> {
+export async function seedDev(
+  db: Db,
+  options?: { sessionAbsoluteTtlDays?: number },
+): Promise<void> {
   const passwordHash = await Bun.password.hash(DEV_PASSWORD, "argon2id");
 
   await db.transaction(async (tx) => {
@@ -50,12 +52,15 @@ export async function seedDev(): Promise<void> {
     await writeSessions(tx, {
       sessions: DEV_SESSIONS,
       userIdByEmail: ids.userIdByEmail,
-      absoluteTtlDays: loadConfig().SESSION_ABSOLUTE_TTL_DAYS,
+      absoluteTtlDays: options?.sessionAbsoluteTtlDays ?? 30,
     });
   });
 }
 
 if (import.meta.main) {
-  await seedDev();
+  const { loadConfig } = await import("@archiva/config");
+  const { sql: connection, db } = await import("../client.ts");
+  const config = loadConfig();
+  await seedDev(db, { sessionAbsoluteTtlDays: config.SESSION_ABSOLUTE_TTL_DAYS });
   await connection.close();
 }

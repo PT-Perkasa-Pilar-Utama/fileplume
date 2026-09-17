@@ -126,6 +126,18 @@ describe("reset-state routes", () => {
     expect(statusBody.jobId).toBe(body.jobId);
   });
 
+  test("omitted seed defaults to config.RESET_DEFAULT_SEED when configured", async () => {
+    const app = buildTestApp({ ...BASE_CONFIG, RESET_DEFAULT_SEED: "qa" });
+    const res = await app.request("/admin/reset-state", {
+      method: "POST",
+      headers: { authorization: "Bearer dev-reset-token", "content-type": "application/json" },
+      body: JSON.stringify({ confirm: "reset-dev" }),
+    });
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { seed: string };
+    expect(body.seed).toBe("qa");
+  });
+
   test("refuses unauthenticated reset request with 401", async () => {
     const res = await buildTestApp().request("/admin/reset-state", {
       method: "POST",

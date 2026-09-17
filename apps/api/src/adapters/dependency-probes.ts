@@ -38,7 +38,8 @@ export function createDependencyProbes(deps: DependencyProbesDeps): DependencyPr
             signal: AbortSignal.timeout(3000),
           });
           if (!res.ok) return { status: "down" };
-          return { status: "ok", indexLagSeconds: 0 };
+          // SCAFFOLD: real indexLagSeconds computation lands once BE-S4 wires index sync accounting.
+          return { status: "ok" };
         } catch {
           return { status: "down" };
         }
@@ -52,7 +53,11 @@ export function createDependencyProbes(deps: DependencyProbesDeps): DependencyPr
         try {
           const pong = await redisClient.ping();
           if (pong !== "PONG") return { status: "down" };
-          return { status: "ok", queueDepth: 0 };
+          // Measure real queue depth across wait and active lists for the document processing queue
+          const waitCount = await redisClient.llen("bull:document.process:wait");
+          const activeCount = await redisClient.llen("bull:document.process:active");
+          const queueDepth = (waitCount ?? 0) + (activeCount ?? 0);
+          return { status: "ok", queueDepth };
         } catch {
           return { status: "down" };
         }
@@ -80,19 +85,63 @@ export function createDependencyProbes(deps: DependencyProbesDeps): DependencyPr
       canDegrade: false,
       async check(): Promise<ProbeResult> {
         try {
-          const socket = await Bun.connect({
-            hostname: config.CLAMAV_HOST,
-            port: config.CLAMAV_PORT,
-            socket: {
-              data() {},
-              open(ws) {
-                ws.write("PING\n");
-                ws.end();
+          return await new Promise<ProbeResult>((resolve) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+              if (!settled) {
+                settled = true;
+                resolve({ status: "down" });
+              }
+            }, 3000);
+
+            Bun.connect({
+              hostname: config.CLAMAV_HOST,
+              port: config.CLAMAV_PORT,
+              socket: {
+                data(ws, data) {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  ws.end();
+                  const text = data.toString();
+                  // Format: ClamAV <version>/<sigVersion>/<date>
+                  const parts = text.trim().split("/");
+                  const dateStr = parts[2];
+                  let signatureAge = "unknown";
+                  if (dateStr) {
+                    const sigDate = new Date(dateStr);
+                    if (!Number.isNaN(sigDate.getTime())) {
+                      const hours = Math.floor((Date.now() - sigDate.getTime()) / (1000 * 60 * 60));
+                      signatureAge = `${hours}h`;
+                    }
+                  }
+                  resolve({ status: "ok", signatureAge });
+                },
+                open(ws) {
+                  ws.write("VERSION\n");
+                },
+                error(ws) {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  ws.end();
+                  resolve({ status: "down" });
+                },
+                connectError(_ws) {
+                  if (settled) return;
+                  settled = true;
+                  clearTimeout(timer);
+                  resolve({ status: "down" });
+                },
               },
-            },
+            }).catch(() => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                resolve({ status: "down" });
+              }
+            });
           });
-          socket.unref();
-          return { status: "ok", signatureAge: "2h" };
         } catch {
           return { status: "down" };
         }
@@ -119,6 +168,17 @@ export function createDependencyProbes(deps: DependencyProbesDeps): DependencyPr
       async check(): Promise<ProbeResult> {
         if (config.AI_PROVIDER === "stub") {
           return { status: "ok" };
+        }
+        if (config.AI_PROVIDER === "anthropic") {
+          try {
+            const res = await fetch("https://api.anthropic.com", {
+              method: "HEAD",
+              signal: AbortSignal.timeout(3000),
+            });
+            return res.status < 500 ? { status: "ok" } : { status: "degraded" };
+          } catch {
+            return { status: "degraded" };
+          }
         }
         return { status: "ok" };
       },

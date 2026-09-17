@@ -1,7 +1,7 @@
 import type { Config } from "@archiva/config";
 import { type DbHandle, runMigrations, seedDev, seedQa } from "@archiva/db";
 import type { ResetSeed, ResetStageActions } from "@archiva/platform";
-import type { RedisClient } from "bun";
+import { type RedisClient, S3Client } from "bun";
 
 export type SystemResetActionsDeps = {
   config: Config;
@@ -33,47 +33,65 @@ export function createSystemResetActions(deps: SystemResetActionsDeps): ResetSta
     },
 
     async seed(seed: ResetSeed): Promise<void> {
+      if (!dbHandle) return;
       if (seed === "qa") {
-        await seedQa();
+        await seedQa(dbHandle.db, { sessionAbsoluteTtlDays: config.SESSION_ABSOLUTE_TTL_DAYS });
       } else {
-        await seedDev();
+        await seedDev(dbHandle.db, { sessionAbsoluteTtlDays: config.SESSION_ABSOLUTE_TTL_DAYS });
       }
     },
 
     async purgeBlobs(): Promise<void> {
-      // Best-effort bucket wipe for testing environments
-      try {
-        await fetch(`${config.S3_ENDPOINT}/${config.S3_BUCKET}`, {
-          method: "DELETE",
-          signal: AbortSignal.timeout(3000),
-        });
-      } catch {
-        // Blob store wipe is best effort
+      const s3 = new S3Client({
+        endpoint: config.S3_ENDPOINT,
+        bucket: config.S3_BUCKET,
+        accessKeyId: config.S3_ACCESS_KEY_ID,
+        secretAccessKey: config.S3_SECRET_ACCESS_KEY,
+        region: config.S3_REGION,
+      });
+      const list = await s3.list({ prefix: "t/" });
+      if (list.contents && list.contents.length > 0) {
+        await Promise.all(list.contents.map((item) => s3.delete(item.key)));
       }
     },
 
     async recreateIndex(): Promise<void> {
-      // Recreate OpenSearch index
-      try {
-        const indexUrl = `${config.OPENSEARCH_URL}/${config.OPENSEARCH_INDEX_PREFIX}*`;
-        const credentials = btoa(`${config.OPENSEARCH_USERNAME}:${config.OPENSEARCH_PASSWORD}`);
-        await fetch(indexUrl, {
-          method: "DELETE",
-          headers: { Authorization: `Basic ${credentials}` },
-          signal: AbortSignal.timeout(3000),
-        });
-      } catch {
-        // OpenSearch reset is best effort
+      const indexName = `${config.OPENSEARCH_INDEX_PREFIX}-pages`;
+      const credentials = btoa(`${config.OPENSEARCH_USERNAME}:${config.OPENSEARCH_PASSWORD}`);
+      const headers = {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/json",
+      };
+
+      const deleteRes = await fetch(`${config.OPENSEARCH_URL}/${indexName}`, {
+        method: "DELETE",
+        headers,
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!deleteRes.ok && deleteRes.status !== 404) {
+        throw new Error(
+          `Failed to delete OpenSearch index: ${deleteRes.status} ${deleteRes.statusText}`,
+        );
+      }
+
+      const createRes = await fetch(`${config.OPENSEARCH_URL}/${indexName}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          settings: { number_of_shards: 1, number_of_replicas: 0 },
+        }),
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!createRes.ok && createRes.status !== 400) {
+        throw new Error(
+          `Failed to create OpenSearch index: ${createRes.status} ${createRes.statusText}`,
+        );
       }
     },
 
     async flushQueue(): Promise<void> {
       if (redisClient) {
-        try {
-          await redisClient.flushdb();
-        } catch {
-          // Valkey flush is best effort
-        }
+        await redisClient.flushdb();
       }
     },
   };

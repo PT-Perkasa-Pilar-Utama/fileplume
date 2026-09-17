@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { belongsToTenant, blobKey } from "./internal/blob-key.ts";
+import {
+  assertBlobKeyPrefix,
+  belongsToTenant,
+  blobKey,
+  InvalidBlobKeyPrefixError,
+} from "./internal/blob-key.ts";
 import { ACCEPTED_MIME, isAcceptedType, MAX_BATCH, MAX_BULK_DOWNLOAD } from "./service.ts";
 import { inMemoryBlobStore } from "./testing/in-memory-blob-store.ts";
 
@@ -35,6 +40,21 @@ describe("blob keys", () => {
   test("carry a tenant prefix the adapter can refuse on", () => {
     expect(belongsToTenant(blobKey("t1", "d1", "v1"), "t1")).toBe(true);
     expect(belongsToTenant(blobKey("t1", "d1", "v1"), "t2")).toBe(false);
+  });
+
+  test("assertBlobKeyPrefix accepts a key matching the tenant", () => {
+    expect(() => assertBlobKeyPrefix(blobKey("tenant-1", "doc-1", "v1"), "tenant-1")).not.toThrow();
+  });
+
+  test("assertBlobKeyPrefix throws InvalidBlobKeyPrefixError for a foreign tenant key", () => {
+    // technical-specs/07-security.md 7.3: S3 adapter refuses a key whose prefix does not match active tenant.
+    expect(() => assertBlobKeyPrefix(blobKey("tenant-1", "doc-1", "v1"), "tenant-2")).toThrow(
+      InvalidBlobKeyPrefixError,
+    );
+  });
+
+  test("assertBlobKeyPrefix throws InvalidBlobKeyPrefixError for a malformed key", () => {
+    expect(() => assertBlobKeyPrefix("invalid-key", "tenant-1")).toThrow(InvalidBlobKeyPrefixError);
   });
 });
 

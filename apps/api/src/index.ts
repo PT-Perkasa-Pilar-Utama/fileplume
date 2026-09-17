@@ -1,3 +1,4 @@
+import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
 import { loadConfig } from "@archiva/config";
 import { createDb } from "@archiva/db";
 import { createDrizzleIdentityRepository, createIdentityService } from "@archiva/identity";
@@ -26,6 +27,10 @@ const identity = createIdentityService({
   clock: systemClock,
   idleTtlHours: config.SESSION_IDLE_TTL_HOURS,
 });
+const activity = createActivityService({
+  repository: createDrizzleActivityRepository(dbHandle.db),
+  clock: systemClock,
+});
 
 const probes = createDependencyProbes({ config, dbHandle, redisClient });
 const resetRunner = config.ENABLE_RESET_API
@@ -38,6 +43,7 @@ const resetRunner = config.ENABLE_RESET_API
 const app = createApp(config, {
   tenancy,
   identity,
+  activity,
   rateLimitStores: createValkeyRateLimitStores(redisClient),
   probes,
   resetRunner,

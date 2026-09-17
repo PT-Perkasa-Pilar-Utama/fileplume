@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseConfig } from "@archiva/config";
-import { buildTestApp, errorOf, TOKENS, tenantRequest } from "./testing/test-app.ts";
+import { buildTestApp, errorOf, TENANT_A, TOKENS, tenantRequest } from "./testing/test-app.ts";
 
 // Parsed, not hand-built: the app under test gets a config the production
 // loader accepts, so a schema refinement cannot drift out from under the gate.
@@ -100,13 +100,18 @@ describe("stubbed endpoints return contract-valid shapes", () => {
   });
 
   test("a member is refused an admin route with 403", async () => {
-    // AC-41.05: the server refuses regardless of what the menu shows.
-    const res = await app.request(tenantRequest("/configuration", { token: TOKENS.memberA }));
+    // AC-41.05: the server refuses regardless of what the menu shows and writes access.denied audit event.
+    const testApp = buildTestApp();
+    const res = await testApp.request(tenantRequest("/configuration", { token: TOKENS.memberA }));
     expect(res.status).toBe(403);
     expect(await errorOf(res)).toEqual({
       code: "FORBIDDEN",
       message: "Anda tidak memiliki akses ke halaman ini",
     });
+    expect(testApp.activityRepository.events).toHaveLength(1);
+    expect(testApp.activityRepository.events[0]?.action).toBe("access.denied");
+    expect(testApp.activityRepository.events[0]?.outcome).toBe("denied");
+    expect(testApp.activityRepository.events[0]?.tenantId).toBe(TENANT_A.id);
   });
 
   test("an unknown path inside a tenant is 404", async () => {

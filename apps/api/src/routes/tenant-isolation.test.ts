@@ -10,7 +10,7 @@ import {
   TOKENS,
   tenantRequest,
 } from "../testing/test-app.ts";
-import { MOCK_CATEGORY } from "./mocks.ts";
+import { MOCK_CATEGORY, MOCK_TENANT_B_CATEGORY_ID } from "./mocks.ts";
 
 /**
  * Asserts that a cross-tenant read attempt returns 404 NOT_FOUND,
@@ -178,6 +178,44 @@ describe("cross-tenant document isolation (BE-S1-03, BE-S1-05)", () => {
     );
 
     await assertCrossTenantNotFound(res, app);
+  });
+
+  test("cross-tenant admin routes: Tenant A head_of_team setting download permission with Tenant B category id returns 404 and writes audit event", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest(`/categories/${MOCK_TENANT_B_CATEGORY_ID}/download-permission`, {
+        method: "PUT",
+        token: TOKENS.headOfTeamA,
+        body: JSON.stringify({ downloadActive: true }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
+    const event = app.activityRepository.events[0];
+    expect(event?.subjectType).toBe("category");
+    expect(event?.subjectId).toBeNull();
+    expect(event?.metadata).toEqual({ attemptedId: MOCK_TENANT_B_CATEGORY_ID });
+  });
+
+  test("cross-tenant admin routes: Tenant A head_of_team renaming Tenant B category id returns 404 and writes audit event", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest(`/categories/${MOCK_TENANT_B_CATEGORY_ID}`, {
+        method: "PATCH",
+        token: TOKENS.headOfTeamA,
+        body: JSON.stringify({ name: "Nama Baru" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
+    const event = app.activityRepository.events[0];
+    expect(event?.subjectType).toBe("category");
+    expect(event?.subjectId).toBeNull();
+    expect(event?.metadata).toEqual({ attemptedId: MOCK_TENANT_B_CATEGORY_ID });
   });
 
   test("cross-tenant admin routes: Tenant A admin targeting Tenant B host returns 404 and writes audit event on Tenant A", async () => {

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import type { PrincipalView, Session } from "@archiva/shared";
+import type { LoginBody, PrincipalView, Session } from "@archiva/shared";
+import { ERROR_MESSAGES } from "@archiva/shared";
+import { ApiError } from "../../lib/api.ts";
 import { fetchCurrentPrincipal, loginRequest, logoutRequest } from "./api.ts";
 
 const MOCK_SESSION: Session = {
@@ -64,6 +66,107 @@ describe("auth api", () => {
     expect(secondUrl?.toString()).toContain("/api/v1/auth/me");
   });
 
+  // AC-40.02: Login dengan kredensial yang salah (Negative Path)
+  test("loginRequest throws 401 INVALID_CREDENTIALS on wrong password or unknown email", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "INVALID_CREDENTIALS",
+            message: ERROR_MESSAGES.INVALID_CREDENTIALS,
+          },
+        }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    try {
+      await loginRequest({
+        email: "budi@contohbaru.co.id",
+        password: "wrong-password",
+      });
+      expect().fail("should have thrown ApiError");
+    } catch (err: unknown) {
+      expect(err instanceof ApiError).toBe(true);
+      if (err instanceof ApiError) {
+        expect(err.status).toBe(401);
+        expect(err.code).toBe("INVALID_CREDENTIALS");
+        expect(err.message).toBe("Email atau password salah");
+      }
+    }
+  });
+
+  // Typed error: 422 VALIDATION_ERROR
+  test("loginRequest throws 422 VALIDATION_ERROR on malformed request", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "VALIDATION_ERROR",
+            message: ERROR_MESSAGES.VALIDATION_ERROR,
+          },
+        }),
+        {
+          status: 422,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    try {
+      // Typed test fixture: intentional invalid email format to verify 422 mapping
+      const invalidBody: LoginBody = {
+        email: "not-an-email" as string,
+        password: "secret",
+      };
+      await loginRequest(invalidBody);
+      expect().fail("should have thrown ApiError");
+    } catch (err: unknown) {
+      expect(err instanceof ApiError).toBe(true);
+      if (err instanceof ApiError) {
+        expect(err.status).toBe(422);
+        expect(err.code).toBe("VALIDATION_ERROR");
+        expect(err.message).toBe("Data yang dikirim tidak valid");
+      }
+    }
+  });
+
+  // Typed error: 429 RATE_LIMITED
+  test("loginRequest throws 429 RATE_LIMITED on rate limit exhaustion", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "RATE_LIMITED",
+            message: ERROR_MESSAGES.RATE_LIMITED,
+          },
+        }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    try {
+      await loginRequest({
+        email: "budi@contohbaru.co.id",
+        password: "secret",
+      });
+      expect().fail("should have thrown ApiError");
+    } catch (err: unknown) {
+      expect(err instanceof ApiError).toBe(true);
+      if (err instanceof ApiError) {
+        expect(err.status).toBe(429);
+        expect(err.code).toBe("RATE_LIMITED");
+        expect(err.message).toBe("Terlalu banyak permintaan. Coba lagi nanti");
+      }
+    }
+  });
+
   // AC-40.03: Logout dari sistem
   test("logoutRequest posts to /auth/logout", async () => {
     fetchSpy.mockResolvedValue(
@@ -78,6 +181,17 @@ describe("auth api", () => {
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
     expect(url?.toString()).toContain("/api/v1/auth/logout");
     expect(init?.method).toBe("POST");
+  });
+
+  // AC-40.03: Logout idempotency
+  test("logoutRequest succeeds when already logged out (204 No Content)", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(null, {
+        status: 204,
+      }),
+    );
+
+    await expect(logoutRequest()).resolves.toBeUndefined();
   });
 
   test("fetchCurrentPrincipal queries /auth/me", async () => {

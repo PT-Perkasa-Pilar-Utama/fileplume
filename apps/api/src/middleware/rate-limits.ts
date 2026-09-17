@@ -34,7 +34,10 @@ function limiter(spec: LimitSpec, stores: RateLimitStoreFactory): MiddlewareHand
 function clientIp(c: Context<AppEnv>): string {
   const forwarded = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
   if (forwarded) return forwarded;
-  return getConnInfo(c).remote.address ?? "unknown";
+  if (c.env && typeof c.env === "object" && "server" in c.env) {
+    return getConnInfo(c).remote.address ?? "unknown";
+  }
+  return "unknown";
 }
 
 async function loginEmail(c: Context<AppEnv>): Promise<string | null> {

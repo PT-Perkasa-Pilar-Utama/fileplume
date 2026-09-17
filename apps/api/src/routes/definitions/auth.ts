@@ -36,7 +36,6 @@ export const logout = createRoute({
   tags,
   summary: "End the current session",
   security: SESSION,
-  middleware: requireRole("authenticated"),
   responses: { 204: { description: "Session ended; Set-Cookie expires the cookie" }, ...ERROR_401 },
 });
 

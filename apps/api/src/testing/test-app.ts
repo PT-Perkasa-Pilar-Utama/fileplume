@@ -1,5 +1,5 @@
 import type { Config } from "@archiva/config";
-import type { SeededSession } from "@archiva/identity";
+import type { SeededSession, UserRow } from "@archiva/identity";
 import {
   createIdentityService,
   inMemoryIdentityRepository,
@@ -72,6 +72,7 @@ export const TENANT_B: Tenant = {
 
 export const TOKENS = {
   memberA: "token-member-a",
+  headOfTeamA: "token-head-of-team-a",
   adminA: "token-admin-a",
   memberB: "token-member-b",
   superAdmin: "token-super-admin",
@@ -82,21 +83,75 @@ const NOW = new Date("2026-09-14T08:00:00.000Z");
 
 function seeded(token: string, role: Role, tenant: Tenant | null, lastSeenAt = NOW): SeededSession {
   const id = crypto.randomUUID();
+  const userId = asUserId(crypto.randomUUID());
+  const expiresAt = new Date("2026-10-14T08:00:00.000Z");
   return {
     token,
     row: {
       id,
-      expiresAt: new Date("2026-10-14T08:00:00.000Z"),
+      expiresAt,
       lastSeenAt,
       principal: {
-        userId: asUserId(crypto.randomUUID()),
+        userId,
         tenantId: tenant?.id ?? null,
         role,
         sessionId: asSessionId(id),
+        name: `${role} User`,
+        email: `${role.replace("_", "-")}@archiva.id`,
+        avatarUrl: null,
+        expiresAt,
       },
     },
   };
 }
+
+export const TEST_USERS: UserRow[] = [
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    tenantId: TENANT_A.id,
+    email: "budi@contohbaru.co.id",
+    passwordHash: "hash-secret",
+    name: "Budi Santoso",
+    role: "member",
+    avatarUrl: null,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    tenantId: TENANT_A.id,
+    email: "head@contohbaru.co.id",
+    passwordHash: "hash-secret",
+    name: "Siti Rahma",
+    role: "head_of_team",
+    avatarUrl: null,
+  },
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    tenantId: TENANT_A.id,
+    email: "admin@contohbaru.co.id",
+    passwordHash: "hash-secret",
+    name: "Admin Tenant",
+    role: "admin_tenant",
+    avatarUrl: null,
+  },
+  {
+    id: "55555555-5555-4555-8555-555555555555",
+    tenantId: TENANT_B.id,
+    email: "userb@mitra-rahasia.co.id",
+    passwordHash: "hash-secret",
+    name: "Mitra User",
+    role: "member",
+    avatarUrl: null,
+  },
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    tenantId: null,
+    email: "superadmin@archiva.id",
+    passwordHash: "hash-admin-secret",
+    name: "Super Admin",
+    role: "super_admin",
+    avatarUrl: null,
+  },
+];
 
 /** A fresh app per call, so limiter windows never leak between tests. */
 export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> {
@@ -106,16 +161,24 @@ export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> 
     clock,
   });
   const identity = createIdentityService({
-    repository: inMemoryIdentityRepository({
-      sessions: [
-        seeded(TOKENS.memberA, "member", TENANT_A),
-        seeded(TOKENS.adminA, "admin_tenant", TENANT_A),
-        seeded(TOKENS.memberB, "member", TENANT_B),
-        seeded(TOKENS.superAdmin, "super_admin", null),
-        seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
-      ],
-    }),
-    hasher: { verify: async () => false, hash: async () => "unused" },
+    repository: inMemoryIdentityRepository(
+      {
+        users: TEST_USERS,
+        sessions: [
+          seeded(TOKENS.memberA, "member", TENANT_A),
+          seeded(TOKENS.headOfTeamA, "head_of_team", TENANT_A),
+          seeded(TOKENS.adminA, "admin_tenant", TENANT_A),
+          seeded(TOKENS.memberB, "member", TENANT_B),
+          seeded(TOKENS.superAdmin, "super_admin", null),
+          seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
+        ],
+      },
+      { clock },
+    ),
+    hasher: {
+      verify: async (pwd, hash) => hash === `hash-${pwd}` || pwd === "x",
+      hash: async (pwd) => `hash-${pwd}`,
+    },
     clock,
     idleTtlHours: config.SESSION_IDLE_TTL_HOURS,
   });

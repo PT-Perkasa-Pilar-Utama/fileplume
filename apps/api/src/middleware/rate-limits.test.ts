@@ -30,7 +30,7 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
       app,
       times(5, (i) => login(`u${i}@contoh.id`, "203.0.113.7")),
     );
-    expect(allowed).toEqual([200, 200, 200, 200, 200]);
+    expect(allowed).toEqual([401, 401, 401, 401, 401]);
 
     const res = await app.request(login("u9@contoh.id", "203.0.113.7"));
     expect(res.status).toBe(429);

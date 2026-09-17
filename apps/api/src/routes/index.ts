@@ -1,3 +1,4 @@
+import type { IdentityService } from "@archiva/identity";
 import type { TenancyService } from "@archiva/tenancy";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppEnv } from "../middleware/context.ts";
@@ -10,12 +11,14 @@ import { searchRoutes } from "./search.ts";
 import { tagRoutes } from "./tags.ts";
 import { createTenantRoutes } from "./tenants.ts";
 
+export type RouteMountDeps = {
+  tenancy: Pick<TenancyService, "createTenant" | "listTenants">;
+  identity: IdentityService;
+};
+
 /** Every resource file from docs/api-specs/, mounted under /api/v1. */
-export function activityRoutesMount(
-  api: OpenAPIHono<AppEnv>,
-  deps: { tenancy: Pick<TenancyService, "createTenant" | "listTenants"> },
-): void {
-  api.route("/auth", authRoutes);
+export function activityRoutesMount(api: OpenAPIHono<AppEnv>, deps: RouteMountDeps): void {
+  api.route("/auth", authRoutes(deps.identity));
   api.route("/tenants", createTenantRoutes(deps.tenancy));
   api.route("/configuration", configurationRoutes);
   api.route("/storage", storageRoutes);

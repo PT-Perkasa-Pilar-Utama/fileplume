@@ -11,7 +11,7 @@ import { Label } from "../components/ui/label.tsx";
 import { loginRequest } from "../features/auth/api.ts";
 import { useAuthStore } from "../features/auth/auth-store.ts";
 import { ApiError } from "../lib/api.ts";
-import { ArchivaLogoIcon } from "./internal/archiva-logo.tsx";
+import { LoginLogo } from "./internal/archiva-logo.tsx";
 import { LoginBanner } from "./internal/login-banner.tsx";
 
 export interface LoginSearchParams {
@@ -76,9 +76,8 @@ export function LoginPage(): JSX.Element {
     <div className="flex min-h-screen w-full bg-background text-foreground">
       {/* Left panel: Login form */}
       <div className="flex w-full flex-col justify-between p-6 sm:p-10 lg:w-1/2 lg:p-12">
-        <div className="flex items-center gap-3">
-          <ArchivaLogoIcon className="h-7 w-auto" />
-          <span className="font-bold text-xl tracking-tight text-foreground">Archiva</span>
+        <div className="flex items-center">
+          <LoginLogo />
         </div>
 
         <div className="mx-auto flex w-full max-w-100 flex-col gap-6 py-8">
@@ -92,7 +91,7 @@ export function LoginPage(): JSX.Element {
                 Login to your account
               </h1>
               <p className="text-muted-foreground text-sm">
-                Enter your registered email/username and password to login
+                Enter your registered email and password to login
               </p>
             </div>
           </div>

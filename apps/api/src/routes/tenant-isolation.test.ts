@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildTestApp,
   DOC_A_ID,
+  type ErrorBody,
   errorOf,
   RAHASIA_B_DOC_ID,
   TENANT_A,
@@ -9,10 +10,41 @@ import {
   TOKENS,
   tenantRequest,
 } from "../testing/test-app.ts";
+import { MOCK_CATEGORY } from "./mocks.ts";
 
-describe("cross-tenant document isolation (BE-S1-03)", () => {
+/**
+ * Asserts that a cross-tenant read attempt returns 404 NOT_FOUND,
+ * a sterile body without leaked metadata, and an access.denied audit event
+ * recorded against the caller's tenant.
+ *
+ * References:
+ * - api-specs/01-conventions.md 1.7.1, 1.13
+ * - technical-specs/07-security.md 7.2, 7.3
+ */
+async function assertCrossTenantNotFound(
+  res: Response,
+  app: ReturnType<typeof buildTestApp>,
+): Promise<void> {
+  expect(res.status).toBe(404);
+  // Typed test fixture: verify envelope contains only the sterile error object
+  const body = (await res.json()) as ErrorBody;
+  expect(Object.keys(body)).toEqual(["error"]);
+  expect(Object.keys(body.error)).toEqual(["code", "message"]);
+  expect(body.error).toEqual({
+    code: "NOT_FOUND",
+    message: "Data tidak ditemukan",
+  });
+
+  expect(app.activityRepository.events).toHaveLength(1);
+  const event = app.activityRepository.events[0];
+  expect(event?.tenantId).toBe(TENANT_A.id);
+  expect(event?.action).toBe("access.denied");
+  expect(event?.outcome).toBe("denied");
+}
+
+describe("cross-tenant document isolation (BE-S1-03, BE-S1-05)", () => {
   // AC-43.03: Isolasi data pada akses langsung (Negative Path)
-  test("AC-43.03: direct document detail access with Tenant B id returns 404 and writes audit event", async () => {
+  test("AC-43.03: direct document detail access with Tenant B id returns 404, sterile body, and writes audit event", async () => {
     const app = buildTestApp();
 
     const res = await app.request(
@@ -21,21 +53,8 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
       }),
     );
 
-    // api-specs/01-conventions.md 1.7.1, 1.13: 404 NOT_FOUND, never 403,
-    // so existence does not leak across tenants.
-    expect(res.status).toBe(404);
-    expect(await errorOf(res)).toEqual({
-      code: "NOT_FOUND",
-      message: "Data tidak ditemukan",
-    });
-
-    // Audit event written against caller's own tenant (Tenant A), not victim tenant (Tenant B).
-    expect(app.activityRepository.events).toHaveLength(1);
+    await assertCrossTenantNotFound(res, app);
     const event = app.activityRepository.events[0];
-    expect(event).toBeDefined();
-    expect(event?.tenantId).toBe(TENANT_A.id);
-    expect(event?.action).toBe("access.denied");
-    expect(event?.outcome).toBe("denied");
     expect(event?.subjectType).toBe("document");
     expect(event?.subjectId).toBeNull();
     expect(event?.metadata).toEqual({ attemptedId: RAHASIA_B_DOC_ID });
@@ -52,25 +71,14 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
       }),
     );
 
-    expect(res.status).toBe(404);
-    expect(await errorOf(res)).toEqual({
-      code: "NOT_FOUND",
-      message: "Data tidak ditemukan",
-    });
-
-    // Audit event written against caller's own tenant (Tenant A).
-    expect(app.activityRepository.events).toHaveLength(1);
+    await assertCrossTenantNotFound(res, app);
     const event = app.activityRepository.events[0];
-    expect(event).toBeDefined();
-    expect(event?.tenantId).toBe(TENANT_A.id);
-    expect(event?.action).toBe("access.denied");
-    expect(event?.outcome).toBe("denied");
     expect(event?.subjectType).toBe("document");
     expect(event?.subjectId).toBeNull();
     expect(event?.metadata).toEqual({ attemptedId: RAHASIA_B_DOC_ID });
   });
 
-  test("cross-tenant preview returns 404 and writes audit event", async () => {
+  test("cross-tenant preview returns 404, sterile body, and writes audit event", async () => {
     const app = buildTestApp();
 
     const res = await app.request(
@@ -79,17 +87,10 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
       }),
     );
 
-    expect(res.status).toBe(404);
-    expect(await errorOf(res)).toEqual({
-      code: "NOT_FOUND",
-      message: "Data tidak ditemukan",
-    });
-    expect(app.activityRepository.events).toHaveLength(1);
-    expect(app.activityRepository.events[0]?.action).toBe("access.denied");
-    expect(app.activityRepository.events[0]?.tenantId).toBe(TENANT_A.id);
+    await assertCrossTenantNotFound(res, app);
   });
 
-  test("cross-tenant versions listing returns 404 and writes audit event", async () => {
+  test("cross-tenant versions listing returns 404, sterile body, and writes audit event", async () => {
     const app = buildTestApp();
 
     const res = await app.request(
@@ -98,14 +99,31 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
       }),
     );
 
-    expect(res.status).toBe(404);
-    expect(await errorOf(res)).toEqual({
-      code: "NOT_FOUND",
-      message: "Data tidak ditemukan",
-    });
-    expect(app.activityRepository.events).toHaveLength(1);
-    expect(app.activityRepository.events[0]?.action).toBe("access.denied");
-    expect(app.activityRepository.events[0]?.tenantId).toBe(TENANT_A.id);
+    await assertCrossTenantNotFound(res, app);
+  });
+
+  test("cross-tenant related documents returns 404, sterile body, and writes audit event", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest(`/documents/${RAHASIA_B_DOC_ID}/related`, {
+        token: TOKENS.memberA,
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
+  });
+
+  test("cross-tenant processing status returns 404, sterile body, and writes audit event", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest(`/documents/${RAHASIA_B_DOC_ID}/processing`, {
+        token: TOKENS.memberA,
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
   });
 
   test("legitimate document access within tenant succeeds without access.denied event", async () => {
@@ -118,9 +136,9 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
     );
 
     expect(res.status).toBe(200);
+    // Typed test fixture: verify legitimate response envelope
     const body = (await res.json()) as { data: { id: string } };
     expect(body.data.id).toBe(DOC_A_ID);
-    // No denial audit event recorded
     expect(app.activityRepository.events).toHaveLength(0);
   });
 
@@ -141,9 +159,50 @@ describe("cross-tenant document isolation (BE-S1-03)", () => {
     });
     expect(app.activityRepository.events).toHaveLength(1);
     const event = app.activityRepository.events[0];
-    expect(event).toBeDefined();
     expect(event?.tenantId).toBe(TENANT_B.id);
     expect(event?.action).toBe("access.denied");
     expect(event?.outcome).toBe("denied");
+  });
+
+  test("cross-tenant admin routes: Tenant A member targeting Tenant B host returns 404 and writes audit event on Tenant A", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest(`/categories/${MOCK_CATEGORY.id}/download-permission`, {
+        subdomain: "mitra-rahasia",
+        method: "PUT",
+        token: TOKENS.memberA,
+        body: JSON.stringify({ downloadActive: true }),
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
+  });
+
+  test("cross-tenant admin routes: Tenant A admin targeting Tenant B host returns 404 and writes audit event on Tenant A", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest("/configuration", {
+        subdomain: "mitra-rahasia",
+        token: TOKENS.adminA,
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
+  });
+
+  test("cross-tenant super admin route: Tenant A user targeting admin host returns 404 and writes audit event on Tenant A", async () => {
+    const app = buildTestApp();
+
+    const res = await app.request(
+      tenantRequest("/tenants", {
+        subdomain: "admin",
+        token: TOKENS.memberA,
+      }),
+    );
+
+    await assertCrossTenantNotFound(res, app);
   });
 });

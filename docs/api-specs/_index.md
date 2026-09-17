@@ -41,9 +41,9 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /auth/login` | [02 2.2](02-authentication.md) | 1 | SCAFFOLD |
-| `POST /auth/logout` | [02 2.3](02-authentication.md) | 1 | SCAFFOLD |
-| `GET /auth/me` | [02 2.4](02-authentication.md) | 1 | SCAFFOLD |
+| `POST /auth/login` | [02 2.2](02-authentication.md) | 1 | OK |
+| `POST /auth/logout` | [02 2.3](02-authentication.md) | 1 | OK |
+| `GET /auth/me` | [02 2.4](02-authentication.md) | 1 | OK |
 
 ### Tenants
 

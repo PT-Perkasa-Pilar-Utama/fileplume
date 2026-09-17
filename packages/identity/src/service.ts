@@ -10,7 +10,7 @@ export interface IdentityService {
   authenticate(
     email: string,
     password: string,
-    tenantId: string,
+    tenantId: string | null,
   ): Promise<Result<Session, E.InvalidCredentials>>;
   resolveSession(token: string): Promise<Result<Principal, E.SessionExpired | E.SessionRevoked>>;
   endSession(sessionId: string): Promise<void>;

@@ -15,4 +15,8 @@ export type Principal = {
   tenantId: TenantId | null;
   role: Role;
   sessionId: SessionId;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  expiresAt: Date;
 };

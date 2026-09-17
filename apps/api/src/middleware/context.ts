@@ -1,3 +1,4 @@
+import type { ActivityService } from "@archiva/activity";
 import type { Principal } from "@archiva/identity";
 import type { Tenant } from "@archiva/tenancy";
 
@@ -19,5 +20,6 @@ export type AppEnv = {
     session: SessionState;
     /** Set by `requireRole` once the floor is cleared. */
     principal: Principal;
+    activity: ActivityService;
   };
 };

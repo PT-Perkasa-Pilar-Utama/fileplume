@@ -21,7 +21,18 @@ export function requireRole(floor: Floor): MiddlewareHandler<AppEnv> {
     if (session.kind === "expired") return fail(c, "SESSION_EXPIRED");
     if (floor !== "authenticated" && !hasRoleAtLeast(session.principal.role, floor)) {
       // Every 403 writes a denied audit event before the response is sent.
-      // Wired to activity.record in BE-S1-03.
+      // AC-41.05, CODING_STANDARD 8.5.
+      if (session.principal.tenantId !== null) {
+        await c.get("activity").record({
+          tenantId: session.principal.tenantId,
+          actorId: session.principal.userId,
+          action: "access.denied",
+          subjectType: "route",
+          subjectId: null,
+          outcome: "denied",
+          metadata: { path: c.req.path, floor },
+        });
+      }
       return fail(c, "FORBIDDEN");
     }
     c.set("principal", session.principal);

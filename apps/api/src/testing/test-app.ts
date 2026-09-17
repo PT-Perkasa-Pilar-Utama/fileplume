@@ -1,3 +1,8 @@
+import {
+  createActivityService,
+  type InMemoryActivityRepository,
+  inMemoryActivityRepository,
+} from "@archiva/activity";
 import type { Config } from "@archiva/config";
 import type { SeededSession, UserRow } from "@archiva/identity";
 import {
@@ -13,6 +18,12 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
 import { createApp } from "../app.ts";
 import type { AppEnv } from "../middleware/context.ts";
+import {
+  MOCK_DOC_ID,
+  MOCK_TENANT_A_ID,
+  MOCK_TENANT_B_DOC_ID,
+  MOCK_TENANT_B_ID,
+} from "../routes/mocks.ts";
 
 export const BASE_CONFIG: Config = {
   APP_ENV: "dev",
@@ -57,18 +68,21 @@ export const BASE_CONFIG: Config = {
 };
 
 export const TENANT_A: Tenant = {
-  id: asTenantId("1a2b3c4d-5e6f-4071-8a9b-0c1d2e3f4a5b"),
+  id: asTenantId(MOCK_TENANT_A_ID),
   name: "PT Contoh Baru",
   subdomain: "contohbaru",
   status: "active",
 };
 
 export const TENANT_B: Tenant = {
-  id: asTenantId("5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f10"),
+  id: asTenantId(MOCK_TENANT_B_ID),
   name: "PT Mitra Rahasia",
   subdomain: "mitra-rahasia",
   status: "active",
 };
+
+export const DOC_A_ID = MOCK_DOC_ID;
+export const RAHASIA_B_DOC_ID = MOCK_TENANT_B_DOC_ID;
 
 export const TOKENS = {
   memberA: "token-member-a",
@@ -153,8 +167,15 @@ export const TEST_USERS: UserRow[] = [
   },
 ];
 
+export type TestApp = OpenAPIHono<AppEnv> & {
+  activityRepository: InMemoryActivityRepository;
+};
+
 /** A fresh app per call, so limiter windows never leak between tests. */
-export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> {
+export function buildTestApp(
+  config: Config = BASE_CONFIG,
+  options?: { activityRepository?: InMemoryActivityRepository },
+): TestApp {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
     repository: inMemoryTenancyRepository({ tenants: [TENANT_A, TENANT_B] }),
@@ -182,13 +203,21 @@ export function buildTestApp(config: Config = BASE_CONFIG): OpenAPIHono<AppEnv> 
     clock,
     idleTtlHours: config.SESSION_IDLE_TTL_HOURS,
   });
+  const activityRepository = options?.activityRepository ?? inMemoryActivityRepository();
+  const activity = createActivityService({
+    repository: activityRepository,
+    clock,
+  });
 
-  return createApp(config, {
+  const app = createApp(config, {
     tenancy,
     identity,
+    activity,
     rateLimitStores: () => new MemoryStore<AppEnv>(),
     probes: [],
   });
+
+  return Object.assign(app, { activityRepository });
 }
 
 type RequestOptions = {

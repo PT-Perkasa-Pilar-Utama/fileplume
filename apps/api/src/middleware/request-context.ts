@@ -52,6 +52,17 @@ export function requestContext(deps: RequestContextDeps): MiddlewareHandler<AppE
 
     const session = await resolveSessionState(getCookie(c, SESSION_COOKIE_NAME), deps.identity);
     if (session.kind === "authenticated" && !belongsTo(session.principal, tenant)) {
+      if (session.principal.tenantId !== null) {
+        await c.get("activity").record({
+          tenantId: session.principal.tenantId,
+          actorId: session.principal.userId,
+          action: "access.denied",
+          subjectType: "route",
+          subjectId: null,
+          outcome: "denied",
+          metadata: { path: c.req.path, targetTenant: tenant?.id ?? null },
+        });
+      }
       return fail(c, "NOT_FOUND");
     }
 

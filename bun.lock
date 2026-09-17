@@ -71,7 +71,9 @@
       "name": "@archiva/activity",
       "version": "0.0.0",
       "dependencies": {
+        "@archiva/db": "workspace:*",
         "@archiva/shared": "workspace:*",
+        "drizzle-orm": "0.45.2",
       },
     },
     "packages/catalog": {

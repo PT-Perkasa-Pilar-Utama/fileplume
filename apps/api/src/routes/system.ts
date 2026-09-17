@@ -1,6 +1,12 @@
 import type { Config } from "@archiva/config";
-import { type DependencyProbe, healthHttpStatus, runHealthCheck } from "@archiva/platform";
-import { RESET_STAGES } from "@archiva/shared";
+import {
+  type DependencyProbe,
+  healthHttpStatus,
+  inMemoryResetStageActions,
+  ResetRunner,
+  runHealthCheck,
+} from "@archiva/platform";
+import { AppError } from "@archiva/shared";
 import { bearerAuth } from "hono/bearer-auth";
 import { liveness, readiness, readinessAlias, resetJob, resetState } from "./definitions/system.ts";
 import { createRouter } from "./router.ts";
@@ -10,63 +16,61 @@ import { createRouter } from "./router.ts";
  * than no health check, because it reports green on a wiped database.
  */
 export function healthRoutes(config: Config, probes: DependencyProbe[]) {
-  // 10.3 guarded: the per-dependency breakdown names internal topology.
   const middleware = bearerAuth({ token: config.HEALTH_TOKEN });
   const check = () => runHealthCheck(probes, config.APP_VERSION);
 
-  return (
-    createRouter()
-      // 10.2 public in every environment, dependency-free, so a blip does not
-      // restart a healthy process.
-      .openapi(liveness, (c) => c.json({ status: "ok" as const, version: config.APP_VERSION }, 200))
-      .openapi({ ...readiness, middleware }, async (c) => {
-        const report = await check();
-        // Hono types the status as a literal union; healthHttpStatus returns 200 or 503.
-        return c.json(report, healthHttpStatus(report.status) as 200);
-      })
-      .openapi({ ...readinessAlias, middleware }, async (c) => {
-        const report = await check();
-        // Hono types the status as a literal union; healthHttpStatus returns 200 or 503.
-        return c.json(report, healthHttpStatus(report.status) as 200);
-      })
-  );
+  return createRouter()
+    .openapi(liveness, (c) => c.json({ status: "ok" as const, version: config.APP_VERSION }, 200))
+    .openapi({ ...readiness, middleware }, async (c) => {
+      const report = await check();
+      return c.json(report, healthHttpStatus(report.status) as 200);
+    })
+    .openapi({ ...readinessAlias, middleware }, async (c) => {
+      const report = await check();
+      return c.json(report, healthHttpStatus(report.status) as 200);
+    });
 }
 
 /**
- * 10.4. Registered only outside production. The caller of this factory decides
- * whether it is mounted at all; there is no authorization check that could be
- * misconfigured into existence.
+ * 10.4. Registered only outside production. Guarded by environment-bound confirm
+ * value and RESET_API_TOKEN.
  */
-export function resetStateRoutes(config: Config) {
+export function resetStateRoutes(config: Config, runner?: ResetRunner) {
   const token = config.RESET_API_TOKEN;
   if (!token) throw new Error("resetStateRoutes requires RESET_API_TOKEN");
   const middleware = bearerAuth({ token });
-  const jobId = "d4e5f6a7-b8c9-4d0e-9f1a-2b3c4d5e6f70";
+  const activeRunner =
+    runner ??
+    new ResetRunner({
+      actions: inMemoryResetStageActions(),
+      appEnv: config.APP_ENV,
+    });
 
   return createRouter()
-    .openapi({ ...resetState, middleware }, (c) =>
-      c.json(
-        {
-          jobId,
-          status: "queued" as const,
-          seed: config.RESET_DEFAULT_SEED ?? "dev",
-          statusUrl: `/admin/reset-state/${jobId}`,
-        },
-        202,
-      ),
-    )
-    .openapi({ ...resetJob, middleware }, (c) =>
-      c.json(
-        {
-          jobId: c.req.valid("param").jobId,
-          status: "succeeded" as const,
-          stage: "flush_queue" as const,
-          stages: [...RESET_STAGES],
-          startedAt: "2026-09-10T06:12:00.000Z",
-          finishedAt: "2026-09-10T06:13:40.000Z",
-          error: null,
-        },
-        200,
-      ),
-    );
+    .openapi({ ...resetState, middleware }, async (c) => {
+      const body = c.req.valid("json");
+      const seed = body.seed ?? config.RESET_DEFAULT_SEED ?? "dev";
+      const result = activeRunner.start(body.confirm, seed);
+
+      if (!result.ok) {
+        if (result.error.kind === "ConfirmMismatch") {
+          throw new AppError("VALIDATION_ERROR", [
+            { field: "confirm", issue: "Confirm token mismatch" },
+          ]);
+        }
+        throw new AppError("INVALID_STATE_TRANSITION");
+      }
+
+      return c.json(result.value, 202);
+    })
+    .openapi({ ...resetJob, middleware }, (c) => {
+      const { jobId } = c.req.valid("param");
+      const job = activeRunner.getJob(jobId);
+
+      if (!job) {
+        throw new AppError("NOT_FOUND");
+      }
+
+      return c.json(job, 200);
+    });
 }

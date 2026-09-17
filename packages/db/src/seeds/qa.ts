@@ -1,4 +1,4 @@
-import { sql as connection, db } from "../client.ts";
+import type { Db } from "../create-db.ts";
 import { seedDev } from "./dev.ts";
 import { DEV_PASSWORD } from "./internal/dev-tenant.ts";
 import {
@@ -22,8 +22,8 @@ import { writeTenancy } from "./internal/write-tenancy.ts";
  * and AC-06.01 and AC-33.01 need the pipeline to have run. See
  * `fixtures/README.md`.
  */
-export async function seedQa(): Promise<void> {
-  await seedDev();
+export async function seedQa(db: Db, options?: { sessionAbsoluteTtlDays?: number }): Promise<void> {
+  await seedDev(db, options);
   const passwordHash = await Bun.password.hash(DEV_PASSWORD, "argon2id");
 
   await db.transaction(async (tx) => {
@@ -47,6 +47,9 @@ export async function seedQa(): Promise<void> {
 }
 
 if (import.meta.main) {
-  await seedQa();
+  const { loadConfig } = await import("@archiva/config");
+  const { sql: connection, db } = await import("../client.ts");
+  const config = loadConfig();
+  await seedQa(db, { sessionAbsoluteTtlDays: config.SESSION_ABSOLUTE_TTL_DAYS });
   await connection.close();
 }

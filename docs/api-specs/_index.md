@@ -116,10 +116,10 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /health/live` | [10 10.2](10-system.md) | 1 | SCAFFOLD |
-| `GET /health/ready` | [10 10.3](10-system.md) | 1 | SCAFFOLD |
-| `POST /admin/reset-state` | [10 10.4](10-system.md) | 1 | SCAFFOLD |
-| `GET /admin/reset-state/:jobId` | [10 10.5](10-system.md) | 1 | SCAFFOLD |
+| `GET /health/live` | [10 10.2](10-system.md) | 1 | OK |
+| `GET /health/ready` | [10 10.3](10-system.md) | 1 | OK |
+| `POST /admin/reset-state` | [10 10.4](10-system.md) | 1 | OK |
+| `GET /admin/reset-state/:jobId` | [10 10.5](10-system.md) | 1 | OK |
 
 **Total: 39 operations.** Sprint numbers follow [../business/sprint-breakdown.md](../business/sprint-breakdown.md); an operation is listed in the earliest sprint whose criteria need it.
 

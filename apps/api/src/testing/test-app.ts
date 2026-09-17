@@ -10,6 +10,7 @@ import {
   inMemoryIdentityRepository,
   SESSION_COOKIE_NAME,
 } from "@archiva/identity";
+import type { DependencyProbe, ResetRunner } from "@archiva/platform";
 import type { Role } from "@archiva/shared";
 import { asSessionId, asTenantId, asUserId } from "@archiva/shared";
 import type { Tenant } from "@archiva/tenancy";
@@ -167,15 +168,18 @@ export const TEST_USERS: UserRow[] = [
   },
 ];
 
+export type TestAppOptions = {
+  activityRepository?: InMemoryActivityRepository;
+  probes?: DependencyProbe[];
+  resetRunner?: ResetRunner;
+};
+
 export type TestApp = OpenAPIHono<AppEnv> & {
   activityRepository: InMemoryActivityRepository;
 };
 
 /** A fresh app per call, so limiter windows never leak between tests. */
-export function buildTestApp(
-  config: Config = BASE_CONFIG,
-  options?: { activityRepository?: InMemoryActivityRepository },
-): TestApp {
+export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOptions): TestApp {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
     repository: inMemoryTenancyRepository({ tenants: [TENANT_A, TENANT_B] }),
@@ -214,7 +218,8 @@ export function buildTestApp(
     identity,
     activity,
     rateLimitStores: () => new MemoryStore<AppEnv>(),
-    probes: [],
+    probes: options?.probes ?? [],
+    resetRunner: options?.resetRunner,
   });
 
   return Object.assign(app, { activityRepository });

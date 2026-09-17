@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { ResetRunner } from "./internal/reset-runner.ts";
 import type { DependencyProbe, ProbeResult, ProbeStatus } from "./ports.ts";
 import { aggregate, expectedConfirmToken, healthHttpStatus, runHealthCheck } from "./service.ts";
+import { inMemoryResetStageActions } from "./testing/in-memory-reset-actions.ts";
 
 const probe = (name: string, canDegrade: boolean, status: ProbeStatus): DependencyProbe => ({
   name,
@@ -64,5 +66,86 @@ describe("reset confirmation token", () => {
   test("is environment-bound, so a SIT request cannot be replayed at UAT", () => {
     expect(expectedConfirmToken("sit")).toBe("reset-sit");
     expect(expectedConfirmToken("uat")).not.toBe(expectedConfirmToken("sit"));
+  });
+});
+
+describe("ResetRunner", () => {
+  test("starts a reset job successfully when confirm matches", async () => {
+    const actions = inMemoryResetStageActions();
+    const runner = new ResetRunner({ actions, appEnv: "dev" });
+
+    const result = runner.start("reset-dev", "dev");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.value.status).toBe("queued");
+    expect(result.value.seed).toBe("dev");
+    expect(result.value.statusUrl).toBe(`/admin/reset-state/${result.value.jobId}`);
+
+    // Wait for microtask async execution
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const job = runner.getJob(result.value.jobId);
+    expect(job).not.toBeNull();
+    expect(job?.status).toBe("succeeded");
+    expect(job?.stage).toBe("flush_queue");
+    expect(job?.error).toBeNull();
+    expect(actions.auditRecorded).toBe(true);
+    expect(actions.executedStages).toEqual([
+      "drop",
+      "migrate",
+      "seed",
+      "purge_blobs",
+      "recreate_index",
+      "flush_queue",
+    ]);
+  });
+
+  test("refuses when confirm token does not match environment", () => {
+    const actions = inMemoryResetStageActions();
+    const runner = new ResetRunner({ actions, appEnv: "dev" });
+
+    const result = runner.start("reset-sit", "dev");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.kind).toBe("ConfirmMismatch");
+    }
+  });
+
+  test("refuses when a reset is already active", () => {
+    let slowResolve: () => void = () => {};
+    const slowActions = inMemoryResetStageActions();
+    slowActions.drop = () =>
+      new Promise<void>((r) => {
+        slowResolve = r;
+      });
+
+    const runner = new ResetRunner({ actions: slowActions, appEnv: "dev" });
+    const first = runner.start("reset-dev", "dev");
+    expect(first.ok).toBe(true);
+
+    const second = runner.start("reset-dev", "dev");
+    expect(second.ok).toBe(false);
+    if (!second.ok) {
+      expect(second.error.kind).toBe("ResetAlreadyRunning");
+    }
+
+    slowResolve();
+  });
+
+  test("records error and stage when a stage fails", async () => {
+    const actions = inMemoryResetStageActions({ failAtStage: "seed" });
+    const runner = new ResetRunner({ actions, appEnv: "dev" });
+
+    const result = runner.start("reset-dev", "qa");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const job = runner.getJob(result.value.jobId);
+    expect(job?.status).toBe("failed");
+    expect(job?.stage).toBe("seed");
+    expect(job?.error).toContain("Simulated failure at seed");
   });
 });

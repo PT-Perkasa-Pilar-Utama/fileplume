@@ -1,7 +1,7 @@
 import type { ActivityService } from "@archiva/activity";
 import type { Config } from "@archiva/config";
 import type { IdentityService } from "@archiva/identity";
-import type { DependencyProbe } from "@archiva/platform";
+import type { DependencyProbe, ResetRunner } from "@archiva/platform";
 import type { TenancyService } from "@archiva/tenancy";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
@@ -25,6 +25,7 @@ export type AppDeps = {
   activity: ActivityService;
   rateLimitStores: RateLimitStoreFactory;
   probes: DependencyProbe[];
+  resetRunner?: ResetRunner;
 };
 
 export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
@@ -64,7 +65,7 @@ export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
    */
   if (config.APP_ENV !== "production" && config.ENABLE_RESET_API) {
     app.post("/admin/reset-state", resetStateLimit(deps.rateLimitStores));
-    app.route("/admin", resetStateRoutes(config));
+    app.route("/admin", resetStateRoutes(config, deps.resetRunner));
   }
 
   registerSecuritySchemes(app);

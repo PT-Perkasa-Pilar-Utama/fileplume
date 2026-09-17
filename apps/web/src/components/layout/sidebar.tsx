@@ -12,14 +12,14 @@ import {
 import type { JSX } from "react";
 import { cn } from "../../lib/cn.ts";
 
-interface MenuItemConfig {
+export interface MenuItemConfig {
   key: Menu;
   label: string;
   to: string;
   icon: typeof LayoutDashboard;
 }
 
-const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
+export const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   dashboard: {
     key: "dashboard",
     label: "Dashboard",
@@ -28,13 +28,13 @@ const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   },
   document: {
     key: "document",
-    label: "Dokumen",
+    label: "Document",
     to: "/documents",
     icon: FileText,
   },
   permission_category: {
     key: "permission_category",
-    label: "Kategori & Izin",
+    label: "Permission Category",
     to: "/permission-category",
     icon: FolderKey,
   },
@@ -52,7 +52,7 @@ const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   },
   configuration: {
     key: "configuration",
-    label: "Konfigurasi",
+    label: "Configuration",
     to: "/configuration",
     icon: Settings,
   },
@@ -64,13 +64,12 @@ const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   },
 };
 
-interface SidebarProps {
-  menus: readonly Menu[];
+export interface SidebarProps {
+  menus?: readonly Menu[];
   className?: string;
 }
 
-// SCAFFOLD: FE-S1-03 finalizes and tests role-derived navigation from GET /auth/me menus across all 4 role variants.
-export function Sidebar({ menus, className }: SidebarProps): JSX.Element {
+export function Sidebar({ menus = [], className }: SidebarProps): JSX.Element {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
@@ -83,7 +82,7 @@ export function Sidebar({ menus, className }: SidebarProps): JSX.Element {
       <div className="flex h-14 items-center border-b px-4">
         <h2 className="font-bold text-lg tracking-tight text-primary">Archiva</h2>
       </div>
-      <nav className="flex-1 space-y-1 p-3">
+      <nav aria-label="Navigasi Utama" className="flex-1 space-y-1 p-3">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = item.to === "/" ? currentPath === "/" : currentPath.startsWith(item.to);

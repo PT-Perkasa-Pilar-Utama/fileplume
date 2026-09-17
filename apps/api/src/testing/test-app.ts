@@ -18,6 +18,12 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
 import { createApp } from "../app.ts";
 import type { AppEnv } from "../middleware/context.ts";
+import {
+  MOCK_DOC_ID,
+  MOCK_TENANT_A_ID,
+  MOCK_TENANT_B_DOC_ID,
+  MOCK_TENANT_B_ID,
+} from "../routes/mocks.ts";
 
 export const BASE_CONFIG: Config = {
   APP_ENV: "dev",
@@ -62,21 +68,21 @@ export const BASE_CONFIG: Config = {
 };
 
 export const TENANT_A: Tenant = {
-  id: asTenantId("1a2b3c4d-5e6f-4071-8a9b-0c1d2e3f4a5b"),
+  id: asTenantId(MOCK_TENANT_A_ID),
   name: "PT Contoh Baru",
   subdomain: "contohbaru",
   status: "active",
 };
 
 export const TENANT_B: Tenant = {
-  id: asTenantId("5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f10"),
+  id: asTenantId(MOCK_TENANT_B_ID),
   name: "PT Mitra Rahasia",
   subdomain: "mitra-rahasia",
   status: "active",
 };
 
-export const DOC_A_ID = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
-export const RAHASIA_B_DOC_ID = "991ba4a4-6a73-5755-8118-260707e7d4d1";
+export const DOC_A_ID = MOCK_DOC_ID;
+export const RAHASIA_B_DOC_ID = MOCK_TENANT_B_DOC_ID;
 
 export const TOKENS = {
   memberA: "token-member-a",

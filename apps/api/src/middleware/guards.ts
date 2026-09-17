@@ -23,7 +23,7 @@ export function requireRole(floor: Floor): MiddlewareHandler<AppEnv> {
       // Every 403 writes a denied audit event before the response is sent.
       // AC-41.05, CODING_STANDARD 8.5.
       if (session.principal.tenantId !== null) {
-        await c.get("activity")?.record({
+        await c.get("activity").record({
           tenantId: session.principal.tenantId,
           actorId: session.principal.userId,
           action: "access.denied",

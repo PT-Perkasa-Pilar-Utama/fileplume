@@ -47,7 +47,7 @@ async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): P
   const session = c.get("session");
   if (!isDocumentInTenant(documentId, tenant?.id ?? null)) {
     if (session.kind === "authenticated" && session.principal.tenantId !== null) {
-      await c.get("activity")?.record({
+      await c.get("activity").record({
         tenantId: session.principal.tenantId,
         actorId: session.principal.userId,
         action: "access.denied",

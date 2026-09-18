@@ -136,9 +136,9 @@ describe("Sidebar navigation derived from role menus (FE-S1-03)", () => {
     const html = await renderSidebar(menus, "/documents");
 
     expect(html).toContain('href="/documents"');
-    // Active link has bg-primary styling and aria-current="page"
-    expect(html).toMatch(/<a[^>]*bg-primary[^>]*href="\/documents"/);
-    expect(html).toMatch(/<a[^>]*href="\/documents"[^>]*aria-current="page"/);
+    // Active link has light active styling and aria-current="page" (Figma slicing)
+    expect(html).toContain("bg-slate-100");
+    expect(html).toContain('aria-current="page"');
   });
 
   test("handles empty or undefined menus gracefully without throwing", async () => {

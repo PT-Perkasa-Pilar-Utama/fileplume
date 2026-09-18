@@ -10,9 +10,9 @@ interface AppShellProps {
 
 export function AppShell({ principal }: AppShellProps): JSX.Element {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <Sidebar menus={principal.menus} />
-      <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-screen gap-3 bg-muted/50 p-3 text-foreground">
+      <Sidebar menus={principal.menus} user={principal.user} />
+      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border bg-background">
         <Header principal={principal} />
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />

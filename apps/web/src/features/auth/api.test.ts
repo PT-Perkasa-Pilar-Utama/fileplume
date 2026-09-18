@@ -117,9 +117,8 @@ describe("auth api", () => {
     );
 
     try {
-      // Typed test fixture: intentional invalid email format to verify 422 mapping
       const invalidBody: LoginBody = {
-        email: "not-an-email" as string,
+        email: "not-an-email",
         password: "secret",
       };
       await loginRequest(invalidBody);

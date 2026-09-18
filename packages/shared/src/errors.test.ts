@@ -20,6 +20,10 @@ describe("error taxonomy", () => {
 
   test("a message without placeholders is returned verbatim", () => {
     expect(formatErrorMessage("TOO_MANY_TAGS")).toBe("Maksimal 3 tag per dokumen");
+    expect(formatErrorMessage("INVALID_EMAIL")).toBe("Format email tidak valid");
+    expect(formatErrorMessage("PASSWORD_REQUIRED")).toBe("Password wajib diisi");
+    expect(HTTP_STATUS.INVALID_EMAIL).toBe(422);
+    expect(HTTP_STATUS.PASSWORD_REQUIRED).toBe(422);
   });
 
   test("a missing placeholder is a programmer error, never a raw brace on the wire", () => {

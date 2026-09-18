@@ -10,7 +10,6 @@ import { Input } from "../components/ui/input.tsx";
 import { Label } from "../components/ui/label.tsx";
 import { loginRequest } from "../features/auth/api.ts";
 import { useAuthStore } from "../features/auth/auth-store.ts";
-import { ApiError } from "../lib/api.ts";
 import { LoginLogo } from "./internal/archiva-logo.tsx";
 import { LoginBanner } from "./internal/login-banner.tsx";
 
@@ -58,13 +57,7 @@ export function LoginPage(): JSX.Element {
         window.location.href = target;
       }
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        if (err.code === "INVALID_CREDENTIALS") {
-          setServerError(ERROR_MESSAGES.INVALID_CREDENTIALS);
-        } else {
-          setServerError(err.message);
-        }
-      } else if (err instanceof Error) {
+      if (err instanceof Error) {
         setServerError(err.message);
       } else {
         setServerError(ERROR_MESSAGES.INTERNAL_ERROR);
@@ -88,10 +81,10 @@ export function LoginPage(): JSX.Element {
             </div>
             <div className="flex flex-col gap-1">
               <h1 className="font-bold text-xl text-foreground tracking-tight">
-                Login to your account
+                Masuk ke akun Anda
               </h1>
               <p className="text-muted-foreground text-sm">
-                Enter your registered email and password to login
+                Masukkan email dan password terdaftar Anda untuk masuk
               </p>
             </div>
           </div>
@@ -164,7 +157,7 @@ export function LoginPage(): JSX.Element {
         </div>
 
         <div className="text-center text-muted-foreground text-xs">
-          &copy; {new Date().getFullYear()} PT Perkasa Pilar Utama. All rights reserved.
+          &copy; {new Date().getFullYear()} PT Perkasa Pilar Utama. Hak cipta dilindungi.
         </div>
       </div>
 

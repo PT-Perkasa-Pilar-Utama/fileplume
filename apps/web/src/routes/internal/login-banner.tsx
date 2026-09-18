@@ -7,7 +7,6 @@ interface OrbitBadge {
   angle: number;
   radius: number;
   iconClassName: string;
-  label: string;
 }
 
 const ORBIT_BADGES: OrbitBadge[] = [
@@ -16,66 +15,55 @@ const ORBIT_BADGES: OrbitBadge[] = [
     angle: -50,
     radius: 208,
     iconClassName: "text-orange-600",
-    label: "Archive document",
   },
-  { Icon: FileText, angle: 0, radius: 152, iconClassName: "text-rose-600", label: "Text document" },
+  { Icon: FileText, angle: 0, radius: 152, iconClassName: "text-rose-600" },
   {
     Icon: FileCode,
     angle: 52,
     radius: 208,
     iconClassName: "text-purple-600",
-    label: "Code document",
   },
-  { Icon: FileText, angle: 48, radius: 96, iconClassName: "text-blue-600", label: "Text document" },
+  { Icon: FileText, angle: 48, radius: 96, iconClassName: "text-blue-600" },
   {
     Icon: FileSpreadsheet,
     angle: 90,
     radius: 160,
     iconClassName: "text-emerald-600",
-    label: "Spreadsheet document",
   },
   {
     Icon: FileArchive,
     angle: 138,
     radius: 208,
     iconClassName: "text-orange-600",
-    label: "Archive document",
   },
   {
     Icon: FileText,
     angle: 180,
     radius: 96,
     iconClassName: "text-rose-600",
-    label: "Text document",
   },
   {
     Icon: FileSpreadsheet,
     angle: 215,
     radius: 208,
     iconClassName: "text-emerald-600",
-    label: "Spreadsheet document",
   },
   {
     Icon: FileText,
     angle: 270,
     radius: 160,
     iconClassName: "text-blue-600",
-    label: "Text document",
   },
 ];
 
 function OrbitNode({ badge }: { badge: OrbitBadge }): JSX.Element {
-  const { Icon, angle, radius, iconClassName, label } = badge;
+  const { Icon, angle, radius, iconClassName } = badge;
   const style: CSSProperties = {
     transform: `rotate(${angle}deg) translate(${radius}px) rotate(${-angle}deg)`,
   };
   return (
     <div className="absolute top-1/2 left-1/2 -mt-6 -ml-6" style={style}>
-      <div
-        role="img"
-        aria-label={label}
-        className="flex size-12 items-center justify-center rounded-full bg-white/85 shadow-lg backdrop-blur-sm"
-      >
+      <div className="flex size-12 items-center justify-center rounded-full bg-white/85 shadow-lg backdrop-blur-sm">
         <Icon className={`size-5 ${iconClassName}`} />
       </div>
     </div>
@@ -119,12 +107,12 @@ export function LoginBanner(): JSX.Element {
         </div>
 
         <div className="relative z-10 max-w-md">
-          <p className="font-normal text-base text-blue-100">Welcome to,</p>
+          <p className="font-normal text-base text-blue-100">Selamat datang di,</p>
           <h2 className="my-1 font-bold text-5xl text-white tracking-tight">ARCHIVA</h2>
           <p className="text-blue-100/80 text-sm leading-relaxed">
-            ARCHIVA is Document Management Systems
+            ARCHIVA adalah sistem manajemen dokumen
             <br />
-            made by Perkasa Pilar Utama
+            oleh Perkasa Pilar Utama
           </p>
         </div>
       </div>

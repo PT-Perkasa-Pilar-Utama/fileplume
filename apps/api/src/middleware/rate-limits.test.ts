@@ -71,6 +71,13 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     const allowed = await statuses(app, times(100, upload));
     expect(allowed.every((status) => status === 201)).toBe(true);
     expect((await app.request(upload())).status).toBe(429);
+    const otherUploader = tenantRequest("/documents", {
+      method: "POST",
+      token: TOKENS.adminA,
+      headers: { "content-type": "multipart/form-data; boundary=x" },
+      body: "--x--",
+    });
+    expect((await app.request(otherUploader)).status).toBe(201);
   });
 
   test("upload: non-upload requests are not counted against the upload limit", async () => {
@@ -122,6 +129,14 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     expect(overLimit.status).toBe(429);
     expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(await overLimit.json()).toEqual(RATE_LIMITED);
+
+    const otherUploader = tenantRequest("/documents", {
+      method: "POST",
+      token: TOKENS.adminA,
+      headers: { "content-type": "multipart/form-data; boundary=x" },
+      body: "--x--",
+    });
+    expect((await app.request(otherUploader)).status).toBe(201);
   });
 
   test("search: unauthenticated queries are not counted against the search limit", async () => {

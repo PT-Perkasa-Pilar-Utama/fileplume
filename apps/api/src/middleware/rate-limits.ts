@@ -18,6 +18,12 @@ const HOUR_MS = 60 * MINUTE_MS;
 const loginBody = z.object({ email: z.string().min(1) });
 
 function limiter(spec: LimitSpec, stores: RateLimitStoreFactory): MiddlewareHandler<AppEnv> {
+  /**
+   * `skip` and `keyGenerator` both ask for the key, and the limiter is only
+   * correct if they agree: a key that resolved once and differs the second
+   * time would pass `skip` and then throw. One answer per request, held
+   * against the context so it dies with the request.
+   */
   const keyCache = new WeakMap<Context<AppEnv>, Promise<string | null>>();
   const resolveKey = (c: Context<AppEnv>): Promise<string | null> => {
     let promise = keyCache.get(c);

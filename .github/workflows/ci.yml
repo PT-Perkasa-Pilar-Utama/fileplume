@@ -40,21 +40,28 @@ jobs:
       - run: cp .env.example .env
       # api and its dependency chain only. worker waits on ClamAV's first
       # signature download, and no pipeline card is wired yet.
-      - run: | 
-          for attemp in {1..3}; do
-            echo "Attempt $attemp..."
-            docker compose up -d --build --wait api && break || sleep sleep $((2 ** attempt))
-          done      
+      - run: |
+          for attempt in {1..3}; do
+            echo "Attempt $attempt..."
+            docker compose up -d --build --wait api && break || sleep $((2 ** attempt))
+          done
+      # The specs need a resolvable tenant and a seeded session; a second tenant
+      # gives the cross-tenant criteria a host to be refused from. Without this
+      # every route answers 404 at step 1 of api-specs/01-conventions.md 1.12.
+      - run: docker compose run --rm --no-deps migrate bun run packages/db/src/seeds/qa.ts
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e --forbid-only
       - if: failure()
         run: docker compose logs --no-color
+      # The report is a diagnostic, not a gate: a full artifact store must not
+      # be what turns the job red.
       - if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report
-          retention-days: 7
+          retention-days: 3
       - if: always()
         run: docker compose down -v
 

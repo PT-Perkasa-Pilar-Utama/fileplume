@@ -12,8 +12,10 @@ test("liveness answers from the API container", async ({ request }) => {
 });
 
 test("an unseeded tenant subdomain is refused by the API, not the proxy", async ({ request }) => {
-  // The JSON envelope is the API's own 404, so the request crossed the preview proxy.
-  const res = await request.get("/api/v1/auth/me");
+  // The seeded tenants answer on their own hosts, so the unseeded case needs a
+  // subdomain no seed writes. The JSON envelope is the API's own 404, so the
+  // request crossed the preview proxy.
+  const res = await request.get("http://tidak-ada.localhost:4173/api/v1/auth/me");
   expect(res.status()).toBe(404);
   expect(res.headers()["content-type"]).toContain("application/json");
 });

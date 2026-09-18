@@ -1,52 +1,51 @@
-import type {
-  analyticsDashboardSchema,
-  auditEventSchema,
-  bulkDownloadTicketSchema,
-  categorySchema,
-  classifiedDocumentSchema,
-  contentHitSchema,
-  documentDetailSchema,
-  documentSchema,
-  documentVersionSchema,
-  personRefSchema,
-  principalSchema,
-  processingStatusSchema,
-  relatedDocumentSchema,
-  reprocessAcceptedSchema,
-  sessionSchema,
-  storageSchema,
-  tenantListItemSchema,
-  tenantSchema,
-  titleHitSchema,
-  topTagSchema,
-  uploadBatchSchema,
+import {
+  type analyticsDashboardSchema,
+  type auditEventSchema,
+  type bulkDownloadTicketSchema,
+  type categorySchema,
+  type classifiedDocumentSchema,
+  type contentHitSchema,
+  type documentDetailSchema,
+  type documentSchema,
+  type documentVersionSchema,
+  page,
+  type personRefSchema,
+  type principalSchema,
+  type processingStatusSchema,
+  type relatedDocumentSchema,
+  type reprocessAcceptedSchema,
+  type sessionSchema,
+  type storageSchema,
+  type tenantListItemSchema,
+  type tenantSchema,
+  type titleHitSchema,
+  type topTagSchema,
+  type uploadBatchSchema,
 } from "@archiva/shared";
-import { page } from "@archiva/shared";
 import type { z } from "zod";
 
 /**
- * Typed mock constants. Every stub returns a contract-valid response matching
- * docs/api-specs/, so the frontend integrates from day one and no one is
- * blocked. Each constant is replaced by real behaviour in the card named
- * beside it in docs/TASK_BREAKDOWN.md. mocks.test.ts parses each against its schema.
+ * Typed mock constants matching docs/api-specs/. Each is replaced by real behaviour
+ * in the card named beside it in docs/TASK_BREAKDOWN.md.
  */
-const TENANT_ID = "1a2b3c4d-5e6f-4071-8a9b-0c1d2e3f4a5b";
+export const MOCK_TENANT_A_ID = "1a2b3c4d-5e6f-4071-8a9b-0c1d2e3f4a5b";
+export const MOCK_TENANT_B_ID = "5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f10";
+export const MOCK_DOC_ID = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
+export const MOCK_TENANT_B_DOC_ID = "991ba4a4-6a73-5755-8118-260707e7d4d1";
+export const MOCK_CATEGORY_ID = "7b2f0c93-1d84-4a6e-9b52-6c7d8e9f0a1b";
+export const MOCK_TENANT_B_CATEGORY_ID = "881ba4a4-6a73-5755-8118-260707e7d4d2";
+
 const USER_ID = "9d1c4a70-7b53-4f0a-8a71-3c9e2d5b6f10";
-const DOC_ID = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
-const CATEGORY_ID = "7b2f0c93-1d84-4a6e-9b52-6c7d8e9f0a1b";
 const VERSION_ID = "aa11b2c3-4d5e-4f60-8a1b-2c3d4e5f6071";
 const TICKET_ID = "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b";
 
-export const MOCK_TENANT_A_ID = TENANT_ID;
-export const MOCK_TENANT_B_ID = "5b4a3f2e-1d0c-4b9a-8f7e-6d5c4b3a2f10";
-export const MOCK_DOC_ID = DOC_ID;
-export const MOCK_TENANT_B_DOC_ID = "991ba4a4-6a73-5755-8118-260707e7d4d1";
+export const isDocumentInTenant = (id: string, tenantId: string | null): boolean =>
+  (tenantId === MOCK_TENANT_A_ID && id === MOCK_DOC_ID) ||
+  (tenantId === MOCK_TENANT_B_ID && id === MOCK_TENANT_B_DOC_ID);
 
-export function isDocumentInTenant(documentId: string, tenantId: string | null): boolean {
-  if (tenantId === MOCK_TENANT_A_ID && documentId === MOCK_DOC_ID) return true;
-  if (tenantId === MOCK_TENANT_B_ID && documentId === MOCK_TENANT_B_DOC_ID) return true;
-  return false;
-}
+export const isCategoryInTenant = (id: string, tenantId: string | null): boolean =>
+  (tenantId === MOCK_TENANT_A_ID && id === MOCK_CATEGORY_ID) ||
+  (tenantId === MOCK_TENANT_B_ID && id === MOCK_TENANT_B_CATEGORY_ID);
 
 export const MOCK_UPLOADER: z.infer<typeof personRefSchema> = { id: USER_ID, name: "Budi Santoso" };
 
@@ -58,7 +57,7 @@ export const MOCK_SESSION: z.infer<typeof sessionSchema> = {
     role: "member",
     avatarUrl: null,
   },
-  tenant: { id: TENANT_ID, name: "PT Contoh Baru", subdomain: "contohbaru" },
+  tenant: { id: MOCK_TENANT_A_ID, name: "PT Contoh Baru", subdomain: "contohbaru" },
   expiresAt: "2026-10-10T03:14:07.000Z",
 };
 
@@ -68,7 +67,7 @@ export const MOCK_PRINCIPAL: z.infer<typeof principalSchema> = {
 };
 
 export const MOCK_TENANT: z.infer<typeof tenantSchema> = {
-  id: TENANT_ID,
+  id: MOCK_TENANT_A_ID,
   name: "PT Contoh Baru",
   subdomain: "contohbaru",
   status: "active",
@@ -94,7 +93,7 @@ export const MOCK_STORAGE: z.infer<typeof storageSchema> = {
 };
 
 export const MOCK_CATEGORY: z.infer<typeof categorySchema> = {
-  id: CATEGORY_ID,
+  id: MOCK_CATEGORY_ID,
   name: "Technical Spec",
   isSystem: false,
   downloadActive: false,
@@ -106,7 +105,7 @@ export const MOCK_CATEGORY: z.infer<typeof categorySchema> = {
 };
 
 export const MOCK_DOCUMENT: z.infer<typeof documentSchema> = {
-  id: DOC_ID,
+  id: MOCK_DOC_ID,
   title: "kontrak-kerjasama.pdf",
   filename: "kontrak-kerjasama.pdf",
   mimeType: "application/pdf",
@@ -119,7 +118,7 @@ export const MOCK_DOCUMENT: z.infer<typeof documentSchema> = {
   processingLabel: "Siap",
   failureReason: null,
   uploader: MOCK_UPLOADER,
-  category: { id: CATEGORY_ID, name: "Technical Spec", isSuggestion: false, isSystem: false },
+  category: { id: MOCK_CATEGORY_ID, name: "Technical Spec", isSuggestion: false, isSystem: false },
   documentType: "Kontrak",
   tags: ["legal", "kerjasama", "2026"],
   downloadAllowed: true,
@@ -159,7 +158,7 @@ export const MOCK_UPLOAD_BATCH: z.infer<typeof uploadBatchSchema> = {
       filename: "laporan-q3.pdf",
       status: "accepted",
       document: {
-        id: DOC_ID,
+        id: MOCK_DOC_ID,
         title: "laporan-q3.pdf",
         processingState: "queued",
         processingLabel: "Antre",
@@ -179,7 +178,7 @@ export const MOCK_BULK_TICKET: z.infer<typeof bulkDownloadTicketSchema> = {
 };
 
 export const MOCK_PROCESSING: z.infer<typeof processingStatusSchema> = {
-  documentId: DOC_ID,
+  documentId: MOCK_DOC_ID,
   state: "ready",
   label: "Siap",
   failureReason: null,
@@ -188,7 +187,7 @@ export const MOCK_PROCESSING: z.infer<typeof processingStatusSchema> = {
 };
 
 export const MOCK_REPROCESS: z.infer<typeof reprocessAcceptedSchema> = {
-  documentId: DOC_ID,
+  documentId: MOCK_DOC_ID,
   state: "queued",
   label: "Antre",
 };
@@ -196,18 +195,18 @@ export const MOCK_REPROCESS: z.infer<typeof reprocessAcceptedSchema> = {
 export const MOCK_TOP_TAG: z.infer<typeof topTagSchema> = { tag: "strategy", documentCount: 42 };
 
 export const MOCK_TITLE_HIT: z.infer<typeof titleHitSchema> = {
-  documentId: DOC_ID,
+  documentId: MOCK_DOC_ID,
   title: "kontrak-kerjasama.pdf",
   fileType: "pdf",
   fragment: "kontrak <em>kerjasama</em> antara PT Contoh Baru dan ...",
   uploader: MOCK_UPLOADER,
-  category: { id: CATEGORY_ID, name: "Technical Spec" },
+  category: { id: MOCK_CATEGORY_ID, name: "Technical Spec" },
   createdAt: "2026-09-01T09:00:00.000Z",
   score: 8.42,
 };
 
 export const MOCK_CONTENT_HIT: z.infer<typeof contentHitSchema> = {
-  documentId: DOC_ID,
+  documentId: MOCK_DOC_ID,
   title: "kontrak-kerjasama.pdf",
   fileType: "pdf",
   pageNumber: 15,
@@ -233,7 +232,7 @@ export const MOCK_AUDIT_EVENT: z.infer<typeof auditEventSchema> = {
   actionLabel: "Unduhan ditolak",
   outcome: "denied",
   actor: { id: USER_ID, name: "Zayd Almasi" },
-  subject: { type: "document", id: DOC_ID, title: "offering-letter.pdf" },
+  subject: { type: "document", id: MOCK_DOC_ID, title: "offering-letter.pdf" },
   metadata: { reason: "DOWNLOAD_FORBIDDEN" },
   createdAt: "2026-09-10T05:41:12.000Z",
 };

@@ -4,7 +4,6 @@ import { rateLimiter, type Store } from "hono-rate-limiter";
 import { z } from "zod";
 import type { AppEnv } from "./context.ts";
 import { fail } from "./errors.ts";
-import { isUploadRequest } from "./internal/upload-routes.ts";
 
 /** One store per limiter, so each keeps its own window. Valkey in production, memory in tests. */
 export type RateLimitStoreFactory = (name: string) => Store<AppEnv>;
@@ -19,13 +18,29 @@ const HOUR_MS = 60 * MINUTE_MS;
 const loginBody = z.object({ email: z.string().min(1) });
 
 function limiter(spec: LimitSpec, stores: RateLimitStoreFactory): MiddlewareHandler<AppEnv> {
+  const keyCache = new WeakMap<Context<AppEnv>, Promise<string | null>>();
+  const resolveKey = (c: Context<AppEnv>): Promise<string | null> => {
+    let promise = keyCache.get(c);
+    if (!promise) {
+      promise = Promise.resolve(spec.key(c));
+      keyCache.set(c, promise);
+    }
+    return promise;
+  };
+
   return rateLimiter<AppEnv>({
     windowMs: spec.windowMs,
     limit: spec.limit,
     store: stores(spec.name),
     standardHeaders: "draft-6",
-    skip: async (c) => (await spec.key(c)) === null,
-    keyGenerator: async (c) => (await spec.key(c)) ?? "",
+    skip: async (c) => (await resolveKey(c)) == null,
+    keyGenerator: async (c) => {
+      const key = await resolveKey(c);
+      if (key == null || key === "") {
+        throw new Error(`Rate limit key for '${spec.name}' must not be empty when unskipped`);
+      }
+      return key;
+    },
     handler: (c) => fail(c, "RATE_LIMITED"),
   });
 }
@@ -60,8 +75,7 @@ function sessionId(c: Context<AppEnv>): string | null {
 
 function uploader(c: Context<AppEnv>): string | null {
   const session = c.get("session");
-  if (!isUploadRequest(c) || session.kind !== "authenticated") return null;
-  return session.principal.userId;
+  return session.kind === "authenticated" ? session.principal.userId : null;
 }
 
 /**
@@ -79,7 +93,12 @@ export function mountRateLimits(api: Hono<AppEnv>, stores: RateLimitStoreFactory
     "/search/*",
     limiter({ name: "search", windowMs: MINUTE_MS, limit: 60, key: sessionId }, stores),
   );
-  api.use("*", limiter({ name: "upload", windowMs: HOUR_MS, limit: 100, key: uploader }, stores));
+  const uploadLimit = limiter(
+    { name: "upload", windowMs: HOUR_MS, limit: 100, key: uploader },
+    stores,
+  );
+  api.post("/documents", uploadLimit);
+  api.post("/documents/:id/versions", uploadLimit);
 }
 
 export function resetStateLimit(stores: RateLimitStoreFactory): MiddlewareHandler<AppEnv> {

@@ -3,15 +3,15 @@ import type { HTMLAttributes, JSX } from "react";
 import { cn } from "../../lib/cn.ts";
 
 export const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
+  "relative flex w-full items-center gap-2 rounded-[10px] border p-3 text-sm [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
+        default: "border-border bg-background text-foreground",
         destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+          "border-alert-destructive-border bg-alert-destructive-bg text-alert-destructive-text [&>svg]:text-alert-destructive-text",
         warning:
-          "border-amber-500/50 text-amber-900 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-700 [&>svg]:text-amber-600",
+          "border-amber-500/50 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 [&>svg]:text-amber-600",
       },
     },
     defaultVariants: {
@@ -33,10 +33,7 @@ export function AlertTitle({
   ...props
 }: HTMLAttributes<HTMLHeadingElement>): JSX.Element {
   return (
-    <h5
-      className={cn("mb-1 font-medium leading-none tracking-tight col-start-2", className)}
-      {...props}
-    />
+    <h5 className={cn("font-medium text-sm leading-5 tracking-tight", className)} {...props} />
   );
 }
 
@@ -44,5 +41,5 @@ export function AlertDescription({
   className,
   ...props
 }: HTMLAttributes<HTMLParagraphElement>): JSX.Element {
-  return <div className={cn("text-sm col-start-2 [&_p]:leading-relaxed", className)} {...props} />;
+  return <div className={cn("font-medium text-sm leading-5", className)} {...props} />;
 }

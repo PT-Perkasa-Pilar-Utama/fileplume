@@ -1,20 +1,17 @@
-import { ERROR_MESSAGES } from "@archiva/shared";
+import { ERROR_MESSAGES, type LoginBody, loginBody } from "@archiva/shared";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { getRouteApi } from "@tanstack/react-router";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CircleX, Eye, EyeOff, LogIn } from "lucide-react";
 import { type JSX, useState } from "react";
+import { useForm } from "react-hook-form";
 import { Alert, AlertDescription } from "../components/ui/alert.tsx";
 import { Button } from "../components/ui/button.tsx";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { Label } from "../components/ui/label.tsx";
 import { loginRequest } from "../features/auth/api.ts";
 import { useAuthStore } from "../features/auth/auth-store.ts";
+import { LoginLogo } from "./internal/archiva-logo.tsx";
+import { LoginBanner } from "./internal/login-banner.tsx";
 
 export interface LoginSearchParams {
   redirect?: string;
@@ -28,22 +25,29 @@ export function LoginPage(): JSX.Element {
   const sessionExpiredMessage = useAuthStore((s) => s.sessionExpiredMessage);
   const setPrincipal = useAuthStore((s) => s.setPrincipal);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const showExpiredAlert = search.expired || Boolean(sessionExpiredMessage);
   const expiredText = sessionExpiredMessage ?? ERROR_MESSAGES.SESSION_EXPIRED;
 
-  // SCAFFOLD: FE-S1-02 replaces this interim manual form with React Hook Form + @archiva/shared Zod resolver.
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginBody>({
+    resolver: zodResolver(loginBody),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (values: LoginBody): Promise<void> => {
+    setServerError(null);
 
     try {
-      const principal = await loginRequest({ email, password });
+      const principal = await loginRequest(values);
       setPrincipal(principal);
       const target =
         search.redirect?.startsWith("/") && !search.redirect.startsWith("//")
@@ -54,68 +58,111 @@ export function LoginPage(): JSX.Element {
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setServerError(err.message);
       } else {
-        setError(ERROR_MESSAGES.INTERNAL_ERROR);
+        setServerError(ERROR_MESSAGES.INTERNAL_ERROR);
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">Archiva</CardTitle>
-          <CardDescription>Masuk ke akun Anda untuk melanjutkan</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <div className="flex min-h-screen w-full bg-background text-foreground">
+      {/* Left panel: Login form */}
+      <div className="flex w-full flex-col justify-between p-6 sm:p-10 lg:w-1/2 lg:p-12">
+        <div className="flex items-center">
+          <LoginLogo />
+        </div>
+
+        <div className="mx-auto flex w-full max-w-100 flex-col gap-6 py-8">
+          {/* Header matching Figma login-header (gap 10px) */}
+          <div className="flex flex-col items-center gap-2.5 text-center">
+            <div className="flex size-14 items-center justify-center rounded-[18px] border border-primary/20 bg-primary text-primary-foreground shadow-md shadow-primary/15">
+              <LogIn className="size-6" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <h1 className="font-bold text-xl text-foreground tracking-tight">
+                Masuk ke akun Anda
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                Masukkan email dan password terdaftar Anda untuk masuk
+              </p>
+            </div>
+          </div>
+
           {showExpiredAlert ? (
             <Alert variant="warning">
-              <AlertCircle className="size-4" />
+              <AlertCircle />
               <AlertDescription>{expiredText}</AlertDescription>
             </Alert>
           ) : null}
 
-          {error ? (
+          {serverError ? (
             <Alert variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <CircleX />
+              <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form matching Figma login-form (gap 20px) */}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="nama@perusahaan.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
+                disabled={isSubmitting}
+                aria-invalid={Boolean(errors.email)}
+                className="h-10 rounded-[10px]"
+                {...register("email")}
               />
+              {errors.email ? (
+                <p className="text-destructive text-xs">{errors.email.message}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  disabled={isSubmitting}
+                  aria-invalid={Boolean(errors.password)}
+                  className="h-10 rounded-[10px] pr-10"
+                  {...register("password")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-hidden"
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              {errors.password ? (
+                <p className="text-destructive text-xs">{errors.password.message}</p>
+              ) : null}
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Memproses..." : "Masuk"}
+            <Button
+              type="submit"
+              className="h-10 w-full gap-1.5 rounded-[10px] px-2.5"
+              disabled={isSubmitting}
+            >
+              <span>{isSubmitting ? "Memproses..." : "Login"}</span>
+              <LogIn className="size-4" />
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="text-center text-muted-foreground text-xs">
+          &copy; {new Date().getFullYear()} PT Perkasa Pilar Utama. Hak cipta dilindungi.
+        </div>
+      </div>
+
+      {/* Right panel: Desktop decorative branding */}
+      <LoginBanner />
     </div>
   );
 }

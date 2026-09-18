@@ -34,6 +34,8 @@ export const ERROR_MESSAGES = {
   INVALID_STATE_TRANSITION: "Dokumen sedang diproses",
   TENANT_NAME_TAKEN: "Nama organisasi sudah digunakan",
   SUBDOMAIN_TAKEN: "Subdomain sudah digunakan",
+  INVALID_EMAIL: "Format email tidak valid",
+  PASSWORD_REQUIRED: "Password wajib diisi",
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
@@ -71,6 +73,8 @@ export const HTTP_STATUS: Record<ErrorCode, number> = {
   INVALID_STATE_TRANSITION: 409,
   TENANT_NAME_TAKEN: 409,
   SUBDOMAIN_TAKEN: 409,
+  INVALID_EMAIL: 422,
+  PASSWORD_REQUIRED: 422,
 };
 
 /**

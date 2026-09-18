@@ -1,12 +1,16 @@
 import { z } from "zod";
+import { ERROR_MESSAGES } from "../errors.ts";
 import { ROLES } from "../roles.ts";
 import { timestampSchema } from "./common.ts";
 import { MENUS } from "./enums.ts";
 
 /** api-specs/02-authentication.md 2.2. */
 export const loginBody = z.object({
-  email: z.email(),
-  password: z.string().min(1).max(200),
+  email: z.email(ERROR_MESSAGES.INVALID_EMAIL),
+  password: z
+    .string(ERROR_MESSAGES.PASSWORD_REQUIRED)
+    .min(1, ERROR_MESSAGES.PASSWORD_REQUIRED)
+    .max(200),
 });
 export type LoginBody = z.infer<typeof loginBody>;
 

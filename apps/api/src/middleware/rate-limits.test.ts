@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Hono } from "hono";
-import { buildTestApp, TOKENS, tenantRequest } from "../testing/test-app.ts";
+import { buildTestApp, DOC_A_ID, TOKENS, tenantRequest } from "../testing/test-app.ts";
 import type { AppEnv } from "./context.ts";
 
 const RATE_LIMITED = {
@@ -71,6 +71,89 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     const allowed = await statuses(app, times(100, upload));
     expect(allowed.every((status) => status === 201)).toBe(true);
     expect((await app.request(upload())).status).toBe(429);
+    const otherUploader = tenantRequest("/documents", {
+      method: "POST",
+      token: TOKENS.adminA,
+      headers: { "content-type": "multipart/form-data; boundary=x" },
+      body: "--x--",
+    });
+    expect((await app.request(otherUploader)).status).toBe(201);
+  });
+
+  test("upload: non-upload requests are not counted against the upload limit", async () => {
+    const app = buildTestApp();
+    const listDocuments = () => tenantRequest("/documents", { token: TOKENS.memberA });
+    const nonUploadStatuses = await statuses(app, times(105, listDocuments));
+    expect(nonUploadStatuses.every((status) => status === 200)).toBe(true);
+
+    const upload = () =>
+      tenantRequest("/documents", {
+        method: "POST",
+        token: TOKENS.memberA,
+        headers: { "content-type": "multipart/form-data; boundary=x" },
+        body: "--x--",
+      });
+    const allowed = await statuses(app, times(100, upload));
+    expect(allowed.every((status) => status === 201)).toBe(true);
+
+    const overLimit = await app.request(upload());
+    expect(overLimit.status).toBe(429);
+    expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
+    expect(await overLimit.json()).toEqual(RATE_LIMITED);
+  });
+
+  test("upload: document uploads and version uploads share the user limit", async () => {
+    const app = buildTestApp();
+    const uploadDoc = () =>
+      tenantRequest("/documents", {
+        method: "POST",
+        token: TOKENS.memberA,
+        headers: { "content-type": "multipart/form-data; boundary=x" },
+        body: "--x--",
+      });
+    const uploadVersion = () =>
+      tenantRequest(`/documents/${DOC_A_ID}/versions`, {
+        method: "POST",
+        token: TOKENS.memberA,
+        headers: { "content-type": "multipart/form-data; boundary=x" },
+        body: "--x--",
+      });
+
+    const allowedDocs = await statuses(app, times(50, uploadDoc));
+    expect(allowedDocs.every((status) => status === 201)).toBe(true);
+
+    const allowedVersions = await statuses(app, times(50, uploadVersion));
+    expect(allowedVersions.every((status) => status === 201)).toBe(true);
+
+    const overLimit = await app.request(uploadVersion());
+    expect(overLimit.status).toBe(429);
+    expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
+    expect(await overLimit.json()).toEqual(RATE_LIMITED);
+
+    const otherUploader = tenantRequest("/documents", {
+      method: "POST",
+      token: TOKENS.adminA,
+      headers: { "content-type": "multipart/form-data; boundary=x" },
+      body: "--x--",
+    });
+    expect((await app.request(otherUploader)).status).toBe(201);
+  });
+
+  test("search: unauthenticated queries are not counted against the search limit", async () => {
+    const app = buildTestApp();
+    const unauthenticatedSearch = () => tenantRequest("/search/titles?q=kontrak");
+    const unauthenticatedStatuses = await statuses(app, times(65, unauthenticatedSearch));
+    expect(unauthenticatedStatuses.every((status) => status === 401)).toBe(true);
+
+    const authenticatedSearch = () =>
+      tenantRequest("/search/titles?q=kontrak", { token: TOKENS.memberA });
+    const allowed = await statuses(app, times(60, authenticatedSearch));
+    expect(allowed.every((status) => status === 200)).toBe(true);
+
+    const overLimit = await app.request(authenticatedSearch());
+    expect(overLimit.status).toBe(429);
+    expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
+    expect(await overLimit.json()).toEqual(RATE_LIMITED);
   });
 
   test("reset-state: a second call within a minute is refused", async () => {

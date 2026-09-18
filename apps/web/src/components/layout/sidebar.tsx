@@ -80,6 +80,7 @@ export interface SidebarProps {
 export function Sidebar({
   menus = [],
   user,
+  // SCAFFOLD(FE-S2-02): placeholder percent until GET /storage wiring lands (api-specs/04-configuration.md 4.5).
   storagePercent = 25,
   collapsed = false,
   onToggleCollapse,

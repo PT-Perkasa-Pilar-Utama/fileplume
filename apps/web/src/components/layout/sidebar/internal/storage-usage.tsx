@@ -15,6 +15,7 @@ function clampPercent(value: number): number {
 }
 
 export function StorageUsage({ percent = 25, className }: StorageUsageProps): JSX.Element {
+  // SCAFFOLD(FE-S2-02): placeholder percent until GET /storage wiring lands (api-specs/04-configuration.md 4.5).
   const clamped = clampPercent(percent);
 
   return (

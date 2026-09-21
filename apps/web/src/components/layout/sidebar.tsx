@@ -3,38 +3,42 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Building2,
-  FileText,
+  Folder,
   FolderKey,
-  LayoutDashboard,
+  LayoutGrid,
+  PanelLeft,
   Settings,
   ShieldCheck,
 } from "lucide-react";
 import type { JSX } from "react";
 import { cn } from "../../lib/cn.ts";
+import { Button } from "../ui/button.tsx";
+import { type SidebarUser, SidebarUserCard } from "./sidebar/internal/sidebar-user-card.tsx";
+import { StorageUsage } from "./sidebar/internal/storage-usage.tsx";
 
-interface MenuItemConfig {
+export interface MenuItemConfig {
   key: Menu;
   label: string;
   to: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof LayoutGrid;
 }
 
-const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
+export const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   dashboard: {
     key: "dashboard",
     label: "Dashboard",
     to: "/",
-    icon: LayoutDashboard,
+    icon: LayoutGrid,
   },
   document: {
     key: "document",
-    label: "Dokumen",
+    label: "Document",
     to: "/documents",
-    icon: FileText,
+    icon: Folder,
   },
   permission_category: {
     key: "permission_category",
-    label: "Kategori & Izin",
+    label: "Permission Category",
     to: "/permission-category",
     icon: FolderKey,
   },
@@ -52,7 +56,7 @@ const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   },
   configuration: {
     key: "configuration",
-    label: "Konfigurasi",
+    label: "Configuration",
     to: "/configuration",
     icon: Settings,
   },
@@ -64,13 +68,24 @@ const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
   },
 };
 
-interface SidebarProps {
-  menus: readonly Menu[];
+export interface SidebarProps {
+  menus?: readonly Menu[];
+  user?: SidebarUser;
+  storagePercent?: number;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   className?: string;
 }
 
-// SCAFFOLD: FE-S1-03 finalizes and tests role-derived navigation from GET /auth/me menus across all 4 role variants.
-export function Sidebar({ menus, className }: SidebarProps): JSX.Element {
+export function Sidebar({
+  menus = [],
+  user,
+  // SCAFFOLD(FE-S2-02): placeholder percent until GET /storage wiring lands (api-specs/04-configuration.md 4.5).
+  storagePercent = 25,
+  collapsed = false,
+  onToggleCollapse,
+  className,
+}: SidebarProps): JSX.Element {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
@@ -79,11 +94,30 @@ export function Sidebar({ menus, className }: SidebarProps): JSX.Element {
     .filter((item): item is MenuItemConfig => item !== undefined);
 
   return (
-    <aside className={cn("flex w-64 flex-col border-r bg-card text-card-foreground", className)}>
-      <div className="flex h-14 items-center border-b px-4">
-        <h2 className="font-bold text-lg tracking-tight text-primary">Archiva</h2>
+    <aside
+      className={cn(
+        "flex flex-col rounded-2xl border bg-card text-card-foreground shadow-sm",
+        collapsed ? "w-20" : "w-64",
+        className,
+      )}
+    >
+      <div className="flex h-14 items-center justify-between border-b px-4">
+        {/* SCAFFOLD(FE-S1-02): ganti teks dengan <ArchivaLogo/> setelah PR login merge. */}
+        {collapsed ? null : (
+          <span className="font-extrabold text-lg tracking-wide uppercase">Archiva</span>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? "Buka sidebar" : "Tutup sidebar"}
+          className="size-8"
+        >
+          <PanelLeft className="size-4" />
+        </Button>
       </div>
-      <nav className="flex-1 space-y-1 p-3">
+      <nav aria-label="Navigasi Utama" className="flex-1 space-y-1 p-3">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = item.to === "/" ? currentPath === "/" : currentPath.startsWith(item.to);
@@ -92,19 +126,26 @@ export function Sidebar({ menus, className }: SidebarProps): JSX.Element {
             <Link
               key={item.key}
               to={item.to}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-4 rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  ? "bg-slate-100 font-semibold text-primary"
+                  : "text-foreground hover:bg-accent hover:text-accent-foreground",
               )}
             >
-              <Icon className="size-4" />
-              <span>{item.label}</span>
+              <Icon className={cn("size-4 shrink-0", isActive && "text-foreground")} />
+              {collapsed ? null : <span>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
+      {collapsed ? null : (
+        <div className="space-y-3 p-3">
+          <StorageUsage percent={storagePercent} />
+          <SidebarUserCard user={user} />
+        </div>
+      )}
     </aside>
   );
 }

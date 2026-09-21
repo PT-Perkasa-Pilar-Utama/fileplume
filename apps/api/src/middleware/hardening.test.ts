@@ -90,12 +90,16 @@ describe("body limit", () => {
   });
 
   test("an upload streams past the JSON limit", async () => {
+    // 01-conventions.md 1.2: multipart bodies bypass the JSON parser, so a
+    // valid upload larger than the JSON cap is accepted, not 413.
+    const pdfBytes = new TextEncoder().encode(`%PDF-1.4\n${"a".repeat(JSON_BODY_LIMIT_BYTES)}`);
+    const form = new FormData();
+    form.append("files", new File([pdfBytes], "besar.pdf", { type: "application/pdf" }));
     const res = await buildTestApp().request(
       tenantRequest("/documents", {
         method: "POST",
         token: TOKENS.memberA,
-        headers: { "content-type": "multipart/form-data; boundary=x" },
-        body: "x".repeat(JSON_BODY_LIMIT_BYTES + 1),
+        body: form,
       }),
     );
     expect(res.status).toBe(201);

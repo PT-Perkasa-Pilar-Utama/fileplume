@@ -66,7 +66,7 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `POST /documents` | [05 5.2](05-documents.md) | 2 | SCAFFOLD |
+| `POST /documents` | [05 5.2](05-documents.md) | 2 | OK |
 | `GET /documents` | [05 5.4](05-documents.md) | 2 | SCAFFOLD |
 | `GET /documents/:id` | [05 5.5](05-documents.md) | 2 | SCAFFOLD |
 | `GET /documents/:id/versions` | [05 5.6](05-documents.md) | 2 | SCAFFOLD |

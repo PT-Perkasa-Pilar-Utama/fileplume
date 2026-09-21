@@ -61,21 +61,34 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
 
   test("upload: the hundred-and-first upload in an hour by one user is refused", async () => {
     const app = buildTestApp();
-    const upload = () =>
-      tenantRequest("/documents", {
+    const upload = (i: number) => {
+      const form = new FormData();
+      form.append(
+        "files",
+        new File([new TextEncoder().encode(`%PDF-1.4\nlimit probe ${i}`)], `laporan-${i}.pdf`, {
+          type: "application/pdf",
+        }),
+      );
+      return tenantRequest("/documents", {
         method: "POST",
         token: TOKENS.memberA,
-        headers: { "content-type": "multipart/form-data; boundary=x" },
-        body: "--x--",
+        body: form,
       });
+    };
     const allowed = await statuses(app, times(100, upload));
     expect(allowed.every((status) => status === 201)).toBe(true);
-    expect((await app.request(upload())).status).toBe(429);
+    expect((await app.request(upload(100))).status).toBe(429);
+    const otherForm = new FormData();
+    otherForm.append(
+      "files",
+      new File([new TextEncoder().encode("%PDF-1.4\nother uploader")], "lain.pdf", {
+        type: "application/pdf",
+      }),
+    );
     const otherUploader = tenantRequest("/documents", {
       method: "POST",
       token: TOKENS.adminA,
-      headers: { "content-type": "multipart/form-data; boundary=x" },
-      body: "--x--",
+      body: otherForm,
     });
     expect((await app.request(otherUploader)).status).toBe(201);
   });
@@ -86,17 +99,24 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     const nonUploadStatuses = await statuses(app, times(105, listDocuments));
     expect(nonUploadStatuses.every((status) => status === 200)).toBe(true);
 
-    const upload = () =>
-      tenantRequest("/documents", {
+    const upload = (i: number) => {
+      const form = new FormData();
+      form.append(
+        "files",
+        new File([new TextEncoder().encode(`%PDF-1.4\nlimit probe ${i}`)], `laporan-${i}.pdf`, {
+          type: "application/pdf",
+        }),
+      );
+      return tenantRequest("/documents", {
         method: "POST",
         token: TOKENS.memberA,
-        headers: { "content-type": "multipart/form-data; boundary=x" },
-        body: "--x--",
+        body: form,
       });
+    };
     const allowed = await statuses(app, times(100, upload));
     expect(allowed.every((status) => status === 201)).toBe(true);
 
-    const overLimit = await app.request(upload());
+    const overLimit = await app.request(upload(100));
     expect(overLimit.status).toBe(429);
     expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(await overLimit.json()).toEqual(RATE_LIMITED);
@@ -104,13 +124,20 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
 
   test("upload: document uploads and version uploads share the user limit", async () => {
     const app = buildTestApp();
-    const uploadDoc = () =>
-      tenantRequest("/documents", {
+    const uploadDoc = (i: number) => {
+      const form = new FormData();
+      form.append(
+        "files",
+        new File([new TextEncoder().encode(`%PDF-1.4\nlimit probe ${i}`)], `laporan-${i}.pdf`, {
+          type: "application/pdf",
+        }),
+      );
+      return tenantRequest("/documents", {
         method: "POST",
         token: TOKENS.memberA,
-        headers: { "content-type": "multipart/form-data; boundary=x" },
-        body: "--x--",
+        body: form,
       });
+    };
     const uploadVersion = () =>
       tenantRequest(`/documents/${DOC_A_ID}/versions`, {
         method: "POST",
@@ -130,11 +157,17 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(await overLimit.json()).toEqual(RATE_LIMITED);
 
+    const otherForm = new FormData();
+    otherForm.append(
+      "files",
+      new File([new TextEncoder().encode("%PDF-1.4\nother uploader")], "lain.pdf", {
+        type: "application/pdf",
+      }),
+    );
     const otherUploader = tenantRequest("/documents", {
       method: "POST",
       token: TOKENS.adminA,
-      headers: { "content-type": "multipart/form-data; boundary=x" },
-      body: "--x--",
+      body: otherForm,
     });
     expect((await app.request(otherUploader)).status).toBe(201);
   });

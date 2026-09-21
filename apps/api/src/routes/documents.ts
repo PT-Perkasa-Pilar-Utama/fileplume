@@ -1,6 +1,9 @@
+import type { CatalogService } from "@archiva/catalog";
+import { MAX_BATCH } from "@archiva/catalog";
 import { AppError, one } from "@archiva/shared";
 import type { Context } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
+import { fail } from "../middleware/errors.ts";
 import { requireRole } from "../middleware/guards.ts";
 import {
   confirmClassification,
@@ -32,7 +35,6 @@ import {
   MOCK_PROCESSING,
   MOCK_RELATED,
   MOCK_REPROCESS,
-  MOCK_UPLOAD_BATCH,
   MOCK_VERSION,
 } from "./mocks.ts";
 import { createRouter } from "./router.ts";
@@ -62,82 +64,133 @@ async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): P
 }
 
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
-const router = createRouter()
-  .openapi(listDocuments, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
-  // Static paths are registered before /{id} so they are not shadowed.
-  .openapi(listUnconfirmed, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
-  .openapi(createBulkDownload, (c) => c.json(one(MOCK_BULK_TICKET), 200))
-  .openapi(fetchBulkDownload, (c) =>
-    c.body(new Uint8Array(), 200, { "Content-Type": "application/zip" }),
-  )
-  .openapi(getDocument, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
-  })
-  .openapi(listVersions, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(listOf(MOCK_VERSION), 200);
-  })
-  .openapi(previewDocument, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.body(new Uint8Array(), 200, {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": "inline",
+export function createDocumentRoutes(catalog: CatalogService) {
+  const router = createRouter()
+    .openapi(listDocuments, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
+    // Static paths are registered before /{id} so they are not shadowed.
+    .openapi(listUnconfirmed, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
+    .openapi(createBulkDownload, (c) => c.json(one(MOCK_BULK_TICKET), 200))
+    .openapi(fetchBulkDownload, (c) =>
+      c.body(new Uint8Array(), 200, { "Content-Type": "application/zip" }),
+    )
+    .openapi(getDocument, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
+    })
+    .openapi(listVersions, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(listOf(MOCK_VERSION), 200);
+    })
+    .openapi(previewDocument, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.body(new Uint8Array(), 200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+      });
+    })
+    .openapi(downloadDocument, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.body(new Uint8Array(), 200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="kontrak-kerjasama.pdf"',
+      });
+    })
+    .openapi(confirmClassification, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_CLASSIFIED_DOCUMENT), 200);
+    })
+    .openapi(getProcessingStatus, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_PROCESSING), 200);
+    })
+    .openapi(correctFields, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
+    })
+    .openapi(replaceTags, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
+    })
+    .openapi(reprocessDocument, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json(one(MOCK_REPROCESS), 202);
+    })
+    .openapi(listRelated, async (c) => {
+      const { id } = c.req.valid("param");
+      await assertDocumentInTenant(c, id);
+      return c.json({ data: [MOCK_RELATED], meta: { total: 1 } }, 200);
     });
-  })
-  .openapi(downloadDocument, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.body(new Uint8Array(), 200, {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": 'attachment; filename="kontrak-kerjasama.pdf"',
-    });
-  })
-  .openapi(confirmClassification, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_CLASSIFIED_DOCUMENT), 200);
-  })
-  .openapi(getProcessingStatus, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_PROCESSING), 200);
-  })
-  .openapi(correctFields, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
-  })
-  .openapi(replaceTags, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
-  })
-  .openapi(reprocessDocument, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_REPROCESS), 202);
-  })
-  .openapi(listRelated, async (c) => {
-    const { id } = c.req.valid("param");
-    await assertDocumentInTenant(c, id);
-    return c.json({ data: [MOCK_RELATED], meta: { total: 1 } }, 200);
+
+  /**
+   * 5.2 and 5.7 stream multipart bodies past every parser (01-conventions.md 1.2),
+   * so they are documented through the registry and served without a body validator.
+   */
+  router.openAPIRegistry.registerPath(uploadDocuments);
+  router.openAPIRegistry.registerPath(uploadVersion);
+
+  router.post("/", requireRole("member"), async (c) => {
+    const tenant = c.get("tenant");
+    if (!tenant) {
+      throw new AppError("NOT_FOUND");
+    }
+    const principal = c.get("principal");
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = await c.req.parseBody({ all: true });
+    } catch {
+      return fail(c, "UPLOAD_INTERRUPTED");
+    }
+
+    const rawFiles = parsed.files;
+    if (!rawFiles) {
+      return fail(c, "VALIDATION_ERROR", [{ field: "files", issue: "required" }]);
+    }
+
+    const fileList: File[] = Array.isArray(rawFiles)
+      ? rawFiles.filter((f): f is File => f instanceof File)
+      : rawFiles instanceof File
+        ? [rawFiles]
+        : [];
+
+    if (fileList.length === 0) {
+      return fail(c, "VALIDATION_ERROR", [{ field: "files", issue: "invalid_type" }]);
+    }
+
+    if (fileList.length > MAX_BATCH) {
+      return fail(c, "BATCH_TOO_LARGE");
+    }
+
+    const items = fileList.map((file) => ({
+      filename: file.name,
+      stream: file.stream(),
+      sizeBytes: file.size,
+    }));
+
+    const result = await catalog.uploadBatch(tenant.id, principal.userId, items);
+    if (!result.ok) {
+      return fail(c, "BATCH_TOO_LARGE");
+    }
+
+    const statusCode = result.value.accepted > 0 ? 201 : 422;
+    // Cast required by Hono status literal union: api-specs/05-documents.md 5.2 defines 201 on >= 1 accepted, 422 on none.
+    return c.json(one(result.value), statusCode as 201 | 422);
   });
 
-/**
- * 5.2 and 5.7 stream multipart bodies past every parser (01-conventions.md 1.2),
- * so they are documented through the registry and served without a body validator.
- */
-router.openAPIRegistry.registerPath(uploadDocuments);
-router.openAPIRegistry.registerPath(uploadVersion);
-router.post("/", requireRole("member"), (c) => c.json(one(MOCK_UPLOAD_BATCH), 201));
-router.post("/:id/versions", requireRole("member"), async (c) => {
-  const id = c.req.param("id");
-  await assertDocumentInTenant(c, id);
-  return c.json(one(MOCK_DOCUMENT_DETAIL), 201);
-});
+  router.post("/:id/versions", requireRole("member"), async (c) => {
+    const id = c.req.param("id");
+    await assertDocumentInTenant(c, id);
+    return c.json(one(MOCK_DOCUMENT_DETAIL), 201);
+  });
 
-export const documentRoutes = router;
+  return router;
+}

@@ -24,6 +24,7 @@ export function inMemoryBlobStore(): BlobStore & { keys(): string[] } {
     async get(key) {
       const buffer = blobs.get(key);
       if (!buffer) throw new Error(`no blob at ${key}`);
+      // Allowlisted cast: a Response built from a buffer always carries a body.
       return new Response(buffer).body as ReadableStream;
     },
 

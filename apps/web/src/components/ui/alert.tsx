@@ -13,7 +13,7 @@ export const alertVariants = cva(
         warning:
           "border-amber-500/50 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 [&>svg]:text-amber-600",
         success:
-          "border-emerald-500/50 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200 [&>svg]:text-emerald-600",
+          "border-alert-success-border bg-alert-success-bg text-alert-success-text [&>svg]:text-alert-success-text",
       },
     },
     defaultVariants: {

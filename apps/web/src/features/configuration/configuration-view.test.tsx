@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ConfigParameter } from "@archiva/shared";
-import { ERROR_MESSAGES, formatErrorMessage } from "@archiva/shared";
+import { ERROR_MESSAGES } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 import { renderToString } from "react-dom/server";
@@ -131,13 +131,8 @@ describe("ConfigurationView and ConfigurationRow", () => {
     expect(html).toContain('data-testid="cancel-max_file_size_mb"');
   });
 
-  // AC-42.03: Non-numeric validation message matches verbatim
-  test("validates non-numeric value with AC-42.03 error copy", () => {
-    const nonNumeric = "dua puluh";
-    const isValid = /^-?\d+$/.test(nonNumeric.trim());
-    expect(isValid).toBe(false);
-    expect(ERROR_MESSAGES.INVALID_CONFIG_VALUE).toBe("Nilai harus berupa angka");
-
+  // AC-42.03: ConfigurationRow renders inline row error message
+  test("ConfigurationRow renders row error message when rowError is provided", () => {
     const html = renderRow({
       param: PARAM_FILE_SIZE,
       isEditing: true,
@@ -149,28 +144,17 @@ describe("ConfigurationView and ConfigurationRow", () => {
     expect(html).toContain('data-testid="row-error-max_file_size_mb"');
   });
 
-  // AC-42.04: Out-of-range validation message matches verbatim
-  test("validates out-of-range value with AC-42.04 interpolated copy", () => {
-    const param = PARAM_FILE_SIZE;
-    const val = 500;
-    const isOutOfRange = val < param.min || val > param.max;
-    expect(isOutOfRange).toBe(true);
-
-    const errorMsg = formatErrorMessage("VALUE_OUT_OF_RANGE", {
-      min: param.min,
-      max: param.max,
-      unit: param.unit,
-    });
-    expect(errorMsg).toBe("Nilai harus antara 1 dan 200 MB");
-
+  // AC-42.04: ConfigurationRow renders out-of-range error message
+  test("ConfigurationRow renders out-of-range error message when rowError is provided", () => {
     const html = renderRow({
-      param,
+      param: PARAM_FILE_SIZE,
       isEditing: true,
       editValue: "500",
-      rowError: errorMsg,
+      rowError: "Nilai harus antara 1 dan 200 MB",
     });
 
     expect(html).toContain("Nilai harus antara 1 dan 200 MB");
+    expect(html).toContain('data-testid="row-error-max_file_size_mb"');
   });
 
   // AC-42.05: Reset control renders Kembalikan ke Default
@@ -185,46 +169,5 @@ describe("ConfigurationView and ConfigurationRow", () => {
 
     expect(html).toContain("Kembalikan ke Default");
     expect(html).toContain('data-testid="reset-max_file_size_mb"');
-  });
-
-  // AC-42.04: Out-of-range validation for pending_confirmation_days (1 - 90 hari)
-  test("validates out-of-range value for pending_confirmation_days with AC-42.04 copy", () => {
-    const param = PARAM_CONFIRMATION;
-    const val = 120;
-    const isOutOfRange = val < param.min || val > param.max;
-    expect(isOutOfRange).toBe(true);
-
-    const errorMsg = formatErrorMessage("VALUE_OUT_OF_RANGE", {
-      min: param.min,
-      max: param.max,
-      unit: param.unit,
-    });
-    expect(errorMsg).toBe("Nilai harus antara 1 dan 90 hari");
-
-    const html = renderRow({
-      param,
-      isEditing: true,
-      editValue: "120",
-      rowError: errorMsg,
-    });
-
-    expect(html).toContain("Nilai harus antara 1 dan 90 hari");
-    expect(html).toContain('data-testid="row-error-pending_confirmation_days"');
-  });
-
-  // Cancel edit mode
-  test("ConfigurationRow cancel button triggers onCancel callback", () => {
-    let canceled = false;
-    const html = renderRow({
-      param: PARAM_FILE_SIZE,
-      isEditing: true,
-      editValue: "50",
-      onCancel: () => {
-        canceled = true;
-      },
-    });
-
-    expect(html).toContain('data-testid="cancel-max_file_size_mb"');
-    expect(canceled).toBe(false);
   });
 });

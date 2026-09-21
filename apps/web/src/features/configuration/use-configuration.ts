@@ -28,8 +28,8 @@ export interface UseConfigurationReturn {
   isPending: boolean;
   handleStartEdit: (param: ConfigParameter) => void;
   handleCancel: () => void;
-  handleSave: (param: ConfigParameter) => void;
-  handleReset: (key: ConfigKeyName) => void;
+  handleSave: (param: ConfigParameter) => Promise<ConfigParameter | undefined>;
+  handleReset: (key: ConfigKeyName) => Promise<ConfigParameter | undefined>;
 }
 
 export function useConfiguration(): UseConfigurationReturn {
@@ -101,7 +101,7 @@ export function useConfiguration(): UseConfigurationReturn {
     setRowError(null);
   };
 
-  const handleSave = (param: ConfigParameter): void => {
+  const handleSave = async (param: ConfigParameter): Promise<ConfigParameter | undefined> => {
     const trimmed = editValue.trim();
 
     // AC-42.03: Menolak nilai non-angka dengan pesan verbatim
@@ -128,7 +128,19 @@ export function useConfiguration(): UseConfigurationReturn {
       return;
     }
 
-    updateMutation.mutate({ key: param.key, value: numVal });
+    try {
+      return await updateMutation.mutateAsync({ key: param.key, value: numVal });
+    } catch {
+      // Error is handled in updateMutation.onError
+    }
+  };
+
+  const handleReset = async (key: ConfigKeyName): Promise<ConfigParameter | undefined> => {
+    try {
+      return await resetMutation.mutateAsync(key);
+    } catch {
+      // Error is handled in resetMutation.onError
+    }
   };
 
   const isPending = updateMutation.isPending || resetMutation.isPending;
@@ -164,6 +176,6 @@ export function useConfiguration(): UseConfigurationReturn {
     handleStartEdit,
     handleCancel,
     handleSave,
-    handleReset: (key: ConfigKeyName) => resetMutation.mutate(key),
+    handleReset,
   };
 }

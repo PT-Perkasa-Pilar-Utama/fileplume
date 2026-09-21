@@ -36,11 +36,11 @@ export function ConfigurationView(): JSX.Element {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-medium text-base tracking-normal text-[#104D9C] dark:text-blue-400 uppercase">
+        <h1 className="font-medium text-base tracking-normal text-brand-title uppercase">
           CONFIGURATION
         </h1>
-        <p className="text-[#1D293D] dark:text-slate-300 text-sm font-normal mt-1">
-          Manage system configuration parameters and their values.
+        <p className="text-muted-foreground text-sm font-normal mt-1">
+          Kelola parameter konfigurasi sistem dan nilainya.
         </p>
       </div>
 
@@ -48,13 +48,13 @@ export function ConfigurationView(): JSX.Element {
         <div className="relative w-[240px] max-w-[240px]">
           <Input
             type="text"
-            placeholder="Search..."
+            placeholder="Cari parameter..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-[240px] max-w-[240px] rounded-[10px] border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 px-3 pr-9 text-sm font-normal text-[#020618] dark:text-slate-100 placeholder:text-[#90A1B9] dark:placeholder:text-slate-500 shadow-none focus-visible:ring-1 focus-visible:ring-primary"
+            className="h-10 w-[240px] max-w-[240px] rounded-[10px] border-input bg-background px-3 pr-9 text-sm font-normal text-foreground placeholder:text-muted-foreground shadow-none focus-visible:ring-1 focus-visible:ring-primary"
             data-testid="search-input"
           />
-          <Search className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-[#62748E] dark:text-slate-400 pointer-events-none" />
+          <Search className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
@@ -62,18 +62,16 @@ export function ConfigurationView(): JSX.Element {
         <Alert
           variant="success"
           data-testid="success-alert"
-          className="justify-between rounded-[10px] border-[#BBF7D0] bg-[#F0FDF4] text-[#00C951] dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 shadow-none"
+          className="justify-between rounded-[10px] shadow-none"
         >
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-4 text-[#00C951] dark:text-emerald-400 shrink-0" />
-            <AlertDescription className="font-normal text-sm text-[#00C951] dark:text-emerald-400">
-              {successMessage}
-            </AlertDescription>
+            <CheckCircle2 className="size-4 shrink-0" />
+            <AlertDescription className="font-normal text-sm">{successMessage}</AlertDescription>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 text-[#00C951] hover:bg-emerald-100 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+            className="size-6 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
             onClick={() => setSuccessMessage(null)}
             aria-label="Tutup notifikasi"
           >
@@ -104,7 +102,7 @@ export function ConfigurationView(): JSX.Element {
         </Alert>
       )}
 
-      <div className="overflow-hidden rounded-[10px] border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">
+      <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-none">
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground text-sm font-normal">
             Memuat konfigurasi...
@@ -116,21 +114,21 @@ export function ConfigurationView(): JSX.Element {
         ) : (
           <>
             <Table>
-              <TableHeader className="bg-[#F1F5F9] dark:bg-slate-800/60">
-                <TableRow className="hover:bg-transparent border-b border-[#E2E8F0] dark:border-slate-800 h-8">
-                  <TableHead className="w-1/3 font-medium text-xs text-[#020618] dark:text-slate-200 py-1.5 h-8 font-['Plus_Jakarta_Sans',sans-serif]">
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent border-b border-border h-8">
+                  <TableHead className="w-1/3 font-medium text-xs text-foreground py-1.5 h-8">
                     Parameter
                   </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-[#020618] dark:text-slate-200 py-1.5 h-8 font-['Plus_Jakarta_Sans',sans-serif]">
+                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
                     Nilai
                   </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-[#020618] dark:text-slate-200 py-1.5 h-8 font-['Plus_Jakarta_Sans',sans-serif]">
+                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
                     Satuan
                   </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-[#020618] dark:text-slate-200 py-1.5 h-8 font-['Plus_Jakarta_Sans',sans-serif]">
+                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
                     Nilai Default
                   </TableHead>
-                  <TableHead className="text-right font-medium text-xs text-[#020618] dark:text-slate-200 py-1.5 h-8 pr-4 font-['Plus_Jakarta_Sans',sans-serif]">
+                  <TableHead className="text-right font-medium text-xs text-foreground py-1.5 h-8 pr-4">
                     Aksi
                   </TableHead>
                 </TableRow>
@@ -157,8 +155,8 @@ export function ConfigurationView(): JSX.Element {
                 ))}
               </TableBody>
             </Table>
-            <div className="border-t border-[#E2E8F0] dark:border-slate-800 px-4 py-2.5 text-[#62748E] dark:text-slate-400 text-xs font-normal">
-              Showing 1 - {filteredParameters?.length ?? 0} of {parameters?.length ?? 0} records
+            <div className="border-t border-border px-4 py-2.5 text-muted-foreground text-xs font-normal">
+              Menampilkan {filteredParameters?.length ?? 0} dari {parameters?.length ?? 0} parameter
             </div>
           </>
         )}

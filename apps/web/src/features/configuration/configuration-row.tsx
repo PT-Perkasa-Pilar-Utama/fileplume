@@ -36,19 +36,17 @@ export function ConfigurationRow({
   return (
     <TableRow
       data-testid={`row-${param.key}`}
-      className="hover:bg-[#F8FAFC] dark:hover:bg-slate-800/40 transition-colors border-b border-[#E2E8F0] dark:border-slate-800/60 h-10"
+      className="hover:bg-muted/40 transition-colors border-b border-border h-10"
     >
-      <TableCell className="font-normal text-sm text-[#020618] dark:text-slate-100 py-2.5">
-        {param.label}
-      </TableCell>
-      <TableCell className="font-normal text-sm text-[#020618] dark:text-slate-100 py-2.5">
+      <TableCell className="font-normal text-sm text-foreground py-2.5">{param.label}</TableCell>
+      <TableCell className="font-normal text-sm text-foreground py-2.5">
         {isEditing ? (
           <div className="space-y-1">
             <Input
               type="text"
               value={editValue}
               onChange={(e) => onEditValueChange(e.target.value)}
-              className="h-7 w-24 text-sm font-normal rounded-[6px] border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-900 text-[#020618] dark:text-slate-100 px-2"
+              className="h-7 w-24 text-sm font-normal rounded-[6px] border-input bg-background text-foreground px-2"
               autoFocus
               disabled={isPending}
               data-testid={`input-${param.key}`}
@@ -66,10 +64,8 @@ export function ConfigurationRow({
           <span data-testid={`value-${param.key}`}>{param.value}</span>
         )}
       </TableCell>
-      <TableCell className="font-normal text-sm text-[#020618] dark:text-slate-100 py-2.5">
-        {param.unit}
-      </TableCell>
-      <TableCell className="font-normal text-sm text-[#020618] dark:text-slate-100 py-2.5">
+      <TableCell className="font-normal text-sm text-foreground py-2.5">{param.unit}</TableCell>
+      <TableCell className="font-normal text-sm text-foreground py-2.5">
         {param.defaultValue}
       </TableCell>
       <TableCell className="text-right py-2.5 pr-4">
@@ -79,7 +75,7 @@ export function ConfigurationRow({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30"
+                className="size-7 text-alert-success-text hover:bg-alert-success-bg"
                 onClick={() => onSave(param)}
                 disabled={isPending}
                 aria-label="Simpan"
@@ -91,7 +87,7 @@ export function ConfigurationRow({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7 text-[#62748E] hover:text-[#020618] dark:text-slate-400 dark:hover:text-slate-200"
+                className="size-7 text-muted-foreground hover:text-foreground"
                 onClick={onCancel}
                 disabled={isPending}
                 aria-label="Batal"
@@ -108,7 +104,7 @@ export function ConfigurationRow({
                 size="sm"
                 onClick={() => onStartEdit(param)}
                 disabled={isPending || disabledEdit}
-                className="h-7 rounded-[8px] border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs font-normal text-[#020618] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-none"
+                className="h-7 rounded-[8px] border border-border bg-background px-2.5 text-xs font-normal text-foreground hover:bg-muted shadow-none"
                 data-testid={`edit-${param.key}`}
               >
                 <Pencil className="mr-1.5 size-3.5" />
@@ -119,7 +115,7 @@ export function ConfigurationRow({
                 size="sm"
                 onClick={() => onReset(param.key)}
                 disabled={isPending || param.isDefault}
-                className="h-7 px-2 text-xs font-normal text-[#62748E] hover:text-[#020618] dark:text-slate-400 dark:hover:text-slate-200 hover:bg-transparent"
+                className="h-7 px-2 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-transparent"
                 data-testid={`reset-${param.key}`}
               >
                 <RotateCcw className="mr-1.5 size-3.5" />
@@ -129,7 +125,7 @@ export function ConfigurationRow({
           ) : (
             <Badge
               variant="secondary"
-              className="rounded-[6px] border border-[#E2E8F0] dark:border-slate-700 bg-[#F1F5F9] dark:bg-slate-800/80 px-2.5 py-0.5 text-xs font-normal text-[#62748E] dark:text-slate-400 shadow-none"
+              className="rounded-[6px] border border-border bg-muted/60 px-2.5 py-0.5 text-xs font-normal text-muted-foreground shadow-none"
               data-testid={`readonly-${param.key}`}
             >
               Hanya Super Admin

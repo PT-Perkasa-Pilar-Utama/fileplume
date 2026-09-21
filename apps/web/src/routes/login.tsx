@@ -11,6 +11,7 @@ import { Label } from "../components/ui/label.tsx";
 import { loginRequest } from "../features/auth/api.ts";
 import { useAuthStore } from "../features/auth/auth-store.ts";
 import { LoginLogo } from "./internal/archiva-logo.tsx";
+import { shouldShowExpiredAlert } from "./internal/login-alert.ts";
 import { LoginBanner } from "./internal/login-banner.tsx";
 
 export interface LoginSearchParams {
@@ -28,7 +29,11 @@ export function LoginPage(): JSX.Element {
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const showExpiredAlert = search.expired || Boolean(sessionExpiredMessage);
+  const showExpiredAlert = shouldShowExpiredAlert({
+    expired: search.expired,
+    sessionExpiredMessage,
+    serverError,
+  });
   const expiredText = sessionExpiredMessage ?? ERROR_MESSAGES.SESSION_EXPIRED;
 
   const {

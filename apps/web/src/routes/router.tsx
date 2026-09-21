@@ -26,7 +26,6 @@ import {
 
 export async function checkAuthBeforeLoad(locationHref: string): Promise<void> {
   const store = useAuthStore.getState();
-  if (store.principal) return;
 
   try {
     const principal = await fetchCurrentPrincipal();
@@ -36,6 +35,8 @@ export async function checkAuthBeforeLoad(locationHref: string): Promise<void> {
     if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
       if (error.status === 401) {
         store.setSessionExpired(error.message);
+      } else {
+        store.clearSession();
       }
       throw redirect({
         to: "/login",
@@ -58,9 +59,11 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   validateSearch: (search: Record<string, unknown>): LoginSearchParams => {
+    // Absent stays undefined so the router does not normalize a bare
+    // `/login` visit into `/login?expired=false`.
     return {
       redirect: typeof search.redirect === "string" ? search.redirect : undefined,
-      expired: search.expired === true || search.expired === "true",
+      expired: search.expired === true || search.expired === "true" ? true : undefined,
     };
   },
   component: LoginPage,

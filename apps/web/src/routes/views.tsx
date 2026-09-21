@@ -120,23 +120,7 @@ export function AnalyticsView(): JSX.Element {
   );
 }
 
-// SCAFFOLD: FE-S4-01 implements tenant configuration editing and parameter resets.
-export function ConfigurationView(): JSX.Element {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Konfigurasi</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Pengaturan Tenant</CardTitle>
-          <CardDescription>Konfigurasi parameter sistem</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Parameter sistem tenant.</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+export { ConfigurationView } from "../features/configuration/configuration-view.tsx";
 
 // FE-S1-04 implements Super Admin tenant list and create tenant form.
 export function TenantManagementView(): JSX.Element {

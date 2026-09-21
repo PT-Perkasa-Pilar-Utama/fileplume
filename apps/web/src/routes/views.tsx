@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card.tsx";
+import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
 // SCAFFOLD: Placeholder shell; real dashboard metrics and flows wired in FE-S1-05 & FE-S5-01.
 export function DashboardView(): JSX.Element {
@@ -137,24 +138,9 @@ export function ConfigurationView(): JSX.Element {
   );
 }
 
-// SCAFFOLD: FE-S1-04 implements Super Admin tenant list and create tenant form.
+// FE-S1-04 implements Super Admin tenant list and create tenant form.
 export function TenantManagementView(): JSX.Element {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Manajemen Tenant</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Tenant</CardTitle>
-          <CardDescription>Pengelolaan organisasi dan tenant terdaftar</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Panel pengelolaan tenant untuk Super Admin.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  return <TenantManagement />;
 }
 
 export function NotFoundView(): JSX.Element {

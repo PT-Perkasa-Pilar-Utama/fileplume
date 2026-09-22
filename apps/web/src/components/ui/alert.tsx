@@ -12,6 +12,8 @@ export const alertVariants = cva(
           "border-alert-destructive-border bg-alert-destructive-bg text-alert-destructive-text [&>svg]:text-alert-destructive-text",
         warning:
           "border-amber-500/50 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 [&>svg]:text-amber-600",
+        success:
+          "border-alert-success-border bg-alert-success-bg text-alert-success-text [&>svg]:text-alert-success-text",
       },
     },
     defaultVariants: {

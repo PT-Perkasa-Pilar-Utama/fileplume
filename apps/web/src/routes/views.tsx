@@ -1,5 +1,6 @@
 import type { UploadBatch } from "@archiva/shared";
-import { type JSX, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { type JSX, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,26 +9,35 @@ import {
   CardTitle,
 } from "../components/ui/card.tsx";
 import {
+  DOCUMENTS_QUERY_KEY,
+  DocumentCardGrid,
   getAcceptedFileTypeByName,
   type TrayItem,
   type UploadedDocumentDisplay,
-  UploadedDocumentsList,
   UploadTray,
   type UploadTrayProps,
+  useDocuments,
 } from "../features/documents/index.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
-// SCAFFOLD: uploaderName and createdAt are placeholders until the real
-// document list lands in FE-S2-03 (api-specs/05-documents.md 5.1).
+// Fallback metadata for settled uploads before server classification completes.
 const PLACEHOLDER_UPLOADER = "Member Team";
 const PLACEHOLDER_UPLOAD_DATE = "Hari ini";
 
 export interface DashboardViewProps {
   readonly uploader?: UploadTrayProps["uploader"];
+  readonly initialDocuments?: readonly UploadedDocumentDisplay[];
 }
 
-export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Element {
-  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
+export function DashboardView({
+  uploader,
+  initialDocuments = [],
+}: DashboardViewProps = {}): JSX.Element {
+  const queryClient = useQueryClient();
+  const documentsQuery = useDocuments();
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([
+    ...initialDocuments,
+  ]);
 
   const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
@@ -50,13 +60,60 @@ export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Elemen
     if (acceptedDocs.length > 0) {
       setUploadedDocs((prev) => [...acceptedDocs, ...prev]);
     }
+
+    // Invalidate document collection query so newly uploaded documents appear
+    // from the server list (AC-01.02).
+    queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
   };
+
+  // Merge server documents with freshly uploaded items in local state.
+  const displayDocuments = useMemo(() => {
+    const serverDocs = documentsQuery.data?.data ?? [];
+    if (serverDocs.length === 0 && uploadedDocs.length === 0) {
+      return [];
+    }
+
+    const serverIds = new Set(serverDocs.map((doc) => doc.id));
+    const pendingUploads = uploadedDocs.filter((doc) => !serverIds.has(doc.id));
+    return [...pendingUploads, ...serverDocs];
+  }, [documentsQuery.data?.data, uploadedDocs]);
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-      <UploadTray onUploadSettled={handleUploadSettled} uploader={uploader} />
-      <UploadedDocumentsList documents={uploadedDocs} />
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
+        <div className="flex w-full flex-col lg:col-span-4">
+          <UploadTray
+            className="flex-1"
+            onUploadSettled={handleUploadSettled}
+            uploader={uploader}
+          />
+        </div>
+        <div className="flex w-full flex-col lg:col-span-8">
+          <section aria-labelledby="uploaded-document-heading" className="space-y-3">
+            <div>
+              <h2
+                id="uploaded-document-heading"
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                aria-label="Dokumen Terunggah"
+              >
+                UPLOADED DOCUMENT
+                <span className="sr-only">Dokumen Terunggah</span>
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.
+              </p>
+            </div>
+            <DocumentCardGrid
+              documents={displayDocuments}
+              isLoading={documentsQuery.isLoading && displayDocuments.length === 0}
+              isError={documentsQuery.isError && displayDocuments.length === 0}
+              errorMessage={documentsQuery.error?.message}
+              emptyMessage={documentsQuery.data?.meta?.message}
+            />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

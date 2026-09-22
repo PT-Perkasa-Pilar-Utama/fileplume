@@ -14,7 +14,7 @@ export interface UploadFileItemProps {
 }
 
 export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.Element {
-  const detectedType = getAcceptedFileType(item.file) ?? "other";
+  const detectedType = getAcceptedFileType(item.file) ?? "unsupported";
 
   const isUploading = item.status === "uploading";
   const isAccepted = item.status === "accepted";

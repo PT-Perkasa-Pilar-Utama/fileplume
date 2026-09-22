@@ -13,7 +13,7 @@ import { tagRoutes } from "./tags.ts";
 import { createTenantRoutes } from "./tenants.ts";
 
 export type RouteMountDeps = {
-  tenancy: Pick<TenancyService, "createTenant" | "listTenants">;
+  tenancy: Pick<TenancyService, "createTenant" | "listTenants" | "getConfigValue">;
   identity: IdentityService;
   catalog: CatalogService;
 };
@@ -24,7 +24,7 @@ export function activityRoutesMount(api: OpenAPIHono<AppEnv>, deps: RouteMountDe
   api.route("/tenants", createTenantRoutes(deps.tenancy));
   api.route("/configuration", configurationRoutes);
   api.route("/storage", storageRoutes);
-  api.route("/documents", createDocumentRoutes(deps.catalog));
+  api.route("/documents", createDocumentRoutes(deps.catalog, deps.tenancy));
   api.route("/categories", categoryRoutes);
   api.route("/search", searchRoutes);
   api.route("/tags", tagRoutes);

@@ -92,8 +92,8 @@ export type CatalogServiceDeps = {
   // Unused by the upload path; version writes in BE-S2-04 stamp it.
   clock: Clock;
   quota: QuotaPort;
-  queue?: JobQueue;
-  audit?: AuditPort;
+  queue: JobQueue;
+  audit: AuditPort;
 };
 
 export interface CatalogService {
@@ -129,8 +129,8 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     repository: deps.repository,
     blobStore: deps.blobStore,
     quota: deps.quota,
-    ...(deps.queue ? { queue: deps.queue } : {}),
-    ...(deps.audit ? { audit: deps.audit } : {}),
+    queue: deps.queue,
+    audit: deps.audit,
   };
 
   return {
@@ -140,7 +140,7 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       ]);
       if (!batchResult.ok) return err({ kind: "BatchTooLarge" });
       const first = batchResult.value.results[0];
-      if (!first) return err({ kind: "UnsupportedType" });
+      if (!first) throw new Error("uploadBatch returned no result for a single item");
 
       if (first.status === "accepted") {
         return ok({
@@ -167,7 +167,7 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
               : {}),
           });
         default:
-          return err({ kind: "UnsupportedType" });
+          throw new Error(`unmapped upload failure code: ${first.error.code}`);
       }
     },
 

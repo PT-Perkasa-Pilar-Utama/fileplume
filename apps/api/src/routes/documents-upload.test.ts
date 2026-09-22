@@ -285,7 +285,10 @@ describe("POST /documents (BE-S2-01)", () => {
     expect(app.catalogRepository.documents).toHaveLength(1);
   });
 
-  test("AC-35.03: exhausted quota returns 422 QUOTA_EXCEEDED and stores nothing", async () => {
+  // 5.2 step 3c: reservation refused stores nothing. Message follows the
+  // 05-documents.md contract ("Kapasitas penyimpanan penuh"); the longer
+  // AC-35.03 business text is a known docs conflict, deferred to BE-S2-02.
+  test("exhausted quota returns 422 QUOTA_EXCEEDED and stores nothing", async () => {
     const app = buildTestApp(undefined, { tenancyQuotaBytes: 10 });
     const formData = new FormData();
     formData.append("files", pdfFile("laporan.pdf", "konten"));

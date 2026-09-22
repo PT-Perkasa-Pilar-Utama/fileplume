@@ -17,8 +17,8 @@ export type UploadSingleFileDeps = {
   repository: CatalogRepository;
   blobStore: BlobStore;
   quota: QuotaPort;
-  queue?: JobQueue;
-  audit?: AuditPort;
+  queue: JobQueue;
+  audit: AuditPort;
 };
 
 /**
@@ -40,9 +40,11 @@ async function readHeader(branch: ReadableStream): Promise<Uint8Array> {
       if (total >= SNIFF_LIMIT_BYTES) break;
     }
   } finally {
-    // Release without cancel: awaiting cancel on a tee branch hangs in Bun,
-    // and the blob branch still carries the full stream.
+    // Awaiting cancel on a tee branch hangs in Bun, but the branch must be
+    // cancelled or the tee queues every remaining chunk for a reader that
+    // never returns. The blob branch still carries the full stream.
     reader.releaseLock();
+    void branch.cancel();
   }
   const header = new Uint8Array(Math.min(total, SNIFF_LIMIT_BYTES));
   let offset = 0;
@@ -135,27 +137,25 @@ export async function uploadSingleFile(
     });
   }
 
-  await deps.quota.commitQuota(reservation);
+  // Commit what the blob store actually wrote, not the declared size,
+  // so route-level streaming never drifts quota.
+  await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
 
-  if (deps.queue) {
-    await deps.queue.enqueue(documentId);
-  }
+  await deps.queue.enqueue(documentId);
 
-  if (deps.audit) {
-    await deps.audit.record({
-      tenantId,
-      actorId: uploaderId,
-      action: "document.upload",
-      subjectType: "document",
-      subjectId: documentId,
-      outcome: "allowed",
-      metadata: {
-        filename: item.filename,
-        sizeBytes: blobOutcome.sizeBytes,
-        mimeType: sniffResult.mimeType,
-      },
-    });
-  }
+  await deps.audit.record({
+    tenantId,
+    actorId: uploaderId,
+    action: "document.upload",
+    subjectType: "document",
+    subjectId: documentId,
+    outcome: "allowed",
+    metadata: {
+      filename: item.filename,
+      sizeBytes: blobOutcome.sizeBytes,
+      mimeType: sniffResult.mimeType,
+    },
+  });
 
   return {
     index,

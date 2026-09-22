@@ -56,7 +56,11 @@ export function chunkedPdfStream(content = "chunked content"): {
   return { stream, sizeBytes: bytes.length };
 }
 
-export function createTestHarness(options?: { maxFileSizeMb?: number; quotaAvailable?: boolean }) {
+export function createTestHarness(options?: {
+  maxFileSizeMb?: number;
+  quotaAvailable?: boolean;
+  quotaBytes?: number;
+}) {
   const repository = inMemoryCatalogRepository();
   const blobStore = inMemoryBlobStore();
   const clock = { now: () => new Date("2026-09-14T08:00:00.000Z") };
@@ -64,6 +68,8 @@ export function createTestHarness(options?: { maxFileSizeMb?: number; quotaAvail
   const releasedReservations: QuotaReservationToken[] = [];
   const enqueuedJobs: string[] = [];
   const auditEvents: unknown[] = [];
+  let usedBytes = 0;
+  const outstandingBytes = new Map<string, number>();
 
   const quota: QuotaPort = {
     async getMaxFileSizeMb() {
@@ -73,12 +79,27 @@ export function createTestHarness(options?: { maxFileSizeMb?: number; quotaAvail
       if (options?.quotaAvailable === false) {
         return { ok: false, error: { kind: "QuotaExceeded" } };
       }
+      if (options?.quotaBytes !== undefined) {
+        const outstanding =
+          outstandingBytes.size > 0
+            ? [...outstandingBytes.values()].reduce((sum, b) => sum + b, 0)
+            : 0;
+        if (usedBytes + outstanding + bytes > options.quotaBytes) {
+          return { ok: false, error: { kind: "QuotaExceeded" } };
+        }
+        const token = { id: crypto.randomUUID(), tenantId, bytes };
+        outstandingBytes.set(token.id, bytes);
+        return ok(token);
+      }
       return ok({ id: crypto.randomUUID(), tenantId, bytes });
     },
     async commitQuota(res) {
+      outstandingBytes.delete(res.id);
+      if (options?.quotaBytes !== undefined) usedBytes += res.bytes;
       committedReservations.push(res);
     },
     async releaseQuota(res) {
+      outstandingBytes.delete(res.id);
       releasedReservations.push(res);
     },
   };

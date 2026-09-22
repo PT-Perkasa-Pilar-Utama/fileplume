@@ -1,6 +1,7 @@
-import type { CatalogService } from "@archiva/catalog";
+import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
 import { AppError, one } from "@archiva/shared";
+import type { TenancyService } from "@archiva/tenancy";
 import type { Context } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import { fail } from "../middleware/errors.ts";
@@ -25,6 +26,7 @@ import {
   uploadDocuments,
   uploadVersion,
 } from "./definitions/documents.ts";
+import { collectUploadParts } from "./internal/collect-upload-parts.ts";
 import {
   isDocumentInTenant,
   listOf,
@@ -64,7 +66,10 @@ async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): P
 }
 
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
-export function createDocumentRoutes(catalog: CatalogService) {
+export function createDocumentRoutes(
+  catalog: CatalogService,
+  tenancy?: Pick<TenancyService, "getConfigValue">,
+) {
   const router = createRouter()
     .openapi(listDocuments, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
     // Static paths are registered before /{id} so they are not shadowed.
@@ -144,37 +149,26 @@ export function createDocumentRoutes(catalog: CatalogService) {
     }
     const principal = c.get("principal");
 
-    let parsed: Record<string, unknown>;
+    const maxMb = tenancy ? await tenancy.getConfigValue(tenant.id, "max_file_size_mb") : 20;
+    const maxFileSizeBytes = maxMb * 1024 * 1024;
+
+    // 01-conventions.md 1.2: the batch is never materialised. Each part is
+    // bounded by the tenant's max_file_size_mb as it arrives.
+    let items: UploadSingleFileItem[];
     try {
-      parsed = await c.req.parseBody({ all: true });
-    } catch {
+      items = await collectUploadParts(c.req.raw, MAX_BATCH, maxFileSizeBytes);
+    } catch (err) {
+      if (err instanceof AppError) throw err;
       return fail(c, "UPLOAD_INTERRUPTED");
     }
 
-    const rawFiles = parsed.files;
-    if (!rawFiles) {
+    if (items.length === 0) {
       return fail(c, "VALIDATION_ERROR", [{ field: "files", issue: "required" }]);
     }
 
-    const fileList: File[] = Array.isArray(rawFiles)
-      ? rawFiles.filter((f): f is File => f instanceof File)
-      : rawFiles instanceof File
-        ? [rawFiles]
-        : [];
-
-    if (fileList.length === 0) {
-      return fail(c, "VALIDATION_ERROR", [{ field: "files", issue: "invalid_type" }]);
-    }
-
-    if (fileList.length > MAX_BATCH) {
+    if (items.length > MAX_BATCH) {
       return fail(c, "BATCH_TOO_LARGE");
     }
-
-    const items = fileList.map((file) => ({
-      filename: file.name,
-      stream: file.stream(),
-      sizeBytes: file.size,
-    }));
 
     const result = await catalog.uploadBatch(tenant.id, principal.userId, items);
     if (!result.ok) {

@@ -12,13 +12,31 @@ export function inMemoryBlobStore(): BlobStore & { keys(): string[] } {
     keys: () => [...blobs.keys()],
 
     async put(key, stream) {
-      const buffer = await new Response(stream).arrayBuffer();
-      blobs.set(key, buffer);
-      const digest = await crypto.subtle.digest("SHA-256", buffer);
-      const sha256 = Array.from(new Uint8Array(digest))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-      return { sizeBytes: buffer.byteLength, sha256 };
+      // Mirrors the S3 adapter: digest computed as bytes pass, not afterwards.
+      const hasher = new Bun.CryptoHasher("sha256");
+      const chunks: Uint8Array[] = [];
+      let sizeBytes = 0;
+      const reader = (stream as ReadableStream<Uint8Array>).getReader();
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value || value.byteLength === 0) continue;
+          hasher.update(value);
+          chunks.push(value.slice());
+          sizeBytes += value.byteLength;
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      const combined = new Uint8Array(sizeBytes);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      blobs.set(key, combined.buffer as ArrayBuffer);
+      return { sizeBytes, sha256: hasher.digest("hex") };
     },
 
     async get(key) {

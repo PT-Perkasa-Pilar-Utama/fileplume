@@ -138,7 +138,10 @@ describe("upload batch acceptance criteria", () => {
     expect(blobStore.keys()).toHaveLength(1);
   });
 
-  test("AC-35.03: refused quota rejects the file and stores nothing", async () => {
+  // 5.2 step 3c: reservation refused stores nothing. Message follows the
+  // 05-documents.md contract ("Kapasitas penyimpanan penuh"); the longer
+  // AC-35.03 business text is a known docs conflict, deferred to BE-S2-02.
+  test("quota refusal rejects the file and stores nothing", async () => {
     const { service, repository, blobStore, committedReservations } = createTestHarness({
       quotaAvailable: false,
     });
@@ -163,16 +166,18 @@ describe("upload batch acceptance criteria", () => {
     expect(committedReservations).toHaveLength(0);
   });
 
-  test("mixed batch formats summary line (AC-35.04)", async () => {
-    const { service } = createTestHarness();
+  test("AC-35.04: quota runs out on the third file, the first two are stored", async () => {
     const pdf1 = pdfStream("valid 1");
     const pdf2 = pdfStream("valid 2");
-    const invalid = jpgStream();
+    const pdf3 = pdfStream("valid 3");
+    const { service, repository } = createTestHarness({
+      quotaBytes: pdf1.sizeBytes + pdf2.sizeBytes,
+    });
 
     const res = await service.uploadBatch(TENANT_ID, USER_ID, [
       { filename: "dok1.pdf", stream: pdf1.stream, sizeBytes: pdf1.sizeBytes },
       { filename: "dok2.pdf", stream: pdf2.stream, sizeBytes: pdf2.sizeBytes },
-      { filename: "gambar.jpg", stream: invalid.stream, sizeBytes: invalid.sizeBytes },
+      { filename: "dok3.pdf", stream: pdf3.stream, sizeBytes: pdf3.sizeBytes },
     ]);
 
     expect(res.ok).toBe(true);
@@ -180,6 +185,13 @@ describe("upload batch acceptance criteria", () => {
     expect(res.value.accepted).toBe(2);
     expect(res.value.rejected).toBe(1);
     expect(res.value.summary).toBe("2 dari 3 file berhasil diunggah");
+    const third = res.value.results[2];
+    expect(third?.status).toBe("rejected");
+    if (third?.status === "rejected") {
+      expect(third.error.code).toBe("QUOTA_EXCEEDED");
+      expect(third.error.message).toBe("Kapasitas penyimpanan penuh");
+    }
+    expect(repository.documents).toHaveLength(2);
   });
 
   test("sniffing reads past the first chunk, so a dripped stream is accepted", async () => {

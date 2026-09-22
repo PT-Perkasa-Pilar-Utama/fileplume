@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { type JSX, useState } from "react";
 import {
   Card,
   CardContent,
@@ -6,24 +6,47 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card.tsx";
+import {
+  type UploadedDocumentDisplay,
+  UploadedDocumentsList,
+  UploadTray,
+} from "../features/documents/index.ts";
+import type { UploadBatch } from "../features/documents/types.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
-// SCAFFOLD: Placeholder shell; real dashboard metrics and flows wired in FE-S1-05 & FE-S5-01.
 export function DashboardView(): JSX.Element {
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
+
+  const handleUploadSettled = (batch: UploadBatch): void => {
+    const acceptedDocs: UploadedDocumentDisplay[] = [];
+    for (const result of batch.results) {
+      if (result.status === "accepted") {
+        const ext = result.document.title.split(".").pop()?.toLowerCase();
+        const fileType =
+          ext === "pdf" || ext === "docx" || ext === "xlsx" || ext === "txt" ? ext : "other";
+
+        acceptedDocs.push({
+          id: result.document.id,
+          title: result.document.title,
+          fileType,
+          sizeBytes: 0,
+          processingState: result.document.processingState,
+          processingLabel: result.document.processingLabel || "Diproses",
+          uploaderName: "Member Team",
+          createdAt: "Hari ini",
+        });
+      }
+    }
+
+    if (acceptedDocs.length > 0) {
+      setUploadedDocs((prev) => [...acceptedDocs, ...prev]);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Ringkasan Sistem</CardTitle>
-          <CardDescription>Selamat datang di platform Archiva</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Kelola dokumen, kategori, dan izin akses melalui menu navigasi di samping.
-          </p>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <UploadTray onUploadSettled={handleUploadSettled} />
+      <UploadedDocumentsList documents={uploadedDocs} />
     </div>
   );
 }

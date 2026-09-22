@@ -68,12 +68,57 @@ describe("configuration", () => {
     if (!result.ok) expect(result.error.kind).toBe("NotEditableByTenant");
   });
 
+  test("getConfiguration returns all three keys with defaults", async () => {
+    // AC-42.01
+    const { service } = build();
+    const config = await service.getConfiguration(TENANT);
+    expect(config).toHaveLength(3);
+
+    const [maxSize, pendingDays, quota] = config;
+    expect(maxSize?.key).toBe("max_file_size_mb");
+    expect(maxSize?.value).toBe(20);
+    expect(maxSize?.defaultValue).toBe(20);
+    expect(maxSize?.unit).toBe("MB");
+    expect(maxSize?.min).toBe(1);
+    expect(maxSize?.max).toBe(200);
+    expect(maxSize?.editable).toBe(true);
+    expect(maxSize?.isDefault).toBe(true);
+    expect(maxSize?.updatedAt).toBeNull();
+    expect(maxSize?.updatedBy).toBeNull();
+
+    expect(pendingDays?.key).toBe("pending_confirmation_days");
+    expect(pendingDays?.value).toBe(7);
+    expect(pendingDays?.unit).toBe("hari");
+    expect(pendingDays?.isDefault).toBe(true);
+
+    expect(quota?.key).toBe("storage_quota_gb");
+    expect(quota?.value).toBe(50);
+    expect(quota?.unit).toBe("GB");
+    expect(quota?.editable).toBe(false);
+    expect(quota?.isDefault).toBe(true);
+  });
+
   test("reset returns the key to its default", async () => {
     // AC-42.05
     const { service } = build();
-    await service.setConfigValue(TENANT, "max_file_size_mb", 50, ACTOR);
+    const updateResult = await service.setConfigValue(TENANT, "max_file_size_mb", 50, ACTOR);
+    expect(updateResult.ok).toBe(true);
+    if (updateResult.ok) {
+      expect(updateResult.value.previousValue).toBe(20);
+      expect(updateResult.value.parameter.value).toBe(50);
+      expect(updateResult.value.parameter.isDefault).toBe(false);
+      expect(updateResult.value.parameter.updatedBy?.id).toBe(ACTOR);
+    }
     expect(await service.getConfigValue(TENANT, "max_file_size_mb")).toBe(50);
-    await service.resetConfigValue(TENANT, "max_file_size_mb", ACTOR);
+
+    const resetResult = await service.resetConfigValue(TENANT, "max_file_size_mb", ACTOR);
+    expect(resetResult.ok).toBe(true);
+    if (resetResult.ok) {
+      expect(resetResult.value.value).toBe(20);
+      expect(resetResult.value.isDefault).toBe(true);
+      expect(resetResult.value.updatedAt).toBeNull();
+      expect(resetResult.value.updatedBy).toBeNull();
+    }
     expect(await service.getConfigValue(TENANT, "max_file_size_mb")).toBe(20);
   });
 });

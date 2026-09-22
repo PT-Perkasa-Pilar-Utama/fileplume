@@ -1,5 +1,5 @@
 import type {
-  ConfigKeyName,
+  ConfigParameter,
   Result,
   StorageLevel,
   StorageView,
@@ -18,28 +18,29 @@ import {
   STORAGE_WARNING_THRESHOLD_PERCENT,
 } from "@archiva/shared";
 import type * as E from "./errors.ts";
+import {
+  BYTES_PER_GB,
+  buildConfigParameters,
+  CONFIG_KEY_LABELS,
+  CONFIG_KEYS,
+  type ConfigKey,
+  DEFAULT_STORAGE_QUOTA_BYTES,
+  type StoredConfigRow,
+} from "./internal/config-specs.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
 
 /** technical-specs/06-data-model.md 6.3. Declared once, in @archiva/shared. */
 export type { TenantStatus };
-
-type ConfigKeySpec = {
-  default: number;
-  min: number;
-  max: number;
-  unit: string;
-  tenantEditable: boolean;
+export {
+  BYTES_PER_GB,
+  CONFIG_KEY_LABELS,
+  CONFIG_KEYS,
+  type ConfigKey,
+  DEFAULT_STORAGE_QUOTA_BYTES,
+  type StoredConfigRow,
 };
 
-/** technical-specs/06-data-model.md 6.3. Keyed by the shared closed union, so a missing key fails to compile. */
-export const CONFIG_KEYS = {
-  max_file_size_mb: { default: 20, min: 1, max: 200, unit: "MB", tenantEditable: true },
-  pending_confirmation_days: { default: 7, min: 1, max: 90, unit: "hari", tenantEditable: true },
-  storage_quota_gb: { default: 50, min: 1, max: 10000, unit: "GB", tenantEditable: false },
-} as const satisfies Record<ConfigKeyName, ConfigKeySpec>;
-
-export type ConfigKey = keyof typeof CONFIG_KEYS;
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
 export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
 
@@ -65,18 +66,24 @@ export type ListTenantsSort = "createdAt" | "name" | "storageUsedBytes";
 export interface TenancyService {
   /** Step 1 of api-specs/01-conventions.md 1.12. Subdomains are citext, so case never matters. */
   resolveTenant(subdomain: string): Promise<Tenant | null>;
+  getConfiguration(tenantId: TenantId): Promise<ConfigParameter[]>;
   getConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number>;
   setConfigValue(
     tenantId: TenantId,
     key: ConfigKey,
-    value: number,
+    value: unknown,
     actor: UserId,
-  ): Promise<Result<void, E.InvalidConfigValue | E.ValueOutOfRange | E.NotEditableByTenant>>;
+  ): Promise<
+    Result<
+      { parameter: ConfigParameter; previousValue: number },
+      E.InvalidConfigValue | E.ValueOutOfRange | E.NotEditableByTenant
+    >
+  >;
   resetConfigValue(
     tenantId: TenantId,
     key: ConfigKey,
     actor: UserId,
-  ): Promise<Result<void, E.NotEditableByTenant>>;
+  ): Promise<Result<ConfigParameter, E.NotEditableByTenant>>;
   /**
    * The only correct way to check quota. Reading usage and then deciding is a
    * race, and AC-35.04 tests exactly that race.
@@ -109,29 +116,78 @@ export function createTenancyService(deps: {
 }): TenancyService {
   const { repository, clock } = deps;
 
+  async function getConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number> {
+    const stored = await repository.findConfigValue(tenantId, key);
+    return stored ?? CONFIG_KEYS[key].default;
+  }
+
   return {
     resolveTenant: (subdomain) => repository.findTenantBySubdomain(subdomain),
 
-    async getConfigValue(tenantId, key) {
-      const stored = await repository.findConfigValue(tenantId, key);
-      return stored ?? CONFIG_KEYS[key].default;
+    async getConfiguration(tenantId) {
+      // A missing tenant row is programmer error: every route resolves the
+      // tenant from the subdomain before reaching this service. Propagate so
+      // a miswired caller fails loudly instead of serving a plausible table.
+      const usage = await repository.usage(tenantId);
+      const entries = await repository.findConfigEntries(tenantId);
+      return buildConfigParameters(entries, usage.quotaBytes);
     },
+
+    getConfigValue: (tenantId, key) => getConfigValue(tenantId, key),
 
     async setConfigValue(tenantId, key, value, actor) {
       const spec = CONFIG_KEYS[key];
       if (!spec.tenantEditable) return err({ kind: "NotEditableByTenant", key });
-      if (!Number.isInteger(value)) return err({ kind: "InvalidConfigValue", key });
+      if (typeof value !== "number" || !Number.isInteger(value)) {
+        return err({ kind: "InvalidConfigValue", key });
+      }
       if (value < spec.min || value > spec.max) {
         return err({ kind: "ValueOutOfRange", key, min: spec.min, max: spec.max });
       }
+
+      const previousValue = await getConfigValue(tenantId, key);
       await repository.upsertConfigValue(tenantId, key, value, actor);
-      return ok(undefined);
+      const updatedEntry = await repository.findConfigRow(tenantId, key);
+
+      const parameter: ConfigParameter = {
+        key,
+        label: CONFIG_KEY_LABELS[key],
+        value,
+        defaultValue: spec.default,
+        unit: spec.unit,
+        min: spec.min,
+        max: spec.max,
+        editable: spec.tenantEditable,
+        isDefault: false,
+        updatedAt: updatedEntry?.updatedAt
+          ? updatedEntry.updatedAt.toISOString()
+          : deps.clock.now().toISOString(),
+        updatedBy: updatedEntry?.updatedBy ?? { id: actor, name: "Admin Tenant" },
+      };
+
+      return ok({ parameter, previousValue });
     },
 
     async resetConfigValue(tenantId, key, actor) {
-      if (!CONFIG_KEYS[key].tenantEditable) return err({ kind: "NotEditableByTenant", key });
+      const spec = CONFIG_KEYS[key];
+      if (!spec.tenantEditable) return err({ kind: "NotEditableByTenant", key });
       await repository.deleteConfigValue(tenantId, key, actor);
-      return ok(undefined);
+
+      const parameter: ConfigParameter = {
+        key,
+        label: CONFIG_KEY_LABELS[key],
+        value: spec.default,
+        defaultValue: spec.default,
+        unit: spec.unit,
+        min: spec.min,
+        max: spec.max,
+        editable: spec.tenantEditable,
+        isDefault: true,
+        updatedAt: null,
+        updatedBy: null,
+      };
+
+      return ok(parameter);
     },
 
     async reserveQuota(tenantId, bytes) {
@@ -169,7 +225,7 @@ export function createTenancyService(deps: {
     },
 
     async createTenant(input, actorId) {
-      const storageQuotaBytes = input.storageQuotaGb * 1024 ** 3;
+      const storageQuotaBytes = input.storageQuotaGb * BYTES_PER_GB;
       const result = await repository.createTenant(
         { name: input.name, subdomain: input.subdomain, storageQuotaBytes },
         actorId,

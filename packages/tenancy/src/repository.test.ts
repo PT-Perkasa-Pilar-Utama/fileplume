@@ -128,6 +128,24 @@ describe("createDrizzleTenancyRepository", () => {
     expect(await repository.findConfigValue(tenantId, "max_file_size_mb")).toBeNull();
   });
 
+  test("findConfigEntries resolves updatedBy through the user join", async () => {
+    // Only real Postgres proves the leftJoin: the in-memory double cannot.
+    const repository = createDrizzleTenancyRepository(db);
+    const tenantId = await seedTenant(100);
+    const actor = await seedUser(tenantId);
+
+    await repository.upsertConfigValue(tenantId, "max_file_size_mb", 50, actor);
+
+    const row = await repository.findConfigRow(tenantId, "max_file_size_mb");
+    expect(row?.value).toBe(50);
+    expect(row?.updatedBy?.id).toBe(actor);
+    expect(row?.updatedBy?.name).toBe("Test User");
+
+    const entries = await repository.findConfigEntries(tenantId);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.key).toBe("max_file_size_mb");
+  });
+
   test("createTenant rejects duplicate name and subdomain against real PostgreSQL", async () => {
     // AC-43.01
     const repository = createDrizzleTenancyRepository(db);

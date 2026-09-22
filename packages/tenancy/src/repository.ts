@@ -10,6 +10,7 @@ import type {
   ConfigKey,
   ListTenantsSort,
   QuotaReservation,
+  StoredConfigRow,
   Tenant,
   TenantCreated,
   TenantListed,
@@ -18,6 +19,8 @@ import type {
 /** Drizzle queries scoped to this module's own tables. */
 export interface TenancyRepository {
   findTenantBySubdomain(subdomain: string): Promise<Tenant | null>;
+  findConfigEntries(tenantId: TenantId): Promise<StoredConfigRow[]>;
+  findConfigRow(tenantId: TenantId, key: ConfigKey): Promise<StoredConfigRow | null>;
   findConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number | null>;
   upsertConfigValue(t: TenantId, key: ConfigKey, value: number, actor: UserId): Promise<void>;
   deleteConfigValue(t: TenantId, key: ConfigKey, actor: UserId): Promise<void>;
@@ -41,7 +44,32 @@ export interface TenancyRepository {
   }): Promise<{ rows: TenantListed[]; total: number }>;
 }
 
-const { tenants, tenantConfig, quotaReservations, categories, categoryPermissions } = schema;
+const { tenants, tenantConfig, quotaReservations, categories, categoryPermissions, users } = schema;
+
+/** Shared row mapping, so findConfigRow never depends on method-call `this`. */
+async function fetchConfigEntries(db: Db, tenantId: TenantId): Promise<StoredConfigRow[]> {
+  const rows = await db
+    .select({
+      key: tenantConfig.key,
+      value: tenantConfig.value,
+      updatedAt: tenantConfig.updatedAt,
+      updatedById: users.id,
+      updatedByName: users.name,
+    })
+    .from(tenantConfig)
+    .leftJoin(users, eq(tenantConfig.updatedBy, users.id))
+    .where(eq(tenantConfig.tenantId, tenantId));
+
+  // No cast: tenantConfig.key is the pgEnum built from CONFIG_KEY_NAMES in
+  // @archiva/shared, so its type is already the closed key union.
+  return rows.map((r) => ({
+    key: r.key,
+    value: Number(r.value),
+    updatedAt: r.updatedAt,
+    updatedBy:
+      r.updatedById && r.updatedByName ? { id: r.updatedById, name: r.updatedByName } : null,
+  }));
+}
 
 /**
  * The worked example for every module that follows: Drizzle queries live
@@ -68,12 +96,18 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
       return row ? { ...row, id: asTenantId(row.id) } : null;
     },
 
+    async findConfigEntries(tenantId) {
+      return fetchConfigEntries(db, tenantId);
+    },
+
+    async findConfigRow(tenantId, key) {
+      const entries = await fetchConfigEntries(db, tenantId);
+      return entries.find((e) => e.key === key) ?? null;
+    },
+
     async findConfigValue(tenantId, key) {
-      const [row] = await db
-        .select({ value: tenantConfig.value })
-        .from(tenantConfig)
-        .where(and(eq(tenantConfig.tenantId, tenantId), eq(tenantConfig.key, key)));
-      return row ? Number(row.value) : null;
+      const entries = await fetchConfigEntries(db, tenantId);
+      return entries.find((e) => e.key === key)?.value ?? null;
     },
 
     async upsertConfigValue(tenantId, key, value, actor) {

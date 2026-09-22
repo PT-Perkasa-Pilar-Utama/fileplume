@@ -57,9 +57,9 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /configuration` | [04 4.2](04-configuration.md) | 2 | SCAFFOLD |
-| `PATCH /configuration/:key` | [04 4.3](04-configuration.md) | 2 | SCAFFOLD |
-| `DELETE /configuration/:key` | [04 4.4](04-configuration.md) | 2 | SCAFFOLD |
+| `GET /configuration` | [04 4.2](04-configuration.md) | 2 | OK |
+| `PATCH /configuration/:key` | [04 4.3](04-configuration.md) | 2 | OK |
+| `DELETE /configuration/:key` | [04 4.4](04-configuration.md) | 2 | OK |
 | `GET /storage` | [04 4.5](04-configuration.md) | 2 | OK |
 
 ### Documents

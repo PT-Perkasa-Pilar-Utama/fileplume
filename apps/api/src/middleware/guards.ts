@@ -39,3 +39,24 @@ export function requireRole(floor: Floor): MiddlewareHandler<AppEnv> {
     await next();
   };
 }
+
+/**
+ * Guard for configuration parameter modification.
+ * api-specs/04-configuration.md 4.3 step 2, 4.4 step 1:
+ * Reject `storage_quota_gb` with `NOT_EDITABLE_BY_TENANT` before any role check.
+ * The floor itself is enforced by requireRole, so the denied-audit path stays singular.
+ */
+export function requireConfigRole(): MiddlewareHandler<AppEnv> {
+  const requireAdmin = requireRole("admin_tenant");
+  return async (c, next) => {
+    const session = c.get("session");
+    if (session.kind === "absent") return fail(c, "UNAUTHENTICATED");
+    if (session.kind === "expired") return fail(c, "SESSION_EXPIRED");
+
+    if (c.req.param("key") === "storage_quota_gb") {
+      return fail(c, "NOT_EDITABLE_BY_TENANT");
+    }
+
+    await requireAdmin(c, next);
+  };
+}

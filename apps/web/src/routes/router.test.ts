@@ -28,12 +28,46 @@ describe("checkAuthBeforeLoad route guard", () => {
     useAuthStore.getState().clearSession();
   });
 
-  test("returns immediately if principal is already authenticated in store", async () => {
-    useAuthStore.getState().setPrincipal(MOCK_PRINCIPAL);
-    const fetchSpy = spyOn(authApi, "fetchCurrentPrincipal");
+  test("validates against live API and updates principal in store", async () => {
+    const updatedPrincipal = {
+      ...MOCK_PRINCIPAL,
+      user: { ...MOCK_PRINCIPAL.user, name: "Budi Updated" },
+    };
+    const fetchSpy = spyOn(authApi, "fetchCurrentPrincipal").mockResolvedValue(updatedPrincipal);
 
     await checkAuthBeforeLoad("/documents");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().principal).toEqual(updatedPrincipal);
+    expect(useAuthStore.getState().status).toBe("authenticated");
+    fetchSpy.mockRestore();
+  });
+
+  test("redirects to login with expired=true when live API returns 401 even if principal was in store", async () => {
+    useAuthStore.getState().setPrincipal(MOCK_PRINCIPAL);
+    const fetchSpy = spyOn(authApi, "fetchCurrentPrincipal").mockRejectedValue(
+      new ApiError(401, "SESSION_EXPIRED", "Sesi Anda telah berakhir. Silakan login kembali"),
+    );
+
+    try {
+      await checkAuthBeforeLoad("/documents");
+      expect().fail("should have thrown redirect");
+    } catch (err: unknown) {
+      expect(isRedirect(err)).toBe(true);
+      if (isRedirect(err)) {
+        expect(err.options.to).toBe("/login");
+        expect(typeof err.options.search).toBe("object");
+        expect(err.options.search).toMatchObject({
+          redirect: "/documents",
+          expired: true,
+        });
+      }
+    }
+
+    const state = useAuthStore.getState();
+    expect(state.status).toBe("unauthenticated");
+    expect(state.principal).toBeNull();
+    expect(state.sessionExpiredMessage).toBe("Sesi Anda telah berakhir. Silakan login kembali");
+
     fetchSpy.mockRestore();
   });
 

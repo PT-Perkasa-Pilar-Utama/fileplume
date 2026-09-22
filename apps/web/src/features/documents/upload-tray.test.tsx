@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { EMPTY_STATE } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -7,10 +8,12 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import type { JSX } from "react";
+import { act, type JSX } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { DashboardView } from "../../routes/views.tsx";
-import { Dropzone, type TrayItem, UploadTray } from "./index.ts";
+import { type TrayItem, UploadTray } from "./index.ts";
+import { Dropzone } from "./internal/dropzone.tsx";
 
 function createTestQueryClient(): QueryClient {
   return new QueryClient({
@@ -45,16 +48,16 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
   test("Dropzone renders upload area prompt and accepted file extensions", async () => {
     const html = await renderWithProviders(<Dropzone onFilesSelected={() => {}} />);
 
-    expect(html).toContain("Click to upload or Drag and Drop file here");
+    expect(html).toContain("Klik untuk mengunggah atau seret dan lepas file di sini");
     expect(html).toContain("(PDF, DOCX, XLSX, TXT)");
     expect(html).toContain('data-testid="upload-file-input"');
   });
 
-  test("UploadTray renders container header UPLOAD AREA", async () => {
+  test("UploadTray renders container header AREA UNGGAH", async () => {
     const html = await renderWithProviders(<UploadTray />);
 
-    expect(html).toContain("UPLOAD AREA");
-    expect(html).toContain("Upload your document below");
+    expect(html).toContain("AREA UNGGAH");
+    expect(html).toContain("Unggah dokumen Anda di bawah ini");
     expect(html).toContain("Belum ada file yang diunggah");
   });
 
@@ -168,6 +171,54 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
     expect(successOccurrences).toBe(3);
   });
 
+  // AC-01.05: Melebihi batas jumlah file sekaligus (Negative Path)
+  test("AC-01.05: renders batch-error-alert when selecting more than 20 files", async () => {
+    const queryClient = createTestQueryClient();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <UploadTray />
+        </QueryClientProvider>,
+      );
+    });
+
+    const fileInput = container.querySelector(
+      'input[data-testid="upload-file-input"]',
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    // Create 21 files (exceeding 20 limit)
+    const files: File[] = [];
+    for (let i = 0; i < 21; i++) {
+      files.push(new File(["content"], `doc-${i}.pdf`, { type: "application/pdf" }));
+    }
+
+    if (fileInput) {
+      Object.defineProperty(fileInput, "files", {
+        value: files,
+        writable: true,
+      });
+
+      await act(async () => {
+        fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
+
+    const alertEl = container.querySelector('[data-testid="batch-error-alert"]');
+    expect(alertEl).not.toBeNull();
+    expect(alertEl?.textContent).toContain("Maksimal 20 file per unggahan");
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   // AC-01.06: Melebihi batas ukuran file (Negative Path)
   test("AC-01.06: renders file too large error when size exceeds limit", async () => {
     const items: TrayItem[] = [
@@ -194,10 +245,10 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
   test("DashboardView mounts UploadTray and UploadedDocumentsList", async () => {
     const html = await renderWithProviders(<DashboardView />);
 
-    expect(html).toContain("UPLOAD AREA");
-    expect(html).toContain("Upload your document below");
-    expect(html).toContain("Click to upload or Drag and Drop file here");
+    expect(html).toContain("AREA UNGGAH");
+    expect(html).toContain("Unggah dokumen Anda di bawah ini");
+    expect(html).toContain("Klik untuk mengunggah atau seret dan lepas file di sini");
     expect(html).toContain("UPLOADED DOCUMENT");
-    expect(html).toContain("No Document Uploaded");
+    expect(html).toContain(EMPTY_STATE.NO_DOCUMENTS);
   });
 });

@@ -1,5 +1,5 @@
 import { ERROR_MESSAGES, formatErrorMessage } from "@archiva/shared";
-import type { AcceptedFileType } from "../types.ts";
+import type { AcceptedFileType } from "./types.ts";
 
 /** Maximum number of files permitted in a single upload batch (AC-01.05). */
 export const MAX_BATCH_FILES = 20;
@@ -30,6 +30,14 @@ export function getFileExtension(filename: string): string {
 }
 
 /**
+ * Checks filename extension to determine accepted file type (e.g. for display).
+ */
+export function getAcceptedFileTypeByName(filename: string): AcceptedFileType | null {
+  const ext = getFileExtension(filename);
+  return EXTENSION_MAP[ext] ?? null;
+}
+
+/**
  * Checks extension and MIME type to determine accepted file type.
  * Resilient to browser drag-and-drop MIME differences (AC-01.03).
  */
@@ -46,10 +54,9 @@ export function getAcceptedFileType(file: File): AcceptedFileType | null {
   return null;
 }
 
-export interface BatchCountValidationResult {
-  readonly valid: boolean;
-  readonly error?: string;
-}
+export type BatchCountValidationResult =
+  | { readonly valid: true }
+  | { readonly valid: false; readonly error: string };
 
 export function validateBatchCount(count: number): BatchCountValidationResult {
   if (count > MAX_BATCH_FILES) {

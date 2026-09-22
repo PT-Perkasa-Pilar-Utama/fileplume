@@ -1,8 +1,8 @@
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
+import { DEFAULT_MAX_FILE_SIZE_MB } from "./file-validation.ts";
 import { Dropzone } from "./internal/dropzone.tsx";
-import { DEFAULT_MAX_FILE_SIZE_MB } from "./internal/file-validation.ts";
 import { UploadFileItem } from "./internal/upload-file-item.tsx";
 import { type UseUploadTrayOptions, useUploadTray } from "./internal/use-upload-tray.ts";
 
@@ -39,9 +39,9 @@ export function UploadTray({
     >
       <div className="flex flex-col space-y-1">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          UPLOAD AREA
+          AREA UNGGAH
         </h2>
-        <p className="text-base font-semibold text-foreground">Upload your document below</p>
+        <p className="text-base font-semibold text-foreground">Unggah dokumen Anda di bawah ini</p>
       </div>
 
       {/* Batch-level refusal error (e.g. AC-01.05 > 20 files) */}

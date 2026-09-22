@@ -1,9 +1,10 @@
+import { EMPTY_STATE } from "@archiva/shared";
 import { FileText } from "lucide-react";
 import type { JSX } from "react";
-import { Badge } from "../../../components/ui/badge.tsx";
-import { formatBytes } from "../../../lib/format.ts";
-import type { UploadedDocumentDisplay } from "../types.ts";
-import { FileTypeIcon } from "./file-type-icon.tsx";
+import { Badge } from "../../components/ui/badge.tsx";
+import { formatBytes } from "../../lib/format.ts";
+import { FileTypeIcon } from "./internal/file-type-icon.tsx";
+import type { UploadedDocumentDisplay } from "./types.ts";
 
 export interface UploadedDocumentsListProps {
   readonly documents: readonly UploadedDocumentDisplay[];
@@ -22,7 +23,7 @@ export function UploadedDocumentsList({ documents }: UploadedDocumentsListProps)
           UPLOADED DOCUMENT
         </h2>
         <p className="text-xs text-muted-foreground">
-          Repository of uploaded files and records for quick access and verification.
+          Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.
         </p>
       </div>
 
@@ -34,10 +35,7 @@ export function UploadedDocumentsList({ documents }: UploadedDocumentsListProps)
           <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground">
             <FileText className="size-6 text-slate-400 dark:text-slate-500" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">No Document Uploaded</h3>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Please upload document first. Click or Drag and Drop Document to the Upload Area.
-          </p>
+          <p className="mt-1 max-w-sm text-xs text-muted-foreground">{EMPTY_STATE.NO_DOCUMENTS}</p>
         </div>
       ) : (
         <div
@@ -62,7 +60,7 @@ export function UploadedDocumentsList({ documents }: UploadedDocumentsListProps)
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-muted-foreground">{doc.createdAt}</span>
                   <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">
-                    {doc.processingLabel || "Diproses"}
+                    {doc.processingLabel}
                   </Badge>
                 </div>
               </div>

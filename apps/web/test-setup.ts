@@ -9,7 +9,6 @@ const native = {
 
 GlobalRegistrator.register();
 Object.assign(globalThis, native);
-Reflect.deleteProperty(globalThis, "XMLHttpRequest");
 
 declare global {
   var IS_REACT_ACT_ENVIRONMENT: boolean;

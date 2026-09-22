@@ -1,9 +1,10 @@
+import { ERROR_MESSAGES, UPLOAD_MESSAGES } from "@archiva/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError } from "../../../lib/api.ts";
 import { uploadDocumentsRequest } from "../api.ts";
+import { DEFAULT_MAX_FILE_SIZE_MB, validateBatchCount, validateFile } from "../file-validation.ts";
 import type { TrayItem, UploadBatch, UploadProgress } from "../types.ts";
-import { DEFAULT_MAX_FILE_SIZE_MB, validateBatchCount, validateFile } from "./file-validation.ts";
 
 export interface FileToUpload {
   readonly file: File;
@@ -27,7 +28,7 @@ export function processFilesForUpload(
   const countCheck = validateBatchCount(files.length);
   if (!countCheck.valid) {
     return {
-      batchError: countCheck.error ?? "Maksimal 20 file per unggahan",
+      batchError: countCheck.error,
       newItems: [],
       filesToUpload: [],
     };
@@ -103,7 +104,7 @@ export function applyBatchOutcomeToItems(
 }
 
 export interface UseUploadTrayOptions {
-  readonly onUploadSettled?: (batch: UploadBatch) => void;
+  readonly onUploadSettled?: (batch: UploadBatch, acceptedItems?: readonly TrayItem[]) => void;
   readonly maxFileSizeMb?: number;
   readonly initialItems?: readonly TrayItem[];
   readonly uploader?: (
@@ -173,23 +174,28 @@ export function useUploadTray({
         },
       });
 
-      setItems((prev) => [...applyBatchOutcomeToItems(prev, batch, processed.filesToUpload)]);
+      let acceptedItems: readonly TrayItem[] = [];
+      setItems((prev) => {
+        const updated = applyBatchOutcomeToItems(prev, batch, processed.filesToUpload);
+        acceptedItems = updated.filter((item) => item.status === "accepted");
+        return [...updated];
+      });
 
       if (batch.summary) {
         setBatchSummary(batch.summary);
       }
 
       if (batch.accepted > 0) {
-        setSuccessMessage("File diterima untuk diproses");
+        setSuccessMessage(UPLOAD_MESSAGES.FILE_ACCEPTED);
       }
 
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       void queryClient.invalidateQueries({ queryKey: ["storage"] });
 
-      onUploadSettled?.(batch);
+      onUploadSettled?.(batch, acceptedItems);
     } catch (err: unknown) {
-      const message =
-        err instanceof ApiError ? err.message : "Unggahan terputus. Silakan coba lagi";
+      const message = err instanceof ApiError ? err.message : ERROR_MESSAGES.UPLOAD_INTERRUPTED;
+      const errorCode = err instanceof ApiError ? err.code : "UPLOAD_INTERRUPTED";
 
       setBatchError(message);
 
@@ -200,7 +206,7 @@ export function useUploadTray({
             return {
               ...item,
               status: "rejected",
-              error: { code: "UPLOAD_ERROR", message },
+              error: { code: errorCode, message },
             };
           }
           return item;

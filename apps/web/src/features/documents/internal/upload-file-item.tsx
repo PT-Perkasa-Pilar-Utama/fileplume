@@ -1,11 +1,12 @@
+import { UPLOAD_MESSAGES } from "@archiva/shared";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import type { JSX } from "react";
 import { Badge } from "../../../components/ui/badge.tsx";
 import { formatBytes } from "../../../lib/format.ts";
+import { getAcceptedFileType } from "../file-validation.ts";
 import type { TrayItem } from "../types.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
-import { getAcceptedFileType } from "./file-validation.ts";
 
 export interface UploadFileItemProps {
   readonly item: TrayItem;
@@ -75,11 +76,13 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="size-3.5 shrink-0" />
-              File diterima untuk diproses
+              {UPLOAD_MESSAGES.FILE_ACCEPTED}
             </span>
-            <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">
-              {item.document?.processingLabel ?? "Diproses"}
-            </Badge>
+            {item.document && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">
+                {item.document.processingLabel}
+              </Badge>
+            )}
           </div>
         )}
 

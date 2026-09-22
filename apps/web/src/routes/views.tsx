@@ -1,3 +1,4 @@
+import type { UploadBatch } from "@archiva/shared";
 import { type JSX, useState } from "react";
 import {
   Card,
@@ -7,33 +8,48 @@ import {
   CardTitle,
 } from "../components/ui/card.tsx";
 import {
+  getAcceptedFileTypeByName,
+  type TrayItem,
   type UploadedDocumentDisplay,
   UploadedDocumentsList,
   UploadTray,
 } from "../features/documents/index.ts";
-import type { UploadBatch } from "../features/documents/types.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
+
+// SCAFFOLD: uploaderName and createdAt are placeholders until the real
+// document list lands in FE-S2-03 (api-specs/05-documents.md 5.1).
+const PLACEHOLDER_UPLOADER = "Member Team";
+const PLACEHOLDER_UPLOAD_DATE = "Hari ini";
 
 export function DashboardView(): JSX.Element {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
 
-  const handleUploadSettled = (batch: UploadBatch): void => {
+  const handleUploadSettled = (
+    batch: UploadBatch,
+    acceptedItems: readonly TrayItem[] = [],
+  ): void => {
+    const sizeMap = new Map<string, number>();
+    for (const item of acceptedItems) {
+      if (item.document?.id) {
+        sizeMap.set(item.document.id, item.sizeBytes);
+      }
+    }
+
     const acceptedDocs: UploadedDocumentDisplay[] = [];
     for (const result of batch.results) {
       if (result.status === "accepted") {
-        const ext = result.document.title.split(".").pop()?.toLowerCase();
-        const fileType =
-          ext === "pdf" || ext === "docx" || ext === "xlsx" || ext === "txt" ? ext : "other";
+        const fileType = getAcceptedFileTypeByName(result.document.title) ?? "other";
+        const sizeBytes = sizeMap.get(result.document.id) ?? 0;
 
         acceptedDocs.push({
           id: result.document.id,
           title: result.document.title,
           fileType,
-          sizeBytes: 0,
+          sizeBytes,
           processingState: result.document.processingState,
-          processingLabel: result.document.processingLabel || "Diproses",
-          uploaderName: "Member Team",
-          createdAt: "Hari ini",
+          processingLabel: result.document.processingLabel,
+          uploaderName: PLACEHOLDER_UPLOADER,
+          createdAt: PLACEHOLDER_UPLOAD_DATE,
         });
       }
     }

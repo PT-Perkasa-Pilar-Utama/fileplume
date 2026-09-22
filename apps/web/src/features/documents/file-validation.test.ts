@@ -3,6 +3,7 @@ import { ERROR_MESSAGES } from "@archiva/shared";
 import {
   DEFAULT_MAX_FILE_SIZE_MB,
   getAcceptedFileType,
+  getAcceptedFileTypeByName,
   validateBatchCount,
   validateFile,
 } from "./file-validation.ts";
@@ -12,12 +13,22 @@ describe("file-validation pre-checks (FE-S2-01)", () => {
   test("AC-01.05: validateBatchCount rejects count > 20 with exact Indonesian message", () => {
     const validResult = validateBatchCount(20);
     expect(validResult.valid).toBe(true);
-    expect(validResult.error).toBeUndefined();
+    expect("error" in validResult).toBe(false);
 
     const overLimit = validateBatchCount(25);
     expect(overLimit.valid).toBe(false);
-    expect(overLimit.error).toBe("Maksimal 20 file per unggahan");
-    expect(overLimit.error).toBe(ERROR_MESSAGES.BATCH_TOO_LARGE);
+    if (!overLimit.valid) {
+      expect(overLimit.error).toBe("Maksimal 20 file per unggahan");
+      expect(overLimit.error).toBe(ERROR_MESSAGES.BATCH_TOO_LARGE);
+    }
+  });
+
+  test("getAcceptedFileTypeByName identifies type from filename", () => {
+    expect(getAcceptedFileTypeByName("laporan.pdf")).toBe("pdf");
+    expect(getAcceptedFileTypeByName("surat.docx")).toBe("docx");
+    expect(getAcceptedFileTypeByName("data.xlsx")).toBe("xlsx");
+    expect(getAcceptedFileTypeByName("catatan.txt")).toBe("txt");
+    expect(getAcceptedFileTypeByName("foto.png")).toBeNull();
   });
 
   test("getAcceptedFileType identifies pdf, docx, xlsx, txt by extension and MIME", () => {

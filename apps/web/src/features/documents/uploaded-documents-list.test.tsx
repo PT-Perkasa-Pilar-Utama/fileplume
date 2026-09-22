@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { EMPTY_STATE } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -8,7 +9,7 @@ import {
 } from "@tanstack/react-router";
 import type { JSX } from "react";
 import { renderToString } from "react-dom/server";
-import type { UploadedDocumentDisplay } from "../types.ts";
+import type { UploadedDocumentDisplay } from "./types.ts";
 import { UploadedDocumentsList } from "./uploaded-documents-list.tsx";
 
 async function renderWithRouter(ui: JSX.Element): Promise<string> {
@@ -30,12 +31,9 @@ describe("UploadedDocumentsList component (FE-S2-01)", () => {
 
     expect(html).toContain("UPLOADED DOCUMENT");
     expect(html).toContain(
-      "Repository of uploaded files and records for quick access and verification.",
+      "Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.",
     );
-    expect(html).toContain("No Document Uploaded");
-    expect(html).toContain(
-      "Please upload document first. Click or Drag and Drop Document to the Upload Area.",
-    );
+    expect(html).toContain(EMPTY_STATE.NO_DOCUMENTS);
   });
 
   test("renders document cards when documents exist", async () => {

@@ -105,7 +105,7 @@ export function Dropzone({
         </div>
 
         <p className="mb-1 text-sm font-semibold text-foreground">
-          Click to upload or Drag and Drop file here
+          Klik untuk mengunggah atau seret dan lepas file di sini
         </p>
         <p className="text-xs text-muted-foreground font-medium">(PDF, DOCX, XLSX, TXT)</p>
       </button>

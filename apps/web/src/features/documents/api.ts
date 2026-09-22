@@ -50,80 +50,55 @@ export async function uploadDocumentsRequest(
 
   const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
 
-  // When XMLHttpRequest is available (browser), use it for fine-grained progress events.
-  if (typeof XMLHttpRequest !== "undefined") {
-    return new Promise<UploadBatch>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", `${API_BASE}/documents`);
-      xhr.withCredentials = true;
+  return new Promise<UploadBatch>((resolve, reject) => {
+    const Transport = options?.transport ?? XMLHttpRequest;
+    const xhr = new Transport();
+    xhr.open("POST", `${API_BASE}/documents`);
+    xhr.withCredentials = true;
 
-      if (options?.onProgress && xhr.upload) {
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable && event.total > 0) {
-            const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
-            options.onProgress?.({
-              progress: percent,
-              loadedBytes: event.loaded,
-              totalBytes: event.total,
-            });
-          }
-        });
+    if (options?.onProgress && xhr.upload) {
+      xhr.upload.addEventListener("progress", (event: ProgressEvent) => {
+        if (event.lengthComputable && event.total > 0) {
+          const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
+          options.onProgress?.({
+            progress: percent,
+            loadedBytes: event.loaded,
+            totalBytes: event.total,
+          });
+        }
+      });
+    }
+
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        return reject(new ApiError(xhr.status, "INTERNAL_ERROR", ERROR_MESSAGES.INTERNAL_ERROR));
       }
 
-      xhr.onload = () => {
-        let body: unknown = null;
-        try {
-          body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
-        } catch {
-          return reject(new ApiError(xhr.status, "INTERNAL_ERROR", ERROR_MESSAGES.INTERNAL_ERROR));
-        }
+      try {
+        const result = parseUploadBatchBody(xhr.status, body);
+        // Indicate 100% progress on completion (AC-01.01)
+        options?.onProgress?.({
+          progress: 100,
+          loadedBytes: totalBytes,
+          totalBytes,
+        });
+        resolve(result);
+      } catch (error: unknown) {
+        reject(error);
+      }
+    };
 
-        try {
-          const result = parseUploadBatchBody(xhr.status, body);
-          // Indicate 100% progress on completion
-          options?.onProgress?.({
-            progress: 100,
-            loadedBytes: totalBytes,
-            totalBytes,
-          });
-          resolve(result);
-        } catch (error: unknown) {
-          reject(error);
-        }
-      };
+    xhr.onerror = () => {
+      reject(new ApiError(400, "UPLOAD_INTERRUPTED", ERROR_MESSAGES.UPLOAD_INTERRUPTED));
+    };
 
-      xhr.onerror = () => {
-        reject(new ApiError(400, "UPLOAD_INTERRUPTED", ERROR_MESSAGES.UPLOAD_INTERRUPTED));
-      };
+    xhr.onabort = () => {
+      reject(new ApiError(400, "UPLOAD_INTERRUPTED", ERROR_MESSAGES.UPLOAD_INTERRUPTED));
+    };
 
-      xhr.onabort = () => {
-        reject(new ApiError(400, "UPLOAD_INTERRUPTED", ERROR_MESSAGES.UPLOAD_INTERRUPTED));
-      };
-
-      xhr.send(formData);
-    });
-  }
-
-  // Fallback for non-browser / mock fetch environments
-  try {
-    const res = await fetch(`${API_BASE}/documents`, {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-
-    const body: unknown = res.status === 204 ? null : await res.json();
-    const result = parseUploadBatchBody(res.status, body);
-
-    options?.onProgress?.({
-      progress: 100,
-      loadedBytes: totalBytes,
-      totalBytes,
-    });
-
-    return result;
-  } catch (error: unknown) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(400, "UPLOAD_INTERRUPTED", ERROR_MESSAGES.UPLOAD_INTERRUPTED);
-  }
+    xhr.send(formData);
+  });
 }

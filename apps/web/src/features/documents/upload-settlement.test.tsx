@@ -15,12 +15,17 @@ import { DashboardView } from "../../routes/views.tsx";
 import { type TrayItem, UploadTray } from "./index.ts";
 
 function createTestQueryClient(): QueryClient {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
+  client.setQueryData(["documents", undefined], {
+    data: [],
+    meta: { page: 1, limit: 10, total: 0, totalPages: 0, message: EMPTY_STATE.NO_DOCUMENTS },
+  });
+  return client;
 }
 
 async function renderWithProviders(ui: JSX.Element): Promise<string> {
@@ -48,11 +53,26 @@ async function mountWithProviders(ui: JSX.Element): Promise<{
   cleanup: () => Promise<void>;
 }> {
   const queryClient = createTestQueryClient();
+  const rootRoute = createRootRoute({
+    component: () => <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  });
+
+  const documentDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/documents/$id",
+    component: () => <div>Detail Dokumen</div>,
+  });
+
+  rootRoute.addChildren([documentDetailRoute]);
+  const history = createMemoryHistory({ initialEntries: ["/"] });
+  const router = createRouter({ routeTree: rootRoute, history });
+  await router.load();
+
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    root.render(<RouterProvider router={router} />);
   });
   return {
     container,

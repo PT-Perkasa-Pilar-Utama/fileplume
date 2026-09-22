@@ -44,12 +44,10 @@ class MockUploadTransport implements UploadTransport {
       this.onerror?.();
       return;
     }
-
     if (b.shouldFailAbort) {
       this.onabort?.();
       return;
     }
-
     this.onload?.();
   }
 }
@@ -157,10 +155,7 @@ describe("document upload API (FE-S2-01)", () => {
             index: 2,
             filename: "doc-3.xlsx",
             status: "rejected" as const,
-            error: {
-              code: "QUOTA_EXCEEDED",
-              message: "Kapasitas penyimpanan penuh",
-            },
+            error: { code: "QUOTA_EXCEEDED", message: "Kapasitas penyimpanan penuh" },
           },
         ],
       },
@@ -174,10 +169,7 @@ describe("document upload API (FE-S2-01)", () => {
 
   test("parseUploadBatchBody throws ApiError on standard error envelope", () => {
     const errorPayload = {
-      error: {
-        code: "BATCH_TOO_LARGE",
-        message: "Maksimal 20 file per unggahan",
-      },
+      error: { code: "BATCH_TOO_LARGE", message: "Maksimal 20 file per unggahan" },
     };
 
     try {
@@ -241,16 +233,11 @@ describe("document upload API (FE-S2-01)", () => {
 
   // AC-01.07: Unggahan terputus di tengah proses (Negative Path)
   test("AC-01.07: uploadDocumentsRequest rejects with UPLOAD_INTERRUPTED on network error", async () => {
-    MockUploadTransport.nextBehavior = {
-      shouldFailError: true,
-    };
-
+    MockUploadTransport.nextBehavior = { shouldFailError: true };
     const file = new File(["test-content"], "broken.pdf", { type: "application/pdf" });
 
     try {
-      await uploadDocumentsRequest([file], {
-        transport: MockUploadTransport,
-      });
+      await uploadDocumentsRequest([file], { transport: MockUploadTransport });
       expect().fail("should have thrown ApiError");
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
@@ -264,16 +251,11 @@ describe("document upload API (FE-S2-01)", () => {
 
   // AC-01.07: Unggahan terputus via abort
   test("AC-01.07: uploadDocumentsRequest rejects with UPLOAD_INTERRUPTED on abort", async () => {
-    MockUploadTransport.nextBehavior = {
-      shouldFailAbort: true,
-    };
-
+    MockUploadTransport.nextBehavior = { shouldFailAbort: true };
     const file = new File(["test-content"], "aborted.pdf", { type: "application/pdf" });
 
     try {
-      await uploadDocumentsRequest([file], {
-        transport: MockUploadTransport,
-      });
+      await uploadDocumentsRequest([file], { transport: MockUploadTransport });
       expect().fail("should have thrown ApiError");
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
@@ -290,13 +272,10 @@ describe("document upload API (FE-S2-01)", () => {
       status: 200,
       responseText: "<html>502 Bad Gateway</html>",
     };
-
     const file = new File(["test-content"], "test.pdf", { type: "application/pdf" });
 
     try {
-      await uploadDocumentsRequest([file], {
-        transport: MockUploadTransport,
-      });
+      await uploadDocumentsRequest([file], { transport: MockUploadTransport });
       expect().fail("should have thrown ApiError");
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);

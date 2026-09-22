@@ -1,14 +1,19 @@
+import type { FileType } from "@archiva/shared";
 import { FileCode, FileSpreadsheet, FileText, FileWarning } from "lucide-react";
 import type { JSX } from "react";
 import { cn } from "../../../lib/cn.ts";
 import type { AcceptedFileType } from "../types.ts";
 
 export interface FileTypeIconProps {
-  readonly fileType: AcceptedFileType | "other" | "unsupported";
+  readonly fileType: FileType | AcceptedFileType | "other" | "unsupported";
   readonly className?: string;
   readonly size?: "sm" | "md" | "lg";
 }
 
+/**
+ * Visual file-type icon mapping to Figma component document-icon (node 11:392)
+ * for AC-38.01.
+ */
 export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconProps): JSX.Element {
   const sizeClasses = {
     sm: "size-7 rounded p-1 text-xs",
@@ -83,7 +88,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           <FileCode className={iconSizes} />
         </div>
       );
-    default:
+    case "unsupported":
       return (
         <div
           role="img"
@@ -94,6 +99,21 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
             className,
           )}
           aria-label="File tidak didukung"
+        >
+          <FileWarning className={iconSizes} />
+        </div>
+      );
+    default:
+      return (
+        <div
+          role="img"
+          data-testid="file-icon-other"
+          className={cn(
+            "flex shrink-0 items-center justify-center bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 font-semibold",
+            sizeClasses,
+            className,
+          )}
+          aria-label="File"
         >
           <FileWarning className={iconSizes} />
         </div>

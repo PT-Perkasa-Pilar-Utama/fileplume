@@ -13,6 +13,7 @@ import {
   type UploadedDocumentDisplay,
   UploadedDocumentsList,
   UploadTray,
+  type UploadTrayProps,
 } from "../features/documents/index.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
@@ -21,37 +22,29 @@ import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 const PLACEHOLDER_UPLOADER = "Member Team";
 const PLACEHOLDER_UPLOAD_DATE = "Hari ini";
 
-export function DashboardView(): JSX.Element {
+export interface DashboardViewProps {
+  readonly uploader?: UploadTrayProps["uploader"];
+}
+
+export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Element {
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
 
-  const handleUploadSettled = (
-    batch: UploadBatch,
-    acceptedItems: readonly TrayItem[] = [],
-  ): void => {
-    const sizeMap = new Map<string, number>();
-    for (const item of acceptedItems) {
-      if (item.document?.id) {
-        sizeMap.set(item.document.id, item.sizeBytes);
-      }
-    }
-
+  const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
-    for (const result of batch.results) {
-      if (result.status === "accepted") {
-        const fileType = getAcceptedFileTypeByName(result.document.title) ?? "other";
-        const sizeBytes = sizeMap.get(result.document.id) ?? 0;
+    for (const item of acceptedItems) {
+      if (!item.document) continue;
+      const fileType = getAcceptedFileTypeByName(item.document.title) ?? "other";
 
-        acceptedDocs.push({
-          id: result.document.id,
-          title: result.document.title,
-          fileType,
-          sizeBytes,
-          processingState: result.document.processingState,
-          processingLabel: result.document.processingLabel,
-          uploaderName: PLACEHOLDER_UPLOADER,
-          createdAt: PLACEHOLDER_UPLOAD_DATE,
-        });
-      }
+      acceptedDocs.push({
+        id: item.document.id,
+        title: item.document.title,
+        fileType,
+        sizeBytes: item.sizeBytes,
+        processingState: item.document.processingState,
+        processingLabel: item.document.processingLabel,
+        uploaderName: PLACEHOLDER_UPLOADER,
+        createdAt: PLACEHOLDER_UPLOAD_DATE,
+      });
     }
 
     if (acceptedDocs.length > 0) {
@@ -62,7 +55,7 @@ export function DashboardView(): JSX.Element {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-      <UploadTray onUploadSettled={handleUploadSettled} />
+      <UploadTray onUploadSettled={handleUploadSettled} uploader={uploader} />
       <UploadedDocumentsList documents={uploadedDocs} />
     </div>
   );

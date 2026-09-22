@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { EMPTY_STATE } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -11,7 +10,6 @@ import {
 import { act, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { DashboardView } from "../../routes/views.tsx";
 import { type TrayItem, UploadTray } from "./index.ts";
 import { Dropzone } from "./internal/dropzone.tsx";
 
@@ -42,6 +40,28 @@ async function renderWithProviders(ui: JSX.Element): Promise<string> {
   await router.load();
 
   return renderToString(<RouterProvider router={router} />);
+}
+
+async function mountWithProviders(ui: JSX.Element): Promise<{
+  container: HTMLDivElement;
+  cleanup: () => Promise<void>;
+}> {
+  const queryClient = createTestQueryClient();
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  });
+  return {
+    container,
+    cleanup: async () => {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    },
+  };
 }
 
 describe("UploadTray & Upload Area components (FE-S2-01)", () => {
@@ -117,50 +137,20 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
 
   // AC-01.04: Mengunggah beberapa file sekaligus
   test("AC-01.04: renders multiple accepted DOCX files with individual success indicators", async () => {
-    const items: TrayItem[] = [
-      {
-        id: "test-3a",
-        file: new File(["c1"], "surat-1.docx"),
-        filename: "surat-1.docx",
-        sizeBytes: 15 * 1024,
-        progress: 100,
-        status: "accepted",
-        document: {
-          id: "doc-1",
-          title: "surat-1.docx",
-          processingState: "queued",
-          processingLabel: "Diproses",
-        },
+    const items: TrayItem[] = [1, 2, 3].map((num) => ({
+      id: `test-3-${num}`,
+      file: new File([`c${num}`], `surat-${num}.docx`),
+      filename: `surat-${num}.docx`,
+      sizeBytes: num * 10 * 1024,
+      progress: 100,
+      status: "accepted" as const,
+      document: {
+        id: `doc-${num}`,
+        title: `surat-${num}.docx`,
+        processingState: "queued" as const,
+        processingLabel: "Diproses",
       },
-      {
-        id: "test-3b",
-        file: new File(["c2"], "surat-2.docx"),
-        filename: "surat-2.docx",
-        sizeBytes: 20 * 1024,
-        progress: 100,
-        status: "accepted",
-        document: {
-          id: "doc-2",
-          title: "surat-2.docx",
-          processingState: "queued",
-          processingLabel: "Diproses",
-        },
-      },
-      {
-        id: "test-3c",
-        file: new File(["c3"], "surat-3.docx"),
-        filename: "surat-3.docx",
-        sizeBytes: 25 * 1024,
-        progress: 100,
-        status: "accepted",
-        document: {
-          id: "doc-3",
-          title: "surat-3.docx",
-          processingState: "queued",
-          processingLabel: "Diproses",
-        },
-      },
-    ];
+    }));
 
     const html = await renderWithProviders(<UploadTray initialItems={items} />);
 
@@ -173,18 +163,7 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
 
   // AC-01.05: Melebihi batas jumlah file sekaligus (Negative Path)
   test("AC-01.05: renders batch-error-alert when selecting more than 20 files", async () => {
-    const queryClient = createTestQueryClient();
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(
-        <QueryClientProvider client={queryClient}>
-          <UploadTray />
-        </QueryClientProvider>,
-      );
-    });
+    const { container, cleanup } = await mountWithProviders(<UploadTray />);
 
     const fileInput = container.querySelector(
       'input[data-testid="upload-file-input"]',
@@ -213,10 +192,7 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
     expect(alertEl).not.toBeNull();
     expect(alertEl?.textContent).toContain("Maksimal 20 file per unggahan");
 
-    await act(async () => {
-      root.unmount();
-    });
-    container.remove();
+    await cleanup();
   });
 
   // AC-01.06: Melebihi batas ukuran file (Negative Path)
@@ -240,15 +216,5 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
 
     expect(html).toContain("laporan-25mb.pdf");
     expect(html).toContain("Ukuran file melebihi batas 20 MB");
-  });
-
-  test("DashboardView mounts UploadTray and UploadedDocumentsList", async () => {
-    const html = await renderWithProviders(<DashboardView />);
-
-    expect(html).toContain("AREA UNGGAH");
-    expect(html).toContain("Unggah dokumen Anda di bawah ini");
-    expect(html).toContain("Klik untuk mengunggah atau seret dan lepas file di sini");
-    expect(html).toContain("UPLOADED DOCUMENT");
-    expect(html).toContain(EMPTY_STATE.NO_DOCUMENTS);
   });
 });

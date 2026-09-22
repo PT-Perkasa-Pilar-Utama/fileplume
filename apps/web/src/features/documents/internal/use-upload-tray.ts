@@ -104,7 +104,7 @@ export function applyBatchOutcomeToItems(
 }
 
 export interface UseUploadTrayOptions {
-  readonly onUploadSettled?: (batch: UploadBatch, acceptedItems?: readonly TrayItem[]) => void;
+  readonly onUploadSettled?: (batch: UploadBatch, acceptedItems: readonly TrayItem[]) => void;
   readonly maxFileSizeMb?: number;
   readonly initialItems?: readonly TrayItem[];
   readonly uploader?: (
@@ -174,12 +174,9 @@ export function useUploadTray({
         },
       });
 
-      let acceptedItems: readonly TrayItem[] = [];
-      setItems((prev) => {
-        const updated = applyBatchOutcomeToItems(prev, batch, processed.filesToUpload);
-        acceptedItems = updated.filter((item) => item.status === "accepted");
-        return [...updated];
-      });
+      const settled = applyBatchOutcomeToItems(processed.newItems, batch, processed.filesToUpload);
+      const acceptedItems = settled.filter((item) => item.status === "accepted");
+      setItems((prev) => [...applyBatchOutcomeToItems(prev, batch, processed.filesToUpload)]);
 
       if (batch.summary) {
         setBatchSummary(batch.summary);

@@ -45,6 +45,7 @@ export function DashboardView(): JSX.Element {
 
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
       <UploadTray onUploadSettled={handleUploadSettled} />
       <UploadedDocumentsList documents={uploadedDocs} />
     </div>

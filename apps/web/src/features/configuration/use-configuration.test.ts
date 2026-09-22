@@ -5,46 +5,6 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useConfiguration } from "./use-configuration.ts";
 
-class MockElement {
-  nodeType = 1;
-  nodeName = "DIV";
-  tagName = "DIV";
-  style = {};
-  childNodes = [];
-  setAttribute(): void {}
-  getAttribute = () => null;
-  appendChild = <T>(c: T): T => c;
-  removeChild = <T>(c: T): T => c;
-  insertBefore = <T>(c: T): T => c;
-  addEventListener(): void {}
-  removeEventListener(): void {}
-  ownerDocument = mockDoc;
-}
-
-const mockDoc = {
-  createElement: (tag: string) =>
-    Object.assign(new MockElement(), { nodeName: tag.toUpperCase(), tagName: tag.toUpperCase() }),
-  createComment: () => ({ nodeType: 8, nodeName: "#comment" }),
-  createTextNode: (text: string) => ({ nodeType: 3, nodeName: "#text", nodeValue: text }),
-  nodeType: 9,
-  nodeName: "#document",
-  addEventListener(): void {},
-  removeEventListener(): void {},
-  defaultView: {
-    HTMLIFrameElement: class {},
-    Element: MockElement,
-    addEventListener(): void {},
-    removeEventListener(): void {},
-  } as unknown,
-};
-
-globalThis.document = mockDoc as unknown as Document;
-globalThis.window = mockDoc.defaultView as unknown as Window & typeof globalThis;
-(globalThis as Record<string, unknown>).HTMLIFrameElement =
-  mockDoc.defaultView && (mockDoc.defaultView as Record<string, unknown>).HTMLIFrameElement;
-(globalThis as Record<string, unknown>).Element = MockElement;
-(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
-
 const PARAM_FILE_SIZE: ConfigParameter = {
   key: "max_file_size_mb",
   label: "Max File Size",
@@ -69,14 +29,10 @@ const PARAM_CONFIRMATION: ConfigParameter = {
   max: 90,
 };
 
-interface HookResult<T> {
-  current: T;
-}
-
 let fetchSpy: ReturnType<typeof spyOn>;
 
 function renderConfigHook(initialData: ConfigParameter[] = [PARAM_FILE_SIZE, PARAM_CONFIRMATION]): {
-  result: HookResult<ReturnType<typeof useConfiguration>>;
+  result: { readonly current: ReturnType<typeof useConfiguration> };
   queryClient: QueryClient;
   unmount: () => void;
 } {
@@ -88,14 +44,14 @@ function renderConfigHook(initialData: ConfigParameter[] = [PARAM_FILE_SIZE, PAR
   });
   queryClient.setQueryData(["configuration"], initialData);
 
-  const result = {} as HookResult<ReturnType<typeof useConfiguration>>;
+  let currentHookResult: ReturnType<typeof useConfiguration>;
   function TestComp(): null {
-    result.current = useConfiguration();
+    currentHookResult = useConfiguration();
     return null;
   }
 
-  const container = new MockElement();
-  const root = createRoot(container as unknown as HTMLElement);
+  const container = document.createElement("div");
+  const root = createRoot(container);
   act(() => {
     root.render(
       React.createElement(
@@ -108,7 +64,11 @@ function renderConfigHook(initialData: ConfigParameter[] = [PARAM_FILE_SIZE, PAR
   fetchSpy.mockClear();
 
   return {
-    result,
+    result: {
+      get current() {
+        return currentHookResult;
+      },
+    },
     queryClient,
     unmount: () => act(() => root.unmount()),
   };
@@ -124,13 +84,13 @@ describe("useConfiguration hook", () => {
   });
 
   // AC-42.03: "Menolak nilai non-angka... Dan nilai parameter tidak berubah"
-  test("a non-numeric value is refused and no request is sent", async () => {
+  test("a non-numeric value is refused and no request is sent", () => {
     const { result, unmount } = renderConfigHook();
 
     act(() => result.current.handleStartEdit(PARAM_FILE_SIZE));
     act(() => result.current.setEditValue("dua puluh"));
-    await act(async () => {
-      await result.current.handleSave(PARAM_FILE_SIZE);
+    act(() => {
+      result.current.handleSave(PARAM_FILE_SIZE);
     });
 
     expect(result.current.rowError).toBe("Nilai harus berupa angka");
@@ -142,13 +102,13 @@ describe("useConfiguration hook", () => {
   });
 
   // AC-42.04: "Menolak nilai di luar rentang... Dan nilai parameter tidak berubah" (max_file_size_mb)
-  test("an out-of-range value is refused and no request is sent for max_file_size_mb", async () => {
+  test("an out-of-range value is refused and no request is sent for max_file_size_mb", () => {
     const { result, unmount } = renderConfigHook();
 
     act(() => result.current.handleStartEdit(PARAM_FILE_SIZE));
     act(() => result.current.setEditValue("500"));
-    await act(async () => {
-      await result.current.handleSave(PARAM_FILE_SIZE);
+    act(() => {
+      result.current.handleSave(PARAM_FILE_SIZE);
     });
 
     expect(result.current.rowError).toBe("Nilai harus antara 1 dan 200 MB");
@@ -160,13 +120,13 @@ describe("useConfiguration hook", () => {
   });
 
   // AC-42.04: "Menolak nilai di luar rentang" (pending_confirmation_days)
-  test("an out-of-range value is refused and no request is sent for pending_confirmation_days", async () => {
+  test("an out-of-range value is refused and no request is sent for pending_confirmation_days", () => {
     const { result, unmount } = renderConfigHook();
 
     act(() => result.current.handleStartEdit(PARAM_CONFIRMATION));
     act(() => result.current.setEditValue("120"));
-    await act(async () => {
-      await result.current.handleSave(PARAM_CONFIRMATION);
+    act(() => {
+      result.current.handleSave(PARAM_CONFIRMATION);
     });
 
     expect(result.current.rowError).toBe("Nilai harus antara 1 dan 90 hari");
@@ -192,7 +152,7 @@ describe("useConfiguration hook", () => {
     act(() => result.current.handleStartEdit(PARAM_FILE_SIZE));
     act(() => result.current.setEditValue("50"));
     await act(async () => {
-      await result.current.handleSave(PARAM_FILE_SIZE);
+      result.current.handleSave(PARAM_FILE_SIZE);
     });
 
     expect(result.current.successMessage).toBe("Konfigurasi berhasil disimpan");
@@ -219,7 +179,7 @@ describe("useConfiguration hook", () => {
 
     const { result, queryClient, unmount } = renderConfigHook([modifiedParam]);
     await act(async () => {
-      await result.current.handleReset("max_file_size_mb");
+      result.current.handleReset("max_file_size_mb");
     });
 
     expect(result.current.successMessage).toBe("Konfigurasi berhasil disimpan");

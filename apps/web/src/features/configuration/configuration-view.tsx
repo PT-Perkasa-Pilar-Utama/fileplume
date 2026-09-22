@@ -71,7 +71,7 @@ export function ConfigurationView(): JSX.Element {
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+            className="size-6 hover:bg-alert-success-bg"
             onClick={() => setSuccessMessage(null)}
             aria-label="Tutup notifikasi"
           >

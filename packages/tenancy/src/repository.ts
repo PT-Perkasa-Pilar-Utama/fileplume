@@ -4,6 +4,7 @@ import type { Result, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import { and, asc, count, desc, eq, gt, ilike, lte, or, sql, sum } from "drizzle-orm";
 import type * as E from "./errors.ts";
+import { RESERVATION_TTL_MS } from "./internal/reservation-ttl.ts";
 import { isUniqueViolationOn } from "./internal/unique-violation.ts";
 import type {
   ConfigKey,
@@ -20,10 +21,11 @@ export interface TenancyRepository {
   findConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number | null>;
   upsertConfigValue(t: TenantId, key: ConfigKey, value: number, actor: UserId): Promise<void>;
   deleteConfigValue(t: TenantId, key: ConfigKey, actor: UserId): Promise<void>;
-  tryReserve(tenantId: TenantId, bytes: number, now?: Date): Promise<QuotaReservation | null>;
+  tryReserve(tenantId: TenantId, bytes: number, now: Date): Promise<QuotaReservation | null>;
   commitReservation(reservation: QuotaReservation): Promise<void>;
   releaseReservation(reservation: QuotaReservation): Promise<void>;
-  sweepExpiredReservations(now?: Date): Promise<number>;
+  /** Global janitor across tenants, exempt from 8.3. Tenant reads use tryReserve. */
+  sweepExpiredReservations(now: Date): Promise<number>;
   usage(tenantId: TenantId): Promise<{ usedBytes: number; quotaBytes: number }>;
   /** AC-43.01. Inserts tenant + Uncategorized system category in one transaction. */
   createTenant(
@@ -40,9 +42,6 @@ export interface TenancyRepository {
 }
 
 const { tenants, tenantConfig, quotaReservations, categories, categoryPermissions } = schema;
-
-/** api-specs/04-configuration.md 4.6. An abandoned upload returns its capacity. */
-export const RESERVATION_TTL_MS = 15 * 60 * 1000;
 
 /**
  * The worked example for every module that follows: Drizzle queries live
@@ -93,7 +92,7 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
         .where(and(eq(tenantConfig.tenantId, tenantId), eq(tenantConfig.key, key)));
     },
 
-    async tryReserve(tenantId, bytes, now = new Date()) {
+    async tryReserve(tenantId, bytes, now) {
       return db.transaction(async (tx) => {
         const [tenant] = await tx
           .select({ usedBytes: tenants.storageUsedBytes, quotaBytes: tenants.storageQuotaBytes })
@@ -140,7 +139,7 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
       await db.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
     },
 
-    async sweepExpiredReservations(now = new Date()) {
+    async sweepExpiredReservations(now) {
       const deleted = await db
         .delete(quotaReservations)
         .where(lte(quotaReservations.expiresAt, now))

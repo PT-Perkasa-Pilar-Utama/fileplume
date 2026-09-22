@@ -185,6 +185,31 @@ describe("getQuotaUsage", () => {
     );
     expect(usage.message).toBe(STORAGE_FULL_MESSAGE);
   });
+
+  test("zero quota with stored bytes reports full, not ok", async () => {
+    // api-specs/04-configuration.md 4.5. Defensive: storage_quota_gb min is 1,
+    // so this is unreachable through setConfigValue, but the indicator must
+    // still agree with the upload refusal.
+    const repository = inMemoryTenancyRepository({
+      allTenants: [
+        {
+          id: TENANT,
+          name: "PT Contoh Baru",
+          subdomain: "contohbaru",
+          status: "active",
+          storageQuotaBytes: 0,
+          storageUsedBytes: 10,
+          createdAt: new Date(),
+        },
+      ],
+    });
+    const service = createTenancyService({ repository, clock });
+    const usage = await service.getQuotaUsage(TENANT);
+
+    expect(usage.percent).toBe(100);
+    expect(usage.level).toBe("full");
+    expect(usage.message).toBe(STORAGE_FULL_MESSAGE);
+  });
 });
 
 describe("createTenant", () => {

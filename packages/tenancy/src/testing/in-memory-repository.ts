@@ -1,8 +1,8 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
+import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
 import type { TenancyRepository } from "../repository.ts";
-import { RESERVATION_TTL_MS } from "../repository.ts";
 import type {
   ConfigKey,
   ListTenantsSort,
@@ -26,23 +26,25 @@ export function inMemoryTenancyRepository(
   } = {},
 ): TenancyRepository & { reservations: QuotaReservation[] } {
   const quotaBytes = initial.quotaBytes ?? 53_687_091_200;
-  let usedBytes = initial.usedBytes ?? 0;
+  const fallbackUsedBytes = initial.usedBytes ?? 0;
+  let unscopedUsedBytes = fallbackUsedBytes;
   const resolveableTenants = [...(initial.tenants ?? [])];
   const allTenants: TenantCreated[] = initial.allTenants
     ? [...initial.allTenants]
     : (initial.tenants ?? []).map((t) => ({
         ...t,
         storageQuotaBytes: quotaBytes,
-        storageUsedBytes: initial.usedBytes ?? 0,
+        storageUsedBytes: fallbackUsedBytes,
         createdAt: new Date(),
       }));
   const config = new Map<string, number>();
-  const reservations: QuotaReservation[] = [];
-  const activeReservations: (QuotaReservation & { expiresAt: Date })[] = [];
+  const held: (QuotaReservation & { expiresAt: Date })[] = [];
   const key = (t: TenantId, k: ConfigKey) => `${t}:${k}`;
 
   return {
-    reservations,
+    get reservations(): QuotaReservation[] {
+      return held.map(({ id, tenantId, bytes }) => ({ id, tenantId, bytes }));
+    },
 
     async findTenantBySubdomain(subdomain) {
       const wanted = subdomain.toLowerCase();
@@ -61,11 +63,11 @@ export function inMemoryTenancyRepository(
       config.delete(key(t, k));
     },
 
-    async tryReserve(tenantId, bytes, now = new Date()) {
+    async tryReserve(tenantId, bytes, now) {
       const tenant = allTenants.find((t) => t.id === tenantId);
       const limit = tenant?.storageQuotaBytes ?? quotaBytes;
-      const currentUsed = tenant?.storageUsedBytes ?? usedBytes;
-      const outstanding = activeReservations
+      const currentUsed = tenant?.storageUsedBytes ?? unscopedUsedBytes;
+      const outstanding = held
         .filter((r) => r.tenantId === tenantId && r.expiresAt > now)
         .reduce((sum, r) => sum + r.bytes, 0);
 
@@ -73,46 +75,34 @@ export function inMemoryTenancyRepository(
 
       const expiresAt = new Date(now.getTime() + RESERVATION_TTL_MS);
       const reservation = { id: crypto.randomUUID(), tenantId, bytes, expiresAt };
-      activeReservations.push(reservation);
-      reservations.push({ id: reservation.id, tenantId, bytes });
+      held.push(reservation);
       return { id: reservation.id, tenantId, bytes };
     },
 
     async commitReservation(reservation) {
-      const i = activeReservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) activeReservations.splice(i, 1);
-      const j = reservations.findIndex((r) => r.id === reservation.id);
-      if (j >= 0) reservations.splice(j, 1);
+      const i = held.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) held.splice(i, 1);
 
       const tenant = allTenants.find((t) => t.id === reservation.tenantId);
       if (tenant) {
         tenant.storageUsedBytes += reservation.bytes;
       } else {
-        usedBytes += reservation.bytes;
+        unscopedUsedBytes += reservation.bytes;
       }
     },
 
     async releaseReservation(reservation) {
-      const i = activeReservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) activeReservations.splice(i, 1);
-      const j = reservations.findIndex((r) => r.id === reservation.id);
-      if (j >= 0) reservations.splice(j, 1);
+      const i = held.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) held.splice(i, 1);
     },
 
-    async sweepExpiredReservations(now = new Date()) {
-      const expired = activeReservations.filter((r) => r.expiresAt <= now);
-      if (expired.length === 0) return 0;
-      const expiredIds = new Set(expired.map((r) => r.id));
+    async sweepExpiredReservations(now) {
+      const before = held.length;
+      const surviving = held.filter((r) => r.expiresAt > now);
+      held.length = 0;
+      held.push(...surviving);
 
-      const active = activeReservations.filter((r) => !expiredIds.has(r.id));
-      activeReservations.length = 0;
-      activeReservations.push(...active);
-
-      const surviving = reservations.filter((r) => !expiredIds.has(r.id));
-      reservations.length = 0;
-      reservations.push(...surviving);
-
-      return expiredIds.size;
+      return before - surviving.length;
     },
 
     async usage(tenantId: TenantId) {
@@ -120,7 +110,7 @@ export function inMemoryTenancyRepository(
       if (tenant) {
         return { usedBytes: tenant.storageUsedBytes, quotaBytes: tenant.storageQuotaBytes };
       }
-      return { usedBytes, quotaBytes };
+      return { usedBytes: unscopedUsedBytes, quotaBytes };
     },
 
     async createTenant(

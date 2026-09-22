@@ -14,7 +14,10 @@ import { tagRoutes } from "./tags.ts";
 import { createTenantRoutes } from "./tenants.ts";
 
 export type RouteMountDeps = {
-  tenancy: Pick<TenancyService, "createTenant" | "listTenants" | "getConfigValue" | "getQuotaUsage">;
+  tenancy: Pick<
+    TenancyService,
+    "createTenant" | "listTenants" | "getConfigValue" | "getQuotaUsage"
+  >;
   identity: IdentityService;
   catalog: CatalogService;
 };

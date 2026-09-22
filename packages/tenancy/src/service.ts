@@ -20,7 +20,6 @@ import {
 import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
-import { RESERVATION_TTL_MS } from "./repository.ts";
 
 /** technical-specs/06-data-model.md 6.3. Declared once, in @archiva/shared. */
 export type { TenantStatus };
@@ -43,19 +42,6 @@ export const CONFIG_KEYS = {
 export type ConfigKey = keyof typeof CONFIG_KEYS;
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
 export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
-
-/**
- * Storage copy lives in @archiva/shared and is re-exported here so callers
- * keep one import. TTL: api-specs/04-configuration.md 4.6, an abandoned
- * upload returns its capacity without operator action.
- */
-export {
-  RESERVATION_TTL_MS,
-  STORAGE_FULL_MESSAGE,
-  STORAGE_FULL_THRESHOLD_PERCENT,
-  STORAGE_WARNING_MESSAGE,
-  STORAGE_WARNING_THRESHOLD_PERCENT,
-};
 
 /** Raw row returned by the repository after a tenant insert. */
 export type TenantCreated = {
@@ -155,11 +141,21 @@ export function createTenancyService(deps: {
 
     commitQuota: (r) => repository.commitReservation(r),
     releaseQuota: (r) => repository.releaseReservation(r),
+    // SCAFFOLD: the interval that calls this lands with the worker in BE-S3-01.
+    // Until then expiry is honoured by tryReserve, but the rows are not removed.
+    // api-specs/04-configuration.md 4.6.
     sweepExpiredReservations: () => repository.sweepExpiredReservations(clock.now()),
 
     async getQuotaUsage(tenantId) {
       const { usedBytes, quotaBytes } = await repository.usage(tenantId);
-      const percent = quotaBytes <= 0 ? 0 : Math.floor((usedBytes / quotaBytes) * 100);
+      // No quota is full, not empty: the indicator must not disagree with the
+      // upload refusal. api-specs/04-configuration.md 4.5.
+      const percent =
+        quotaBytes <= 0
+          ? usedBytes > 0
+            ? STORAGE_FULL_THRESHOLD_PERCENT
+            : 0
+          : Math.floor((usedBytes / quotaBytes) * 100);
       let level: StorageLevel = "ok";
       let message: string | null = null;
       if (percent >= STORAGE_FULL_THRESHOLD_PERCENT) {

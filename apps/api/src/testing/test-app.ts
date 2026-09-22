@@ -184,7 +184,6 @@ export type TestAppOptions = {
   probes?: DependencyProbe[];
   resetRunner?: ResetRunner;
   tenancyRepository?: TenancyRepository;
-  tenancyOptions?: Parameters<typeof inMemoryTenancyRepository>[0];
 };
 
 export type TestApp = OpenAPIHono<AppEnv> & {
@@ -204,7 +203,6 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
         ...(options?.tenancyQuotaBytes !== undefined
           ? { quotaBytes: options.tenancyQuotaBytes }
           : {}),
-        ...options?.tenancyOptions,
       }),
     clock,
   });

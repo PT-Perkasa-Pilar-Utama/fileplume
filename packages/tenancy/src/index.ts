@@ -12,13 +12,5 @@ export type {
   TenantListed,
   TenantStatus,
 } from "./service.ts";
-export {
-  CONFIG_KEYS,
-  createTenancyService,
-  RESERVATION_TTL_MS,
-  STORAGE_FULL_MESSAGE,
-  STORAGE_FULL_THRESHOLD_PERCENT,
-  STORAGE_WARNING_MESSAGE,
-  STORAGE_WARNING_THRESHOLD_PERCENT,
-} from "./service.ts";
+export { CONFIG_KEYS, createTenancyService } from "./service.ts";
 export { inMemoryTenancyRepository } from "./testing/in-memory-repository.ts";

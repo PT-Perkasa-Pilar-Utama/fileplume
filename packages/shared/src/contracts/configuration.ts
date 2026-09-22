@@ -46,3 +46,14 @@ export const storageSchema = z
   })
   .meta({ id: "Storage" });
 export type StorageView = z.infer<typeof storageSchema>;
+
+/**
+ * api-specs/04-configuration.md 4.5. Server-owned storage copy, defined once
+ * in @archiva/shared so the indicator colour and the upload refusal cannot
+ * disagree. Verbatim from AC-35.02 and AC-35.03.
+ */
+export const STORAGE_WARNING_THRESHOLD_PERCENT = 80;
+export const STORAGE_FULL_THRESHOLD_PERCENT = 100;
+export const STORAGE_WARNING_MESSAGE = "Kapasitas penyimpanan hampir penuh";
+export const STORAGE_FULL_MESSAGE =
+  "Kapasitas penyimpanan penuh. Hapus atau arsipkan dokumen lama untuk melanjutkan";

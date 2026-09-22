@@ -1,16 +1,26 @@
 import type {
   ConfigKeyName,
   Result,
+  StorageLevel,
+  StorageView,
   TenantId,
   TenantListItem,
   TenantStatus,
   TenantView,
   UserId,
 } from "@archiva/shared";
-import { err, ok } from "@archiva/shared";
+import {
+  err,
+  ok,
+  STORAGE_FULL_MESSAGE,
+  STORAGE_FULL_THRESHOLD_PERCENT,
+  STORAGE_WARNING_MESSAGE,
+  STORAGE_WARNING_THRESHOLD_PERCENT,
+} from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
+import { RESERVATION_TTL_MS } from "./repository.ts";
 
 /** technical-specs/06-data-model.md 6.3. Declared once, in @archiva/shared. */
 export type { TenantStatus };
@@ -33,6 +43,19 @@ export const CONFIG_KEYS = {
 export type ConfigKey = keyof typeof CONFIG_KEYS;
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
 export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
+
+/**
+ * Storage copy lives in @archiva/shared and is re-exported here so callers
+ * keep one import. TTL: api-specs/04-configuration.md 4.6, an abandoned
+ * upload returns its capacity without operator action.
+ */
+export {
+  RESERVATION_TTL_MS,
+  STORAGE_FULL_MESSAGE,
+  STORAGE_FULL_THRESHOLD_PERCENT,
+  STORAGE_WARNING_MESSAGE,
+  STORAGE_WARNING_THRESHOLD_PERCENT,
+};
 
 /** Raw row returned by the repository after a tenant insert. */
 export type TenantCreated = {
@@ -78,6 +101,8 @@ export interface TenancyService {
   ): Promise<Result<QuotaReservation, E.QuotaExceeded>>;
   commitQuota(reservation: QuotaReservation): Promise<void>;
   releaseQuota(reservation: QuotaReservation): Promise<void>;
+  sweepExpiredReservations(): Promise<number>;
+  getQuotaUsage(tenantId: TenantId): Promise<StorageView>;
   /** AC-43.01. Provisions the Uncategorized system category inside the same transaction. */
   createTenant(
     input: { name: string; subdomain: string; storageQuotaGb: number },
@@ -96,7 +121,7 @@ export function createTenancyService(deps: {
   repository: TenancyRepository;
   clock: Clock;
 }): TenancyService {
-  const { repository } = deps;
+  const { repository, clock } = deps;
 
   return {
     resolveTenant: (subdomain) => repository.findTenantBySubdomain(subdomain),
@@ -124,12 +149,28 @@ export function createTenancyService(deps: {
     },
 
     async reserveQuota(tenantId, bytes) {
-      const reservation = await repository.tryReserve(tenantId, bytes);
+      const reservation = await repository.tryReserve(tenantId, bytes, clock.now());
       return reservation ? ok(reservation) : err({ kind: "QuotaExceeded" });
     },
 
     commitQuota: (r) => repository.commitReservation(r),
     releaseQuota: (r) => repository.releaseReservation(r),
+    sweepExpiredReservations: () => repository.sweepExpiredReservations(clock.now()),
+
+    async getQuotaUsage(tenantId) {
+      const { usedBytes, quotaBytes } = await repository.usage(tenantId);
+      const percent = quotaBytes <= 0 ? 0 : Math.floor((usedBytes / quotaBytes) * 100);
+      let level: StorageLevel = "ok";
+      let message: string | null = null;
+      if (percent >= STORAGE_FULL_THRESHOLD_PERCENT) {
+        level = "full";
+        message = STORAGE_FULL_MESSAGE;
+      } else if (percent >= STORAGE_WARNING_THRESHOLD_PERCENT) {
+        level = "warning";
+        message = STORAGE_WARNING_MESSAGE;
+      }
+      return { usedBytes, quotaBytes, percent, level, message };
+    },
 
     async createTenant(input, actorId) {
       const storageQuotaBytes = input.storageQuotaGb * 1024 ** 3;

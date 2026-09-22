@@ -2,6 +2,7 @@ import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { TenancyRepository } from "../repository.ts";
+import { RESERVATION_TTL_MS } from "../repository.ts";
 import type {
   ConfigKey,
   ListTenantsSort,
@@ -32,11 +33,12 @@ export function inMemoryTenancyRepository(
     : (initial.tenants ?? []).map((t) => ({
         ...t,
         storageQuotaBytes: quotaBytes,
-        storageUsedBytes: 0,
+        storageUsedBytes: initial.usedBytes ?? 0,
         createdAt: new Date(),
       }));
   const config = new Map<string, number>();
   const reservations: QuotaReservation[] = [];
+  const activeReservations: (QuotaReservation & { expiresAt: Date })[] = [];
   const key = (t: TenantId, k: ConfigKey) => `${t}:${k}`;
 
   return {
@@ -59,26 +61,65 @@ export function inMemoryTenancyRepository(
       config.delete(key(t, k));
     },
 
-    async tryReserve(tenantId, bytes) {
-      const outstanding = reservations.reduce((sum, r) => sum + r.bytes, 0);
-      if (usedBytes + outstanding + bytes > quotaBytes) return null;
-      const reservation = { id: crypto.randomUUID(), tenantId, bytes };
-      reservations.push(reservation);
-      return reservation;
+    async tryReserve(tenantId, bytes, now = new Date()) {
+      const tenant = allTenants.find((t) => t.id === tenantId);
+      const limit = tenant?.storageQuotaBytes ?? quotaBytes;
+      const currentUsed = tenant?.storageUsedBytes ?? usedBytes;
+      const outstanding = activeReservations
+        .filter((r) => r.tenantId === tenantId && r.expiresAt > now)
+        .reduce((sum, r) => sum + r.bytes, 0);
+
+      if (currentUsed + outstanding + bytes > limit) return null;
+
+      const expiresAt = new Date(now.getTime() + RESERVATION_TTL_MS);
+      const reservation = { id: crypto.randomUUID(), tenantId, bytes, expiresAt };
+      activeReservations.push(reservation);
+      reservations.push({ id: reservation.id, tenantId, bytes });
+      return { id: reservation.id, tenantId, bytes };
     },
 
     async commitReservation(reservation) {
-      const i = reservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) reservations.splice(i, 1);
-      usedBytes += reservation.bytes;
+      const i = activeReservations.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) activeReservations.splice(i, 1);
+      const j = reservations.findIndex((r) => r.id === reservation.id);
+      if (j >= 0) reservations.splice(j, 1);
+
+      const tenant = allTenants.find((t) => t.id === reservation.tenantId);
+      if (tenant) {
+        tenant.storageUsedBytes += reservation.bytes;
+      } else {
+        usedBytes += reservation.bytes;
+      }
     },
 
     async releaseReservation(reservation) {
-      const i = reservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) reservations.splice(i, 1);
+      const i = activeReservations.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) activeReservations.splice(i, 1);
+      const j = reservations.findIndex((r) => r.id === reservation.id);
+      if (j >= 0) reservations.splice(j, 1);
     },
 
-    async usage() {
+    async sweepExpiredReservations(now = new Date()) {
+      const expired = activeReservations.filter((r) => r.expiresAt <= now);
+      if (expired.length === 0) return 0;
+      const expiredIds = new Set(expired.map((r) => r.id));
+
+      const active = activeReservations.filter((r) => !expiredIds.has(r.id));
+      activeReservations.length = 0;
+      activeReservations.push(...active);
+
+      const surviving = reservations.filter((r) => !expiredIds.has(r.id));
+      reservations.length = 0;
+      reservations.push(...surviving);
+
+      return expiredIds.size;
+    },
+
+    async usage(tenantId: TenantId) {
+      const tenant = allTenants.find((t) => t.id === tenantId);
+      if (tenant) {
+        return { usedBytes: tenant.storageUsedBytes, quotaBytes: tenant.storageQuotaBytes };
+      }
       return { usedBytes, quotaBytes };
     },
 

@@ -1,4 +1,4 @@
-import type { Menu } from "@archiva/shared";
+import type { Menu, StorageView } from "@archiva/shared";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -71,7 +71,9 @@ export const MENU_CONFIG: Record<Menu, MenuItemConfig> = {
 export interface SidebarProps {
   menus?: readonly Menu[];
   user?: SidebarUser;
-  storagePercent?: number;
+  showStorage?: boolean;
+  storage?: StorageView | null;
+  storageState?: "loading" | "error" | "ready";
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   className?: string;
@@ -80,8 +82,9 @@ export interface SidebarProps {
 export function Sidebar({
   menus = [],
   user,
-  // SCAFFOLD(FE-S2-02): placeholder percent until GET /storage wiring lands (api-specs/04-configuration.md 4.5).
-  storagePercent = 25,
+  showStorage = true,
+  storage,
+  storageState,
   collapsed = false,
   onToggleCollapse,
   className,
@@ -142,7 +145,7 @@ export function Sidebar({
       </nav>
       {collapsed ? null : (
         <div className="space-y-3 p-3">
-          <StorageUsage percent={storagePercent} />
+          {showStorage ? <StorageUsage storage={storage} state={storageState} /> : null}
           <SidebarUserCard user={user} />
         </div>
       )}

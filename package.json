@@ -29,11 +29,11 @@
     "complete-check": "bun run typecheck && bun run lint && bun run format:check && bun run test"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
+    "@biomejs/biome": "2.5.14",
     "@happy-dom/global-registrator": "20.14.5",
     "@playwright/test": "1.63.0",
     "@types/bun": "1.4.2",
-    "lefthook": "2.1.12",
+    "lefthook": "2.1.14",
     "typescript": "7.0.2"
   }
 }

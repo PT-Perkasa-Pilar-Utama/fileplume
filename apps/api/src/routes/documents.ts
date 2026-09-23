@@ -68,7 +68,7 @@ async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): P
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
 export function createDocumentRoutes(
   catalog: CatalogService,
-  tenancy?: Pick<TenancyService, "getConfigValue">,
+  tenancy: Pick<TenancyService, "getConfigValue">,
 ) {
   const router = createRouter()
     .openapi(listDocuments, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
@@ -149,7 +149,7 @@ export function createDocumentRoutes(
     }
     const principal = c.get("principal");
 
-    const maxMb = tenancy ? await tenancy.getConfigValue(tenant.id, "max_file_size_mb") : 20;
+    const maxMb = await tenancy.getConfigValue(tenant.id, "max_file_size_mb");
     const maxFileSizeBytes = maxMb * 1024 * 1024;
 
     // 01-conventions.md 1.2: the batch is never materialised. Each part is

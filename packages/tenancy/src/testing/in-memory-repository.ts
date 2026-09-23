@@ -1,6 +1,7 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
+import { DEFAULT_STORAGE_QUOTA_BYTES, type StoredConfigRow } from "../internal/config-specs.ts";
 import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
 import type { TenancyRepository } from "../repository.ts";
 import type {
@@ -23,9 +24,16 @@ export function inMemoryTenancyRepository(
     usedBytes?: number;
     tenants?: Tenant[];
     allTenants?: TenantCreated[];
+    users?: { id: string; name: string }[];
+    config?: {
+      tenantId: TenantId;
+      key: ConfigKey;
+      value: number;
+      updatedBy?: { id: string; name: string };
+    }[];
   } = {},
 ): TenancyRepository & { reservations: QuotaReservation[] } {
-  const quotaBytes = initial.quotaBytes ?? 53_687_091_200;
+  const quotaBytes = initial.quotaBytes ?? DEFAULT_STORAGE_QUOTA_BYTES;
   const fallbackUsedBytes = initial.usedBytes ?? 0;
   let unscopedUsedBytes = fallbackUsedBytes;
   const resolveableTenants = [...(initial.tenants ?? [])];
@@ -37,9 +45,19 @@ export function inMemoryTenancyRepository(
         storageUsedBytes: fallbackUsedBytes,
         createdAt: new Date(),
       }));
-  const config = new Map<string, number>();
+  const users = new Map((initial.users ?? []).map((u) => [u.id, u.name]));
+  const config = new Map<string, StoredConfigRow>();
   const held: (QuotaReservation & { expiresAt: Date })[] = [];
   const key = (t: TenantId, k: ConfigKey) => `${t}:${k}`;
+
+  for (const entry of initial.config ?? []) {
+    config.set(key(entry.tenantId, entry.key), {
+      key: entry.key,
+      value: entry.value,
+      updatedAt: new Date(),
+      updatedBy: entry.updatedBy ?? null,
+    });
+  }
 
   return {
     get reservations(): QuotaReservation[] {
@@ -51,12 +69,33 @@ export function inMemoryTenancyRepository(
       return resolveableTenants.find((t) => t.subdomain.toLowerCase() === wanted) ?? null;
     },
 
-    async findConfigValue(t, k) {
+    async findConfigEntries(t) {
+      const prefix = `${t}:`;
+      const entries: StoredConfigRow[] = [];
+      for (const [k, v] of config.entries()) {
+        if (k.startsWith(prefix)) {
+          entries.push(v);
+        }
+      }
+      return entries;
+    },
+
+    async findConfigRow(t, k) {
       return config.get(key(t, k)) ?? null;
     },
 
-    async upsertConfigValue(t, k, value, _actor: UserId) {
-      config.set(key(t, k), value);
+    async findConfigValue(t, k) {
+      return config.get(key(t, k))?.value ?? null;
+    },
+
+    async upsertConfigValue(t, k, value, actor: UserId) {
+      const actorName = users.get(actor);
+      config.set(key(t, k), {
+        key: k,
+        value,
+        updatedAt: new Date(),
+        updatedBy: actorName ? { id: actor, name: actorName } : null,
+      });
     },
 
     async deleteConfigValue(t, k, _actor: UserId) {

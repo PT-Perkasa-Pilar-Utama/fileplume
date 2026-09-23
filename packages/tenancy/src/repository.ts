@@ -4,10 +4,11 @@ import type { Result, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import { and, asc, count, desc, eq, gt, ilike, lte, or, sql, sum } from "drizzle-orm";
 import type * as E from "./errors.ts";
+import { findConfigEntries, findConfigRow, findConfigValue } from "./internal/config-repository.ts";
+import type { ConfigKey, StoredConfigRow } from "./internal/config-specs.ts";
 import { RESERVATION_TTL_MS } from "./internal/reservation-ttl.ts";
 import { isUniqueViolationOn } from "./internal/unique-violation.ts";
 import type {
-  ConfigKey,
   ListTenantsSort,
   QuotaReservation,
   Tenant,
@@ -18,6 +19,8 @@ import type {
 /** Drizzle queries scoped to this module's own tables. */
 export interface TenancyRepository {
   findTenantBySubdomain(subdomain: string): Promise<Tenant | null>;
+  findConfigEntries(tenantId: TenantId): Promise<StoredConfigRow[]>;
+  findConfigRow(tenantId: TenantId, key: ConfigKey): Promise<StoredConfigRow | null>;
   findConfigValue(tenantId: TenantId, key: ConfigKey): Promise<number | null>;
   upsertConfigValue(t: TenantId, key: ConfigKey, value: number, actor: UserId): Promise<void>;
   deleteConfigValue(t: TenantId, key: ConfigKey, actor: UserId): Promise<void>;
@@ -68,12 +71,16 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
       return row ? { ...row, id: asTenantId(row.id) } : null;
     },
 
+    async findConfigEntries(tenantId) {
+      return findConfigEntries(db, tenantId);
+    },
+
+    async findConfigRow(tenantId, key) {
+      return findConfigRow(db, tenantId, key);
+    },
+
     async findConfigValue(tenantId, key) {
-      const [row] = await db
-        .select({ value: tenantConfig.value })
-        .from(tenantConfig)
-        .where(and(eq(tenantConfig.tenantId, tenantId), eq(tenantConfig.key, key)));
-      return row ? Number(row.value) : null;
+      return findConfigValue(db, tenantId, key);
     },
 
     async upsertConfigValue(tenantId, key, value, actor) {

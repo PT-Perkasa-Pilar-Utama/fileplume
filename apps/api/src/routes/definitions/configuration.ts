@@ -7,7 +7,7 @@ import {
   storageSchema,
 } from "@archiva/shared";
 import { createRoute } from "@hono/zod-openapi";
-import { requireRole } from "../../middleware/guards.ts";
+import { requireConfigRole, requireRole } from "../../middleware/guards.ts";
 import { ERROR_422, GUARDED, json, jsonBody, SESSION } from "./responses.ts";
 
 const tags = ["Configuration"];
@@ -30,7 +30,7 @@ export const setConfigValue = createRoute({
   tags,
   summary: "Change one operating parameter",
   security: SESSION,
-  middleware: requireRole("admin_tenant"),
+  middleware: requireConfigRole(),
   request: { params: configKeyParams, body: jsonBody(setConfigValueBody) },
   responses: {
     200: json(dataOf(configParameterSchema), "The updated parameter"),
@@ -46,7 +46,7 @@ export const resetConfigValue = createRoute({
   tags,
   summary: "Return one parameter to its default",
   security: SESSION,
-  middleware: requireRole("admin_tenant"),
+  middleware: requireConfigRole(),
   request: { params: configKeyParams },
   responses: {
     200: json(dataOf(configParameterSchema), "The parameter at its default"),

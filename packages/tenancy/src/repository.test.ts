@@ -60,9 +60,10 @@ describe("createDrizzleTenancyRepository", () => {
     const repository = createDrizzleTenancyRepository(db);
     const tenantId = await seedTenant(100);
 
+    const now = new Date("2026-09-01T00:00:00.000Z");
     const [first, second] = await Promise.all([
-      repository.tryReserve(tenantId, 60),
-      repository.tryReserve(tenantId, 60),
+      repository.tryReserve(tenantId, 60, now),
+      repository.tryReserve(tenantId, 60, now),
     ]);
 
     expect([first, second].filter((r) => r !== null)).toHaveLength(1);
@@ -72,7 +73,11 @@ describe("createDrizzleTenancyRepository", () => {
     const repository = createDrizzleTenancyRepository(db);
     const tenantId = await seedTenant(100);
 
-    const reservation = await repository.tryReserve(tenantId, 60);
+    const reservation = await repository.tryReserve(
+      tenantId,
+      60,
+      new Date("2026-09-01T00:00:00.000Z"),
+    );
     expect(reservation).not.toBeNull();
     if (reservation) await repository.commitReservation(reservation);
 
@@ -84,12 +89,29 @@ describe("createDrizzleTenancyRepository", () => {
     const repository = createDrizzleTenancyRepository(db);
     const tenantId = await seedTenant(100);
 
-    const reservation = await repository.tryReserve(tenantId, 60);
+    const now = new Date("2026-09-01T00:00:00.000Z");
+    const reservation = await repository.tryReserve(tenantId, 60, now);
     expect(reservation).not.toBeNull();
     if (reservation) await repository.releaseReservation(reservation);
 
     expect((await repository.usage(tenantId)).usedBytes).toBe(0);
-    expect(await repository.tryReserve(tenantId, 60)).not.toBeNull();
+    expect(await repository.tryReserve(tenantId, 60, now)).not.toBeNull();
+  });
+
+  test("sweepExpiredReservations deletes expired rows and frees capacity", async () => {
+    const repository = createDrizzleTenancyRepository(db);
+    const tenantId = await seedTenant(100);
+
+    const past = new Date("2026-09-01T00:00:00.000Z");
+    const reservation = await repository.tryReserve(tenantId, 60, past);
+    expect(reservation).not.toBeNull();
+
+    // With current time, the reservation expired and sweeping removes it
+    const now = new Date("2026-09-01T00:20:00.000Z");
+    const swept = await repository.sweepExpiredReservations(now);
+    expect(swept).toBeGreaterThanOrEqual(1);
+
+    expect(await repository.tryReserve(tenantId, 100, now)).not.toBeNull();
   });
 
   test("config value round-trips through upsert, find and delete", async () => {

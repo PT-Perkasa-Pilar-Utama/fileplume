@@ -1,12 +1,10 @@
 import { CONFIG_KEY_NAMES, type ConfigKeyName, type ConfigParameter, one } from "@archiva/shared";
 import { CONFIG_KEYS } from "@archiva/tenancy";
 import {
-  getStorage,
   listConfiguration,
   resetConfigValue,
   setConfigValue,
 } from "./definitions/configuration.ts";
-import { MOCK_STORAGE } from "./mocks.ts";
 import { createRouter } from "./router.ts";
 
 const LABELS: Record<ConfigKeyName, string> = {
@@ -41,8 +39,3 @@ export const configurationRoutes = createRouter()
   })
   .openapi(setConfigValue, (c) => c.json(one(parameter(c.req.valid("param").key)), 200))
   .openapi(resetConfigValue, (c) => c.json(one(parameter(c.req.valid("param").key)), 200));
-
-/** api-specs/04-configuration.md 4.5. Card BE-S2-02. */
-export const storageRoutes = createRouter().openapi(getStorage, (c) =>
-  c.json(one(MOCK_STORAGE), 200),
-);

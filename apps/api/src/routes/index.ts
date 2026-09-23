@@ -6,14 +6,18 @@ import type { AppEnv } from "../middleware/context.ts";
 import { analyticsRoutes, auditRoutes } from "./activity.ts";
 import { authRoutes } from "./auth.ts";
 import { categoryRoutes } from "./categories.ts";
-import { configurationRoutes, storageRoutes } from "./configuration.ts";
+import { configurationRoutes } from "./configuration.ts";
 import { createDocumentRoutes } from "./documents.ts";
 import { searchRoutes } from "./search.ts";
+import { storageRoutes } from "./storage.ts";
 import { tagRoutes } from "./tags.ts";
 import { createTenantRoutes } from "./tenants.ts";
 
 export type RouteMountDeps = {
-  tenancy: Pick<TenancyService, "createTenant" | "listTenants" | "getConfigValue">;
+  tenancy: Pick<
+    TenancyService,
+    "createTenant" | "listTenants" | "getConfigValue" | "getQuotaUsage"
+  >;
   identity: IdentityService;
   catalog: CatalogService;
 };
@@ -23,7 +27,7 @@ export function activityRoutesMount(api: OpenAPIHono<AppEnv>, deps: RouteMountDe
   api.route("/auth", authRoutes(deps.identity));
   api.route("/tenants", createTenantRoutes(deps.tenancy));
   api.route("/configuration", configurationRoutes);
-  api.route("/storage", storageRoutes);
+  api.route("/storage", storageRoutes(deps.tenancy));
   api.route("/documents", createDocumentRoutes(deps.catalog, deps.tenancy));
   api.route("/categories", categoryRoutes);
   api.route("/search", searchRoutes);

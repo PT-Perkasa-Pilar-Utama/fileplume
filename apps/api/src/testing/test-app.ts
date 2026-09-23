@@ -18,7 +18,7 @@ import {
 import type { DependencyProbe, ResetRunner } from "@archiva/platform";
 import type { Role } from "@archiva/shared";
 import { asSessionId, asTenantId, asUserId } from "@archiva/shared";
-import type { Tenant } from "@archiva/tenancy";
+import type { TenancyRepository, Tenant } from "@archiva/tenancy";
 import { createTenancyService, inMemoryTenancyRepository } from "@archiva/tenancy";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
@@ -183,6 +183,7 @@ export type TestAppOptions = {
   tenancyQuotaBytes?: number;
   probes?: DependencyProbe[];
   resetRunner?: ResetRunner;
+  tenancyRepository?: TenancyRepository;
 };
 
 export type TestApp = OpenAPIHono<AppEnv> & {
@@ -195,12 +196,14 @@ export type TestApp = OpenAPIHono<AppEnv> & {
 export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOptions): TestApp {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
-    repository: inMemoryTenancyRepository({
-      tenants: [TENANT_A, TENANT_B],
-      ...(options?.tenancyQuotaBytes !== undefined
-        ? { quotaBytes: options.tenancyQuotaBytes }
-        : {}),
-    }),
+    repository:
+      options?.tenancyRepository ??
+      inMemoryTenancyRepository({
+        tenants: [TENANT_A, TENANT_B],
+        ...(options?.tenancyQuotaBytes !== undefined
+          ? { quotaBytes: options.tenancyQuotaBytes }
+          : {}),
+      }),
     clock,
   });
   const identity = createIdentityService({

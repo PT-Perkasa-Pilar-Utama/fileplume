@@ -15,7 +15,6 @@ import {
   type relatedDocumentSchema,
   type reprocessAcceptedSchema,
   type sessionSchema,
-  type storageSchema,
   type tenantListItemSchema,
   type tenantSchema,
   type titleHitSchema,
@@ -82,14 +81,6 @@ export const MOCK_TENANT_ROW: z.infer<typeof tenantListItemSchema> = {
   storagePercent: 25,
   documentCount: 412,
   userCount: 9,
-};
-
-export const MOCK_STORAGE: z.infer<typeof storageSchema> = {
-  usedBytes: 13421772800,
-  quotaBytes: 53687091200,
-  percent: 25,
-  level: "ok",
-  message: null,
 };
 
 export const MOCK_CATEGORY: z.infer<typeof categorySchema> = {

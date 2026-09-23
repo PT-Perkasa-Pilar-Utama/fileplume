@@ -1,6 +1,7 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
+import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
 import type { TenancyRepository } from "../repository.ts";
 import type {
   ConfigKey,
@@ -25,22 +26,25 @@ export function inMemoryTenancyRepository(
   } = {},
 ): TenancyRepository & { reservations: QuotaReservation[] } {
   const quotaBytes = initial.quotaBytes ?? 53_687_091_200;
-  let usedBytes = initial.usedBytes ?? 0;
+  const fallbackUsedBytes = initial.usedBytes ?? 0;
+  let unscopedUsedBytes = fallbackUsedBytes;
   const resolveableTenants = [...(initial.tenants ?? [])];
   const allTenants: TenantCreated[] = initial.allTenants
     ? [...initial.allTenants]
     : (initial.tenants ?? []).map((t) => ({
         ...t,
         storageQuotaBytes: quotaBytes,
-        storageUsedBytes: 0,
+        storageUsedBytes: fallbackUsedBytes,
         createdAt: new Date(),
       }));
   const config = new Map<string, number>();
-  const reservations: QuotaReservation[] = [];
+  const held: (QuotaReservation & { expiresAt: Date })[] = [];
   const key = (t: TenantId, k: ConfigKey) => `${t}:${k}`;
 
   return {
-    reservations,
+    get reservations(): QuotaReservation[] {
+      return held.map(({ id, tenantId, bytes }) => ({ id, tenantId, bytes }));
+    },
 
     async findTenantBySubdomain(subdomain) {
       const wanted = subdomain.toLowerCase();
@@ -59,27 +63,54 @@ export function inMemoryTenancyRepository(
       config.delete(key(t, k));
     },
 
-    async tryReserve(tenantId, bytes) {
-      const outstanding = reservations.reduce((sum, r) => sum + r.bytes, 0);
-      if (usedBytes + outstanding + bytes > quotaBytes) return null;
-      const reservation = { id: crypto.randomUUID(), tenantId, bytes };
-      reservations.push(reservation);
-      return reservation;
+    async tryReserve(tenantId, bytes, now) {
+      const tenant = allTenants.find((t) => t.id === tenantId);
+      const limit = tenant?.storageQuotaBytes ?? quotaBytes;
+      const currentUsed = tenant?.storageUsedBytes ?? unscopedUsedBytes;
+      const outstanding = held
+        .filter((r) => r.tenantId === tenantId && r.expiresAt > now)
+        .reduce((sum, r) => sum + r.bytes, 0);
+
+      if (currentUsed + outstanding + bytes > limit) return null;
+
+      const expiresAt = new Date(now.getTime() + RESERVATION_TTL_MS);
+      const reservation = { id: crypto.randomUUID(), tenantId, bytes, expiresAt };
+      held.push(reservation);
+      return { id: reservation.id, tenantId, bytes };
     },
 
     async commitReservation(reservation) {
-      const i = reservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) reservations.splice(i, 1);
-      usedBytes += reservation.bytes;
+      const i = held.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) held.splice(i, 1);
+
+      const tenant = allTenants.find((t) => t.id === reservation.tenantId);
+      if (tenant) {
+        tenant.storageUsedBytes += reservation.bytes;
+      } else {
+        unscopedUsedBytes += reservation.bytes;
+      }
     },
 
     async releaseReservation(reservation) {
-      const i = reservations.findIndex((r) => r.id === reservation.id);
-      if (i >= 0) reservations.splice(i, 1);
+      const i = held.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) held.splice(i, 1);
     },
 
-    async usage() {
-      return { usedBytes, quotaBytes };
+    async sweepExpiredReservations(now) {
+      const before = held.length;
+      const surviving = held.filter((r) => r.expiresAt > now);
+      held.length = 0;
+      held.push(...surviving);
+
+      return before - surviving.length;
+    },
+
+    async usage(tenantId: TenantId) {
+      const tenant = allTenants.find((t) => t.id === tenantId);
+      if (tenant) {
+        return { usedBytes: tenant.storageUsedBytes, quotaBytes: tenant.storageQuotaBytes };
+      }
+      return { usedBytes: unscopedUsedBytes, quotaBytes };
     },
 
     async createTenant(

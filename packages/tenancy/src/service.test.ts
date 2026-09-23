@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { asTenantId, asUserId } from "@archiva/shared";
+import {
+  asTenantId,
+  asUserId,
+  STORAGE_FULL_MESSAGE,
+  STORAGE_WARNING_MESSAGE,
+} from "@archiva/shared";
 import { createTenancyService } from "./service.ts";
 import { inMemoryTenancyRepository } from "./testing/in-memory-repository.ts";
 
@@ -99,6 +104,111 @@ describe("quota reservation", () => {
     if (first.ok) await service.commitQuota(first.value);
     expect((await repository.usage(TENANT)).usedBytes).toBe(60);
     expect((await service.reserveQuota(TENANT, 60)).ok).toBe(false);
+  });
+
+  test("reservation expires after 15 minutes releasing capacity", async () => {
+    let now = new Date("2026-09-10T10:00:00.000Z");
+    const mutableClock = { now: () => now };
+    const repository = inMemoryTenancyRepository({ quotaBytes: 100 });
+    const service = createTenancyService({ repository, clock: mutableClock });
+
+    const first = await service.reserveQuota(TENANT, 60);
+    expect(first.ok).toBe(true);
+
+    const secondBeforeExpiry = await service.reserveQuota(TENANT, 60);
+    expect(secondBeforeExpiry.ok).toBe(false);
+
+    // Advance past 15 minutes
+    now = new Date(now.getTime() + 16 * 60 * 1000);
+
+    const secondAfterExpiry = await service.reserveQuota(TENANT, 60);
+    expect(secondAfterExpiry.ok).toBe(true);
+  });
+
+  test("sweeper deletes expired reservations", async () => {
+    let now = new Date("2026-09-10T10:00:00.000Z");
+    const mutableClock = { now: () => now };
+    const repository = inMemoryTenancyRepository({ quotaBytes: 100 });
+    const service = createTenancyService({ repository, clock: mutableClock });
+
+    await service.reserveQuota(TENANT, 30);
+    expect(repository.reservations).toHaveLength(1);
+
+    // Not yet expired
+    expect(await service.sweepExpiredReservations()).toBe(0);
+    expect(repository.reservations).toHaveLength(1);
+
+    // Advance past 15 minutes
+    now = new Date(now.getTime() + 16 * 60 * 1000);
+
+    expect(await service.sweepExpiredReservations()).toBe(1);
+    expect(repository.reservations).toHaveLength(0);
+  });
+});
+
+describe("getQuotaUsage", () => {
+  test("AC-35.01: reports usage at 25% with level ok and null message", async () => {
+    const { service } = build({ quotaBytes: 100, usedBytes: 25 });
+    const usage = await service.getQuotaUsage(TENANT);
+
+    expect(usage.usedBytes).toBe(25);
+    expect(usage.quotaBytes).toBe(100);
+    expect(usage.percent).toBe(25);
+    expect(usage.level).toBe("ok");
+    expect(usage.message).toBeNull();
+  });
+
+  test("AC-35.02: reports warning at 80% with Indonesian warning message", async () => {
+    const { service } = build({ quotaBytes: 100, usedBytes: 80 });
+    const usage = await service.getQuotaUsage(TENANT);
+
+    expect(usage.usedBytes).toBe(80);
+    expect(usage.quotaBytes).toBe(100);
+    expect(usage.percent).toBe(80);
+    expect(usage.level).toBe("warning");
+    // Verbatim from AC-35.02 via api-specs/04-configuration.md 4.5.
+    expect(usage.message).toBe("Kapasitas penyimpanan hampir penuh");
+    expect(usage.message).toBe(STORAGE_WARNING_MESSAGE);
+  });
+
+  test("AC-35.03: reports full at 100% with Indonesian full message", async () => {
+    const { service } = build({ quotaBytes: 100, usedBytes: 100 });
+    const usage = await service.getQuotaUsage(TENANT);
+
+    expect(usage.usedBytes).toBe(100);
+    expect(usage.quotaBytes).toBe(100);
+    expect(usage.percent).toBe(100);
+    expect(usage.level).toBe("full");
+    // Verbatim from AC-35.03 via api-specs/04-configuration.md 4.5.
+    expect(usage.message).toBe(
+      "Kapasitas penyimpanan penuh. Hapus atau arsipkan dokumen lama untuk melanjutkan",
+    );
+    expect(usage.message).toBe(STORAGE_FULL_MESSAGE);
+  });
+
+  test("zero quota with stored bytes reports full, not ok", async () => {
+    // api-specs/04-configuration.md 4.5. Defensive: storage_quota_gb min is 1,
+    // so this is unreachable through setConfigValue, but the indicator must
+    // still agree with the upload refusal.
+    const repository = inMemoryTenancyRepository({
+      allTenants: [
+        {
+          id: TENANT,
+          name: "PT Contoh Baru",
+          subdomain: "contohbaru",
+          status: "active",
+          storageQuotaBytes: 0,
+          storageUsedBytes: 10,
+          createdAt: new Date(),
+        },
+      ],
+    });
+    const service = createTenancyService({ repository, clock });
+    const usage = await service.getQuotaUsage(TENANT);
+
+    expect(usage.percent).toBe(100);
+    expect(usage.level).toBe("full");
+    expect(usage.message).toBe(STORAGE_FULL_MESSAGE);
   });
 });
 

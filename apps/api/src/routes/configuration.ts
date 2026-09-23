@@ -1,5 +1,5 @@
 import { AppError, formatErrorMessage, one } from "@archiva/shared";
-import { CONFIG_KEYS, type TenancyService } from "@archiva/tenancy";
+import type { TenancyService } from "@archiva/tenancy";
 import {
   listConfiguration,
   resetConfigValue,
@@ -39,15 +39,10 @@ export function createConfigurationRoutes(
           throw new AppError("INVALID_CONFIG_VALUE");
         }
         if (result.error.kind === "ValueOutOfRange") {
-          const spec = CONFIG_KEYS[param.key];
           throw new AppError(
             "VALUE_OUT_OF_RANGE",
             undefined,
-            formatErrorMessage("VALUE_OUT_OF_RANGE", {
-              min: spec.min,
-              max: spec.max,
-              unit: spec.unit,
-            }),
+            formatErrorMessage("VALUE_OUT_OF_RANGE", result.error),
           );
         }
         throw new AppError("INTERNAL_ERROR");

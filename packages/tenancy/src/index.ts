@@ -6,17 +6,11 @@ export type {
   ConfigKey,
   ListTenantsSort,
   QuotaReservation,
-  StoredConfigRow,
   TenancyService,
   Tenant,
   TenantCreated,
   TenantListed,
   TenantStatus,
 } from "./service.ts";
-export {
-  CONFIG_KEY_LABELS,
-  CONFIG_KEYS,
-  createTenancyService,
-  DEFAULT_STORAGE_QUOTA_BYTES,
-} from "./service.ts";
+export { CONFIG_KEYS, createTenancyService } from "./service.ts";
 export { inMemoryTenancyRepository } from "./testing/in-memory-repository.ts";

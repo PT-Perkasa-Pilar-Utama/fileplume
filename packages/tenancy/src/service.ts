@@ -1,6 +1,7 @@
 import type {
   ConfigParameter,
   Result,
+  SetConfigValueBody,
   StorageLevel,
   StorageView,
   TenantId,
@@ -24,22 +25,13 @@ import {
   CONFIG_KEY_LABELS,
   CONFIG_KEYS,
   type ConfigKey,
-  DEFAULT_STORAGE_QUOTA_BYTES,
-  type StoredConfigRow,
 } from "./internal/config-specs.ts";
 import type { Clock } from "./ports.ts";
 import type { TenancyRepository } from "./repository.ts";
 
 /** technical-specs/06-data-model.md 6.3. Declared once, in @archiva/shared. */
 export type { TenantStatus };
-export {
-  BYTES_PER_GB,
-  CONFIG_KEY_LABELS,
-  CONFIG_KEYS,
-  type ConfigKey,
-  DEFAULT_STORAGE_QUOTA_BYTES,
-  type StoredConfigRow,
-};
+export { CONFIG_KEYS, type ConfigKey };
 
 export type QuotaReservation = { id: string; tenantId: TenantId; bytes: number };
 export type Tenant = { id: TenantId; name: string; subdomain: string; status: TenantStatus };
@@ -71,7 +63,7 @@ export interface TenancyService {
   setConfigValue(
     tenantId: TenantId,
     key: ConfigKey,
-    value: unknown,
+    value: SetConfigValueBody["value"],
     actor: UserId,
   ): Promise<
     Result<
@@ -142,12 +134,15 @@ export function createTenancyService(deps: {
         return err({ kind: "InvalidConfigValue", key });
       }
       if (value < spec.min || value > spec.max) {
-        return err({ kind: "ValueOutOfRange", key, min: spec.min, max: spec.max });
+        return err({ kind: "ValueOutOfRange", key, min: spec.min, max: spec.max, unit: spec.unit });
       }
 
       const previousValue = await getConfigValue(tenantId, key);
       await repository.upsertConfigValue(tenantId, key, value, actor);
       const updatedEntry = await repository.findConfigRow(tenantId, key);
+      if (!updatedEntry) {
+        throw new Error(`setConfigValue: ${key} missing after upsert for tenant ${tenantId}`);
+      }
 
       const parameter: ConfigParameter = {
         key,
@@ -159,10 +154,8 @@ export function createTenancyService(deps: {
         max: spec.max,
         editable: spec.tenantEditable,
         isDefault: false,
-        updatedAt: updatedEntry?.updatedAt
-          ? updatedEntry.updatedAt.toISOString()
-          : deps.clock.now().toISOString(),
-        updatedBy: updatedEntry?.updatedBy ?? { id: actor, name: "Admin Tenant" },
+        updatedAt: updatedEntry.updatedAt.toISOString(),
+        updatedBy: updatedEntry.updatedBy,
       };
 
       return ok({ parameter, previousValue });

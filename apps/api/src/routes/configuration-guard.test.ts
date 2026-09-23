@@ -20,6 +20,11 @@ describe("configuration guards", () => {
       code: "NOT_EDITABLE_BY_TENANT",
       message: "Parameter ini hanya dapat diubah oleh Super Admin",
     });
+
+    const denied = app.activityRepository.events.filter((e) => e.action === "access.denied");
+    expect(denied.length).toBeGreaterThan(0);
+    expect(denied[0]?.subjectId).toBe("storage_quota_gb");
+    expect(denied[0]?.outcome).toBe("denied");
   });
 
   test("storage_quota_gb is refused before role check with NOT_EDITABLE_BY_TENANT even for member", async () => {
@@ -38,6 +43,11 @@ describe("configuration guards", () => {
       code: "NOT_EDITABLE_BY_TENANT",
       message: "Parameter ini hanya dapat diubah oleh Super Admin",
     });
+
+    const denied = app.activityRepository.events.filter((e) => e.action === "access.denied");
+    expect(denied.length).toBeGreaterThan(0);
+    expect(denied[0]?.subjectId).toBe("storage_quota_gb");
+    expect(denied[0]?.outcome).toBe("denied");
   });
 
   // api-specs/04-configuration.md 4.4 step 1: same refusal on DELETE.
@@ -55,6 +65,9 @@ describe("configuration guards", () => {
       code: "NOT_EDITABLE_BY_TENANT",
       message: "Parameter ini hanya dapat diubah oleh Super Admin",
     });
+
+    const denied = app.activityRepository.events.filter((e) => e.action === "access.denied");
+    expect(denied.length).toBeGreaterThan(0);
   });
 
   test("unknown key returns 422 VALIDATION_ERROR", async () => {

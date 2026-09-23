@@ -24,7 +24,6 @@ const redisClient = new RedisClient(config.VALKEY_URL);
 
 const tenancy = createTenancyService({
   repository: createDrizzleTenancyRepository(dbHandle.db),
-  clock: systemClock,
 });
 const identity = createIdentityService({
   repository: createDrizzleIdentityRepository(dbHandle.db),

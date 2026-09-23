@@ -54,6 +54,18 @@ export function requireConfigRole(): MiddlewareHandler<AppEnv> {
     if (session.kind === "expired") return fail(c, "SESSION_EXPIRED");
 
     if (c.req.param("key") === "storage_quota_gb") {
+      // Every refusal writes a denied audit event. CODING_STANDARD 8.5.
+      if (session.principal.tenantId !== null) {
+        await c.get("activity").record({
+          tenantId: session.principal.tenantId,
+          actorId: session.principal.userId,
+          action: "access.denied",
+          subjectType: "configuration",
+          subjectId: "storage_quota_gb",
+          outcome: "denied",
+          metadata: { path: c.req.path, reason: "NOT_EDITABLE_BY_TENANT" },
+        });
+      }
       return fail(c, "NOT_EDITABLE_BY_TENANT");
     }
 

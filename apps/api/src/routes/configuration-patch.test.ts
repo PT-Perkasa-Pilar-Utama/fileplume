@@ -22,7 +22,10 @@ describe("PATCH /configuration/:key", () => {
     expect(body.data.defaultValue).toBe(20);
     expect(body.data.isDefault).toBe(false);
     expect(body.data.updatedAt).not.toBeNull();
-    expect(body.data.updatedBy).not.toBeNull();
+    expect(body.data.updatedBy).toEqual({
+      id: expect.any(String),
+      name: "admin_tenant User",
+    });
 
     // Verify subsequent GET reflects updated value
     const getRes = await app.request(

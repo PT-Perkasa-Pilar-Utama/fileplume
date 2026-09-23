@@ -195,11 +195,23 @@ export type TestApp = OpenAPIHono<AppEnv> & {
 /** A fresh app per call, so limiter windows never leak between tests. */
 export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOptions): TestApp {
   const clock = { now: () => NOW };
+  const sessions = [
+    seeded(TOKENS.memberA, "member", TENANT_A),
+    seeded(TOKENS.headOfTeamA, "head_of_team", TENANT_A),
+    seeded(TOKENS.adminA, "admin_tenant", TENANT_A),
+    seeded(TOKENS.memberB, "member", TENANT_B),
+    seeded(TOKENS.superAdmin, "super_admin", null),
+    seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
+  ];
   const tenancy = createTenancyService({
     repository:
       options?.tenancyRepository ??
       inMemoryTenancyRepository({
         tenants: [TENANT_A, TENANT_B],
+        users: sessions.map((s) => ({
+          id: s.row.principal.userId,
+          name: s.row.principal.name,
+        })),
         ...(options?.tenancyQuotaBytes !== undefined
           ? { quotaBytes: options.tenancyQuotaBytes }
           : {}),
@@ -210,14 +222,7 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     repository: inMemoryIdentityRepository(
       {
         users: TEST_USERS,
-        sessions: [
-          seeded(TOKENS.memberA, "member", TENANT_A),
-          seeded(TOKENS.headOfTeamA, "head_of_team", TENANT_A),
-          seeded(TOKENS.adminA, "admin_tenant", TENANT_A),
-          seeded(TOKENS.memberB, "member", TENANT_B),
-          seeded(TOKENS.superAdmin, "super_admin", null),
-          seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
-        ],
+        sessions,
       },
       { clock },
     ),

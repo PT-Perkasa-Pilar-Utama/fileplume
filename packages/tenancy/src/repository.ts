@@ -5,12 +5,11 @@ import { asTenantId, err, ok } from "@archiva/shared";
 import { and, asc, count, desc, eq, gt, ilike, lte, or, sql, sum } from "drizzle-orm";
 import type * as E from "./errors.ts";
 import { RESERVATION_TTL_MS } from "./internal/reservation-ttl.ts";
+import type { ConfigKey, StoredConfigRow } from "./internal/config-specs.ts";
 import { isUniqueViolationOn } from "./internal/unique-violation.ts";
 import type {
-  ConfigKey,
   ListTenantsSort,
   QuotaReservation,
-  StoredConfigRow,
   Tenant,
   TenantCreated,
   TenantListed,
@@ -47,7 +46,11 @@ export interface TenancyRepository {
 const { tenants, tenantConfig, quotaReservations, categories, categoryPermissions, users } = schema;
 
 /** Shared row mapping, so findConfigRow never depends on method-call `this`. */
-async function fetchConfigEntries(db: Db, tenantId: TenantId): Promise<StoredConfigRow[]> {
+async function fetchConfigEntries(
+  db: Db,
+  tenantId: TenantId,
+  key?: ConfigKey,
+): Promise<StoredConfigRow[]> {
   const rows = await db
     .select({
       key: tenantConfig.key,
@@ -58,7 +61,11 @@ async function fetchConfigEntries(db: Db, tenantId: TenantId): Promise<StoredCon
     })
     .from(tenantConfig)
     .leftJoin(users, eq(tenantConfig.updatedBy, users.id))
-    .where(eq(tenantConfig.tenantId, tenantId));
+    .where(
+      key
+        ? and(eq(tenantConfig.tenantId, tenantId), eq(tenantConfig.key, key))
+        : eq(tenantConfig.tenantId, tenantId),
+    );
 
   // No cast: tenantConfig.key is the pgEnum built from CONFIG_KEY_NAMES in
   // @archiva/shared, so its type is already the closed key union.
@@ -101,13 +108,16 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
     },
 
     async findConfigRow(tenantId, key) {
-      const entries = await fetchConfigEntries(db, tenantId);
-      return entries.find((e) => e.key === key) ?? null;
+      const [entry] = await fetchConfigEntries(db, tenantId, key);
+      return entry ?? null;
     },
 
     async findConfigValue(tenantId, key) {
-      const entries = await fetchConfigEntries(db, tenantId);
-      return entries.find((e) => e.key === key)?.value ?? null;
+      const [row] = await db
+        .select({ value: tenantConfig.value })
+        .from(tenantConfig)
+        .where(and(eq(tenantConfig.tenantId, tenantId), eq(tenantConfig.key, key)));
+      return row ? Number(row.value) : null;
     },
 
     async upsertConfigValue(tenantId, key, value, actor) {

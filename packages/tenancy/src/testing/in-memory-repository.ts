@@ -2,17 +2,16 @@ import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
+import { DEFAULT_STORAGE_QUOTA_BYTES, type StoredConfigRow } from "../internal/config-specs.ts";
 import type { TenancyRepository } from "../repository.ts";
 import type {
   ConfigKey,
   ListTenantsSort,
   QuotaReservation,
-  StoredConfigRow,
   Tenant,
   TenantCreated,
   TenantListed,
 } from "../service.ts";
-import { DEFAULT_STORAGE_QUOTA_BYTES } from "../service.ts";
 
 /**
  * Ships with the module so every module is importable in a test with no
@@ -56,10 +55,7 @@ export function inMemoryTenancyRepository(
       key: entry.key,
       value: entry.value,
       updatedAt: new Date(),
-      updatedBy: entry.updatedBy ?? {
-        id: "44444444-4444-4444-8444-444444444444",
-        name: "Admin Tenant",
-      },
+      updatedBy: entry.updatedBy ?? null,
     });
   }
 
@@ -93,12 +89,12 @@ export function inMemoryTenancyRepository(
     },
 
     async upsertConfigValue(t, k, value, actor: UserId) {
-      const actorName = users.get(actor) ?? "Admin Tenant";
+      const actorName = users.get(actor);
       config.set(key(t, k), {
         key: k,
         value,
         updatedAt: new Date(),
-        updatedBy: { id: actor, name: actorName },
+        updatedBy: actorName ? { id: actor, name: actorName } : null,
       });
     },
 

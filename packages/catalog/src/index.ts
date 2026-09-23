@@ -5,9 +5,28 @@ export {
   blobKey,
   InvalidBlobKeyPrefixError,
 } from "./internal/blob-key.ts";
-export type { BlobStore, Clock, DocumentConverter } from "./ports.ts";
-export type { CatalogRepository } from "./repository.ts";
-export type { CatalogService, DocumentRecord, UploadInput } from "./service.ts";
+export { sniffType } from "./internal/sniff-type.ts";
+export type {
+  AuditPort,
+  BlobStore,
+  Clock,
+  DocumentConverter,
+  JobQueue,
+  QuotaPort,
+  QuotaReservationToken,
+} from "./ports.ts";
+export { type CatalogRepository, createDrizzleCatalogRepository } from "./repository.ts";
+export type {
+  CatalogService,
+  CatalogServiceDeps,
+  DocumentRecord,
+  UploadAcceptedResult,
+  UploadBatchOutcome,
+  UploadFailure,
+  UploadInput,
+  UploadRejectedResult,
+  UploadSingleFileItem,
+} from "./service.ts";
 export {
   ACCEPTED_MIME,
   createCatalogService,
@@ -16,3 +35,4 @@ export {
   MAX_BULK_DOWNLOAD,
 } from "./service.ts";
 export { inMemoryBlobStore } from "./testing/in-memory-blob-store.ts";
+export { inMemoryCatalogRepository } from "./testing/in-memory-repository.ts";

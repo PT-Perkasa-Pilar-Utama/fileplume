@@ -1,4 +1,5 @@
 import type { ActivityService } from "@archiva/activity";
+import type { CatalogService } from "@archiva/catalog";
 import type { Config } from "@archiva/config";
 import type { IdentityService } from "@archiva/identity";
 import type { DependencyProbe, ResetRunner } from "@archiva/platform";
@@ -23,6 +24,7 @@ export type AppDeps = {
   tenancy: TenancyService;
   identity: IdentityService;
   activity: ActivityService;
+  catalog: CatalogService;
   rateLimitStores: RateLimitStoreFactory;
   probes: DependencyProbe[];
   resetRunner?: ResetRunner;
@@ -54,7 +56,11 @@ export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
     }),
   );
   mountRateLimits(api, deps.rateLimitStores);
-  activityRoutesMount(api, { tenancy: deps.tenancy, identity: deps.identity });
+  activityRoutesMount(api, {
+    tenancy: deps.tenancy,
+    identity: deps.identity,
+    catalog: deps.catalog,
+  });
   app.route("/api/v1", api);
 
   /**

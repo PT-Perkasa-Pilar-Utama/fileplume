@@ -1,14 +1,19 @@
 import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
+import { createCatalogService, createDrizzleCatalogRepository } from "@archiva/catalog";
 import { loadConfig } from "@archiva/config";
 import { createDb } from "@archiva/db";
 import { createDrizzleIdentityRepository, createIdentityService } from "@archiva/identity";
 import { ResetRunner } from "@archiva/platform";
 import { createDrizzleTenancyRepository, createTenancyService } from "@archiva/tenancy";
 import { RedisClient } from "bun";
+import { createActivityAuditAdapter } from "./adapters/activity-audit-adapter.ts";
 import { bunPasswordHasher } from "./adapters/bun-password-hasher.ts";
 import { createDependencyProbes } from "./adapters/dependency-probes.ts";
+import { nullJobQueue } from "./adapters/null-job-queue.ts";
+import { createS3BlobStore } from "./adapters/s3-blob-store.ts";
 import { systemClock } from "./adapters/system-clock.ts";
 import { createSystemResetActions } from "./adapters/system-reset-actions.ts";
+import { createTenancyQuotaAdapter } from "./adapters/tenancy-quota-adapter.ts";
 import { createValkeyRateLimitStores } from "./adapters/valkey-rate-limit-store.ts";
 import { createApp } from "./app.ts";
 
@@ -32,6 +37,21 @@ const activity = createActivityService({
   clock: systemClock,
 });
 
+const catalog = createCatalogService({
+  repository: createDrizzleCatalogRepository(dbHandle.db),
+  blobStore: createS3BlobStore({
+    endpoint: config.S3_ENDPOINT,
+    bucket: config.S3_BUCKET,
+    accessKeyId: config.S3_ACCESS_KEY_ID,
+    secretAccessKey: config.S3_SECRET_ACCESS_KEY,
+    region: config.S3_REGION,
+  }),
+  clock: systemClock,
+  quota: createTenancyQuotaAdapter(tenancy),
+  queue: nullJobQueue,
+  audit: createActivityAuditAdapter(activity),
+});
+
 const probes = createDependencyProbes({ config, dbHandle, redisClient });
 const resetRunner = config.ENABLE_RESET_API
   ? new ResetRunner({
@@ -44,6 +64,7 @@ const app = createApp(config, {
   tenancy,
   identity,
   activity,
+  catalog,
   rateLimitStores: createValkeyRateLimitStores(redisClient),
   probes,
   resetRunner,

@@ -3,6 +3,11 @@ import {
   type InMemoryActivityRepository,
   inMemoryActivityRepository,
 } from "@archiva/activity";
+import {
+  createCatalogService,
+  inMemoryBlobStore,
+  inMemoryCatalogRepository,
+} from "@archiva/catalog";
 import type { Config } from "@archiva/config";
 import type { SeededSession, UserRow } from "@archiva/identity";
 import {
@@ -17,6 +22,9 @@ import type { Tenant } from "@archiva/tenancy";
 import { createTenancyService, inMemoryTenancyRepository } from "@archiva/tenancy";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
+import { createActivityAuditAdapter } from "../adapters/activity-audit-adapter.ts";
+import { nullJobQueue } from "../adapters/null-job-queue.ts";
+import { createTenancyQuotaAdapter } from "../adapters/tenancy-quota-adapter.ts";
 import { createApp } from "../app.ts";
 import type { AppEnv } from "../middleware/context.ts";
 import {
@@ -170,19 +178,29 @@ export const TEST_USERS: UserRow[] = [
 
 export type TestAppOptions = {
   activityRepository?: InMemoryActivityRepository;
+  catalogRepository?: ReturnType<typeof inMemoryCatalogRepository>;
+  blobStore?: ReturnType<typeof inMemoryBlobStore>;
+  tenancyQuotaBytes?: number;
   probes?: DependencyProbe[];
   resetRunner?: ResetRunner;
 };
 
 export type TestApp = OpenAPIHono<AppEnv> & {
   activityRepository: InMemoryActivityRepository;
+  catalogRepository: ReturnType<typeof inMemoryCatalogRepository>;
+  blobStore: ReturnType<typeof inMemoryBlobStore>;
 };
 
 /** A fresh app per call, so limiter windows never leak between tests. */
 export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOptions): TestApp {
   const clock = { now: () => NOW };
   const tenancy = createTenancyService({
-    repository: inMemoryTenancyRepository({ tenants: [TENANT_A, TENANT_B] }),
+    repository: inMemoryTenancyRepository({
+      tenants: [TENANT_A, TENANT_B],
+      ...(options?.tenancyQuotaBytes !== undefined
+        ? { quotaBytes: options.tenancyQuotaBytes }
+        : {}),
+    }),
     clock,
   });
   const identity = createIdentityService({
@@ -213,16 +231,28 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     clock,
   });
 
+  const catalogRepository = options?.catalogRepository ?? inMemoryCatalogRepository();
+  const blobStore = options?.blobStore ?? inMemoryBlobStore();
+  const catalog = createCatalogService({
+    repository: catalogRepository,
+    blobStore,
+    clock,
+    quota: createTenancyQuotaAdapter(tenancy),
+    queue: nullJobQueue,
+    audit: createActivityAuditAdapter(activity),
+  });
+
   const app = createApp(config, {
     tenancy,
     identity,
     activity,
+    catalog,
     rateLimitStores: () => new MemoryStore<AppEnv>(),
     probes: options?.probes ?? [],
     resetRunner: options?.resetRunner,
   });
 
-  return Object.assign(app, { activityRepository });
+  return Object.assign(app, { activityRepository, catalogRepository, blobStore });
 }
 
 type RequestOptions = {
@@ -232,7 +262,7 @@ type RequestOptions = {
   /** Sent on mutating requests. Defaults to WEB_ORIGIN; null omits the header. */
   origin?: string | null;
   headers?: Record<string, string>;
-  body?: string;
+  body?: BodyInit | null;
 };
 
 export function tenantRequest(path: string, options: RequestOptions = {}): Request {

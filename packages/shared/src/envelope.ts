@@ -55,3 +55,8 @@ export const EMPTY_STATE = {
   NO_UNCONFIRMED: "Tidak ada dokumen menunggu kategori",
   INDEXING_IN_FLIGHT: "Sebagian dokumen masih diproses dan belum dapat dicari",
 } as const;
+
+/** api-specs/05-documents.md 5.2. Client-side outcome message for accepted uploads. */
+export const UPLOAD_MESSAGES = {
+  FILE_ACCEPTED: "File diterima untuk diproses",
+} as const;

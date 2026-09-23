@@ -1,4 +1,5 @@
-import type { JSX } from "react";
+import type { UploadBatch } from "@archiva/shared";
+import { type JSX, useState } from "react";
 import {
   Card,
   CardContent,
@@ -6,24 +7,56 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card.tsx";
+import {
+  getAcceptedFileTypeByName,
+  type TrayItem,
+  type UploadedDocumentDisplay,
+  UploadedDocumentsList,
+  UploadTray,
+  type UploadTrayProps,
+} from "../features/documents/index.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
-// SCAFFOLD: Placeholder shell; real dashboard metrics and flows wired in FE-S1-05 & FE-S5-01.
-export function DashboardView(): JSX.Element {
+// SCAFFOLD: uploaderName and createdAt are placeholders until the real
+// document list lands in FE-S2-03 (api-specs/05-documents.md 5.1).
+const PLACEHOLDER_UPLOADER = "Member Team";
+const PLACEHOLDER_UPLOAD_DATE = "Hari ini";
+
+export interface DashboardViewProps {
+  readonly uploader?: UploadTrayProps["uploader"];
+}
+
+export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Element {
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
+
+  const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
+    const acceptedDocs: UploadedDocumentDisplay[] = [];
+    for (const item of acceptedItems) {
+      if (!item.document) continue;
+      const fileType = getAcceptedFileTypeByName(item.document.title) ?? "other";
+
+      acceptedDocs.push({
+        id: item.document.id,
+        title: item.document.title,
+        fileType,
+        sizeBytes: item.sizeBytes,
+        processingState: item.document.processingState,
+        processingLabel: item.document.processingLabel,
+        uploaderName: PLACEHOLDER_UPLOADER,
+        createdAt: PLACEHOLDER_UPLOAD_DATE,
+      });
+    }
+
+    if (acceptedDocs.length > 0) {
+      setUploadedDocs((prev) => [...acceptedDocs, ...prev]);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Ringkasan Sistem</CardTitle>
-          <CardDescription>Selamat datang di platform Archiva</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Kelola dokumen, kategori, dan izin akses melalui menu navigasi di samping.
-          </p>
-        </CardContent>
-      </Card>
+      <UploadTray onUploadSettled={handleUploadSettled} uploader={uploader} />
+      <UploadedDocumentsList documents={uploadedDocs} />
     </div>
   );
 }

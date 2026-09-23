@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Menu } from "@archiva/shared";
+import type { Menu, StorageView } from "@archiva/shared";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -9,9 +9,13 @@ import {
 import { renderToStaticMarkup } from "react-dom/server";
 import { MENU_CONFIG, Sidebar } from "./sidebar.tsx";
 
-async function renderSidebar(menus?: readonly Menu[], currentPath = "/"): Promise<string> {
+async function renderSidebar(
+  menus?: readonly Menu[],
+  currentPath = "/",
+  storage?: StorageView | null,
+): Promise<string> {
   const rootRoute = createRootRoute({
-    component: () => <Sidebar menus={menus} />,
+    component: () => <Sidebar menus={menus} storage={storage} />,
   });
   const history = createMemoryHistory({ initialEntries: [currentPath] });
   const router = createRouter({ routeTree: rootRoute, history });
@@ -151,5 +155,42 @@ describe("Sidebar navigation derived from role menus (FE-S1-03)", () => {
     expect(htmlUndefined).toContain("Archiva");
     expect(htmlUndefined).toContain('aria-label="Navigasi Utama"');
     expect(htmlUndefined).not.toContain("href=");
+  });
+
+  // AC-35.01: Melihat informasi kapasitas penyimpanan di Sidebar
+  test("AC-35.01: Sidebar renders live storage percentage and progressbar when storage is provided", async () => {
+    const storage: StorageView = {
+      usedBytes: 13421772800,
+      quotaBytes: 53687091200,
+      percent: 25,
+      level: "ok",
+      message: null,
+    };
+    const html = await renderSidebar(["dashboard", "document"], "/", storage);
+
+    expect(html).toContain("Storage Usage");
+    expect(html).toContain("25%");
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('aria-valuenow="25"');
+    expect(html).toContain("bg-primary");
+    expect(html).not.toContain("Kapasitas penyimpanan hampir penuh");
+  });
+
+  // AC-35.02: Mendapat peringatan kapasitas hampir penuh di Sidebar
+  test("AC-35.02: Sidebar renders warning color and banner at 80% storage level", async () => {
+    const storage: StorageView = {
+      usedBytes: 42949672960,
+      quotaBytes: 53687091200,
+      percent: 80,
+      level: "warning",
+      message: "Kapasitas penyimpanan hampir penuh",
+    };
+    const html = await renderSidebar(["dashboard", "document"], "/", storage);
+
+    expect(html).toContain("Storage Usage");
+    expect(html).toContain("80%");
+    expect(html).toContain("bg-amber-500");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Kapasitas penyimpanan hampir penuh");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Menu } from "@archiva/shared";
+import type { Menu, StorageView } from "@archiva/shared";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -16,16 +16,22 @@ const MEMBER_USER: SidebarUser = {
   avatarUrl: null,
 };
 
+const DEFAULT_STORAGE: StorageView = {
+  usedBytes: 13421772800,
+  quotaBytes: 53687091200,
+  percent: 25,
+  level: "ok",
+  message: null,
+};
+
 async function renderSidebarLayout(
   menus: readonly Menu[] = ["dashboard", "document"],
   currentPath = "/",
   user: SidebarUser | null = MEMBER_USER,
-  storagePercent = 25,
+  storage: StorageView | null = DEFAULT_STORAGE,
 ): Promise<string> {
   const rootRoute = createRootRoute({
-    component: () => (
-      <Sidebar menus={menus} user={user ?? undefined} storagePercent={storagePercent} />
-    ),
+    component: () => <Sidebar menus={menus} user={user ?? undefined} storage={storage} />,
   });
   const history = createMemoryHistory({ initialEntries: [currentPath] });
   const router = createRouter({ routeTree: rootRoute, history });

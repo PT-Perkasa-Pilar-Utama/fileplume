@@ -1,8 +1,8 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
-import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
 import { DEFAULT_STORAGE_QUOTA_BYTES, type StoredConfigRow } from "../internal/config-specs.ts";
+import { RESERVATION_TTL_MS } from "../internal/reservation-ttl.ts";
 import type { TenancyRepository } from "../repository.ts";
 import type {
   ConfigKey,

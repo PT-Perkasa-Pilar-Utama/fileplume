@@ -11,13 +11,14 @@ import { inMemoryTenancyRepository } from "./testing/in-memory-repository.ts";
 const TENANT = asTenantId("11111111-1111-4111-8111-111111111111");
 const ACTOR = asUserId("22222222-2222-4222-8222-222222222222");
 const ACTOR_NAME = "Sari Dewi";
+const clock = { now: () => new Date("2026-09-10T00:00:00.000Z") };
 
 const build = (opts?: { quotaBytes?: number; usedBytes?: number }) => {
   const repository = inMemoryTenancyRepository({
     ...opts,
     users: [{ id: ACTOR, name: ACTOR_NAME }],
   });
-  return { repository, service: createTenancyService({ repository }) };
+  return { repository, service: createTenancyService({ repository, clock }) };
 };
 
 describe("resolveTenant", () => {
@@ -29,6 +30,7 @@ describe("resolveTenant", () => {
   };
   const service = createTenancyService({
     repository: inMemoryTenancyRepository({ tenants: [tenant] }),
+    clock,
   });
 
   test("resolves a subdomain regardless of case", async () => {

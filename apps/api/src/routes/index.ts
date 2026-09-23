@@ -16,7 +16,7 @@ import { createTenantRoutes } from "./tenants.ts";
 export type RouteMountDeps = {
   tenancy: Pick<
     TenancyService,
-    "createTenant"
+    | "createTenant"
     | "listTenants"
     | "getConfiguration"
     | "setConfigValue"

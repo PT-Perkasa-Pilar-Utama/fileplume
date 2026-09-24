@@ -13,6 +13,8 @@ export interface DocumentCardGridViewProps {
   readonly isError: boolean;
   readonly errorMessage?: string | null;
   readonly emptyMessage?: string | null;
+  readonly docCategories?: Record<string, string>;
+  readonly onCategoryChange?: (id: string, category: string) => void;
   readonly className?: string;
 }
 
@@ -29,6 +31,8 @@ export function DocumentCardGridView({
   isError,
   errorMessage,
   emptyMessage,
+  docCategories,
+  onCategoryChange,
   className,
 }: DocumentCardGridViewProps): JSX.Element {
   if (isLoading) {
@@ -45,16 +49,12 @@ export function DocumentCardGridView({
             // biome-ignore lint/suspicious/noArrayIndexKey: Skeleton placeholders
             key={`doc-skeleton-${i}`}
             data-testid="document-card-skeleton"
-            className="flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-sm animate-pulse min-h-[120px]"
+            className="flex flex-col items-center justify-center gap-2.5 rounded-xl border border-border bg-card p-4 shadow-xs animate-pulse min-h-[150px]"
           >
-            <div className="flex items-start justify-between">
-              <div className="size-10 rounded-lg bg-muted" />
-              <div className="h-5 w-16 rounded-md bg-muted" />
-            </div>
-            <div className="space-y-2 mt-2">
-              <div className="h-4 w-3/4 rounded bg-muted" />
-              <div className="h-3 w-1/2 rounded bg-muted" />
-            </div>
+            <div className="size-11 rounded-[10px] bg-muted" />
+            <div className="h-4 w-3/4 rounded bg-muted" />
+            <div className="h-5 w-16 rounded-full bg-muted" />
+            <div className="h-3 w-1/2 rounded bg-muted" />
           </div>
         ))}
       </div>
@@ -85,7 +85,12 @@ export function DocumentCardGridView({
       )}
     >
       {documents.map((doc) => (
-        <DocumentCard key={doc.id} document={doc} />
+        <DocumentCard
+          key={doc.id}
+          document={doc}
+          category={docCategories?.[doc.id]}
+          onCategoryChange={onCategoryChange}
+        />
       ))}
     </div>
   );

@@ -1,5 +1,5 @@
 import { EMPTY_STATE } from "@archiva/shared";
-import { FileText } from "lucide-react";
+import { FolderX } from "lucide-react";
 import type { JSX } from "react";
 import { cn } from "../../lib/cn.ts";
 
@@ -9,7 +9,7 @@ export interface DocumentEmptyStateProps {
 }
 
 /**
- * Empty state component for document collections (AC-38.03).
+ * Empty state component for document collections (AC-38.03, Figma 1:1040).
  * Renders the server-supplied message or falls back to EMPTY_STATE.NO_DOCUMENTS.
  */
 export function DocumentEmptyState({ message, className }: DocumentEmptyStateProps): JSX.Element {
@@ -19,18 +19,25 @@ export function DocumentEmptyState({ message, className }: DocumentEmptyStatePro
     <div
       data-testid="no-document-uploaded"
       className={cn(
-        "flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-border bg-card p-6 text-center shadow-xs",
+        "flex flex-1 min-h-55 flex-col items-center justify-center p-8 text-center",
         className,
       )}
     >
       <div
         data-testid="documents-empty-state"
-        className="mb-3 flex size-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-muted-foreground"
+        className="mb-3.5 flex size-11 items-center justify-center rounded-[10px] bg-muted text-muted-foreground"
       >
-        <FileText className="size-6 text-slate-400 dark:text-slate-500" />
+        <FolderX className="size-6 stroke-[1.75]" />
       </div>
-      <p data-testid="empty-state-message" className="mt-1 max-w-sm text-xs text-muted-foreground">
-        {displayMessage}
+      <h3 className="text-base font-medium text-foreground">
+        No Document Uploaded
+        <span className="sr-only">Belum ada dokumen yang diunggah</span>
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line text-center">
+        {"Please upload document first.\nClick or Drag and Drop Document to the Upload Area."}
+        <span data-testid="empty-state-message" className="sr-only">
+          {displayMessage}
+        </span>
       </p>
     </div>
   );

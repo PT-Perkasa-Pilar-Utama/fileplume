@@ -84,6 +84,43 @@ describe("createDrizzleTenancyRepository", () => {
     expect((await repository.usage(tenantId)).usedBytes).toBe(60);
   });
 
+  test("reverting a commit debits usage back to where it started", async () => {
+    // AC-01.08: the batch rollback debits files committed before the expiry.
+    const repository = createDrizzleTenancyRepository(db);
+    const tenantId = await seedTenant(100);
+
+    const reservation = await repository.tryReserve(
+      tenantId,
+      60,
+      new Date("2026-09-01T00:00:00.000Z"),
+    );
+    expect(reservation).not.toBeNull();
+    if (!reservation) return;
+    await repository.commitReservation(reservation);
+    expect((await repository.usage(tenantId)).usedBytes).toBe(60);
+
+    await repository.revertCommitReservation(reservation);
+    expect((await repository.usage(tenantId)).usedBytes).toBe(0);
+  });
+
+  test("reverting more than was committed is refused rather than driving usage negative", async () => {
+    const repository = createDrizzleTenancyRepository(db);
+    const tenantId = await seedTenant(100);
+
+    const reservation = await repository.tryReserve(
+      tenantId,
+      60,
+      new Date("2026-09-01T00:00:00.000Z"),
+    );
+    expect(reservation).not.toBeNull();
+    if (!reservation) return;
+    await repository.commitReservation(reservation);
+    await repository.revertCommitReservation(reservation);
+
+    await expect(repository.revertCommitReservation(reservation)).rejects.toThrow();
+    expect((await repository.usage(tenantId)).usedBytes).toBe(0);
+  });
+
   test("releasing a reservation returns the capacity without touching usage", async () => {
     // AC-01.07: an interrupted upload consumes nothing.
     const repository = createDrizzleTenancyRepository(db);

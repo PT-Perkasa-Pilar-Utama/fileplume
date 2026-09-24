@@ -1,6 +1,6 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asDocumentId, asVersionId, ERROR_MESSAGES, formatErrorMessage } from "@archiva/shared";
-import type { AuditPort, BlobStore, JobQueue, QuotaPort } from "../ports.ts";
+import type { BlobStore, QuotaPort, QuotaReservationToken, SessionPort } from "../ports.ts";
 import type { CatalogRepository } from "../repository.ts";
 import type {
   UploadAcceptedResult,
@@ -8,17 +8,29 @@ import type {
   UploadSingleFileItem,
 } from "../service.ts";
 import { blobKey } from "./blob-key.ts";
+import { reportSettled } from "./report-settled.ts";
 import { sniffType } from "./sniff-type.ts";
 
 /** Header window for magic-byte sniffing. DOCX/XLSX markers sit kilobytes deep. */
 const SNIFF_LIMIT_BYTES = 65536;
 
+export type SingleUploadAccepted = UploadAcceptedResult & {
+  blobKey: string;
+  reservation: QuotaReservationToken;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+export type SingleUploadOutcome =
+  | SingleUploadAccepted
+  | UploadRejectedResult
+  | { status: "session_expired" };
+
 export type UploadSingleFileDeps = {
   repository: CatalogRepository;
   blobStore: BlobStore;
   quota: QuotaPort;
-  queue: JobQueue;
-  audit: AuditPort;
+  session: SessionPort;
 };
 
 /**
@@ -71,7 +83,8 @@ export async function uploadSingleFile(
   item: UploadSingleFileItem,
   index: number,
   deps: UploadSingleFileDeps,
-): Promise<UploadAcceptedResult | UploadRejectedResult> {
+  sessionToken?: string,
+): Promise<SingleUploadOutcome> {
   const [sniffStream, blobStream] = item.stream.tee();
   const header = await readHeader(sniffStream);
 
@@ -115,6 +128,25 @@ export async function uploadSingleFile(
     throw blobErr;
   }
 
+  // AC-01.08, api-specs/02-authentication.md 2.5, 05-documents.md 5.2:
+  // Session resolved before the first byte and again before commit, so an
+  // expiring session leaves nothing behind.
+  if (sessionToken !== undefined) {
+    if (!(await deps.session.validateSession(sessionToken))) {
+      // Best-effort compensation: the primary outcome is session_expired, so
+      // a failing delete or release must not mask it. Leftovers are reclaimed
+      // by the reservation sweeper and orphan-blob collection, never surfaced.
+      reportSettled(
+        await Promise.allSettled([
+          deps.quota.releaseQuota(reservation),
+          deps.blobStore.delete(key),
+        ]),
+        "upload compensation failed after session expiry",
+      );
+      return { status: "session_expired" };
+    }
+  }
+
   const insertResult = await deps.repository.insertDocumentWithVersion(tenantId, {
     documentId,
     versionId,
@@ -127,8 +159,12 @@ export async function uploadSingleFile(
   });
 
   if (!insertResult.ok) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
+    // Best-effort compensation for the losing writer: DUPLICATE_CONTENT is the
+    // primary outcome, so cleanup failures must not mask it. AC-03.04.
+    reportSettled(
+      await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]),
+      "upload compensation failed after duplicate insert",
+    );
     const duplicate = insertResult.error;
     return rejected(index, item.filename, {
       code: "DUPLICATE_CONTENT",
@@ -137,30 +173,39 @@ export async function uploadSingleFile(
     });
   }
 
-  // Commit what the blob store actually wrote, not the declared size,
-  // so route-level streaming never drifts quota.
-  await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
+  // CODING_STANDARD.md 7.3, AC-35.04: the reservation commits as soon as its
+  // file lands, never held open across the batch. A slow batch can therefore
+  // never outlive the 15-minute reservation TTL into over-allocation, and the
+  // batch rollback debits committed bytes back through `revertCommit`.
+  try {
+    await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
+  } catch (commitErr) {
+    // The commit is transactional: a throw leaves the reservation open, so
+    // release it and remove the row and blob, then let the throw surface.
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(reservation),
+        deps.blobStore.delete(key),
+        deps.repository.deleteDocument(tenantId, documentId),
+      ]),
+      "upload compensation failed after quota commit",
+    );
+    throw commitErr;
+  }
 
-  await deps.queue.enqueue(documentId);
-
-  await deps.audit.record({
-    tenantId,
-    actorId: uploaderId,
-    action: "document.upload",
-    subjectType: "document",
-    subjectId: documentId,
-    outcome: "allowed",
-    metadata: {
-      filename: item.filename,
-      sizeBytes: blobOutcome.sizeBytes,
-      mimeType: sniffResult.mimeType,
-    },
-  });
-
+  // No enqueue or audit here. A queue job cannot be taken back, so uploadBatch
+  // holds those two until every file in the batch has passed the session
+  // check. The quota commit above is reversible through `revertCommit`, which
+  // is what lets the rollback debit files committed before a later session
+  // expiry. AC-01.08.
   return {
     index,
     filename: item.filename,
     status: "accepted",
+    blobKey: key,
+    reservation,
+    mimeType: sniffResult.mimeType,
+    sizeBytes: blobOutcome.sizeBytes,
     document: {
       id: documentId,
       title: item.filename,

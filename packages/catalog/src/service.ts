@@ -1,8 +1,10 @@
 import type { DocumentId, ErrorCode, Result, TenantId, UserId, VersionId } from "@archiva/shared";
-import { asDocumentId, err, ok } from "@archiva/shared";
+import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
-import { buildBatchSummary } from "./internal/batch-summary.ts";
-import { type UploadSingleFileDeps, uploadSingleFile } from "./internal/upload-single-file.ts";
+import { MAX_BATCH, MAX_BULK_DOWNLOAD } from "./internal/limits.ts";
+import { mapUploadFailure } from "./internal/map-upload-failure.ts";
+import { ACCEPTED_MIME, isAcceptedType } from "./internal/mime-types.ts";
+import { uploadBatch } from "./internal/upload-batch.ts";
 import type {
   AuditPort,
   BlobStore,
@@ -10,23 +12,11 @@ import type {
   DocumentConverter,
   JobQueue,
   QuotaPort,
+  SessionPort,
 } from "./ports.ts";
 import type { CatalogRepository } from "./repository.ts";
 
-export const MAX_BATCH = 20;
-export const MAX_BULK_DOWNLOAD = 50;
-
-export const ACCEPTED_MIME = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-] as const;
-
-/** Decided by magic-byte sniffing upstream, never by the extension. */
-export function isAcceptedType(mimeType: string): boolean {
-  return ACCEPTED_MIME.some((accepted) => accepted === mimeType);
-}
+export { ACCEPTED_MIME, isAcceptedType, MAX_BATCH, MAX_BULK_DOWNLOAD };
 
 export type UploadInput = {
   tenantId: TenantId;
@@ -34,6 +24,7 @@ export type UploadInput = {
   filename: string;
   stream: ReadableStream;
   sizeBytes: number;
+  sessionToken?: string;
 };
 
 export type UploadSingleFileItem = {
@@ -94,15 +85,17 @@ export type CatalogServiceDeps = {
   quota: QuotaPort;
   queue: JobQueue;
   audit: AuditPort;
+  session: SessionPort;
 };
 
 export interface CatalogService {
-  upload(input: UploadInput): Promise<Result<DocumentRecord, UploadFailure>>;
+  upload(input: UploadInput): Promise<Result<DocumentRecord, UploadFailure | E.SessionExpired>>;
   uploadBatch(
     tenantId: TenantId,
     uploaderId: UserId,
     items: UploadSingleFileItem[],
-  ): Promise<Result<UploadBatchOutcome, E.BatchTooLarge>>;
+    sessionToken?: string,
+  ): Promise<Result<UploadBatchOutcome, E.BatchTooLarge | E.SessionExpired>>;
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
@@ -125,20 +118,26 @@ export interface CatalogService {
 }
 
 export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
-  const singleDeps: UploadSingleFileDeps = {
-    repository: deps.repository,
-    blobStore: deps.blobStore,
-    quota: deps.quota,
-    queue: deps.queue,
-    audit: deps.audit,
-  };
-
   return {
     async upload(input) {
-      const batchResult = await this.uploadBatch(input.tenantId, input.uploaderId, [
-        { filename: input.filename, stream: input.stream, sizeBytes: input.sizeBytes },
-      ]);
-      if (!batchResult.ok) return err({ kind: "BatchTooLarge" });
+      const batchResult = await this.uploadBatch(
+        input.tenantId,
+        input.uploaderId,
+        [
+          {
+            filename: input.filename,
+            stream: input.stream,
+            sizeBytes: input.sizeBytes,
+          },
+        ],
+        input.sessionToken,
+      );
+      if (!batchResult.ok) {
+        if (batchResult.error.kind === "SessionExpired") {
+          return err({ kind: "SessionExpired" });
+        }
+        return err({ kind: "BatchTooLarge" });
+      }
       const first = batchResult.value.results[0];
       if (!first) throw new Error("uploadBatch returned no result for a single item");
 
@@ -150,55 +149,11 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
         });
       }
 
-      switch (first.error.code) {
-        case "UNSUPPORTED_TYPE":
-          return err({ kind: "UnsupportedType" });
-        case "FILE_TOO_LARGE": {
-          const limitMb = await deps.quota.getMaxFileSizeMb(input.tenantId);
-          return err({ kind: "TooLarge", limitMb });
-        }
-        case "QUOTA_EXCEEDED":
-          return err({ kind: "QuotaExceeded" });
-        case "DUPLICATE_CONTENT":
-          return err({
-            kind: "DuplicateContent",
-            ...(first.error.existingDocumentId
-              ? { existingDocumentId: asDocumentId(first.error.existingDocumentId) }
-              : {}),
-          });
-        default:
-          throw new Error(`unmapped upload failure code: ${first.error.code}`);
-      }
+      return await mapUploadFailure(first, input.tenantId, deps.quota);
     },
 
-    async uploadBatch(tenantId, uploaderId, items) {
-      if (items.length > MAX_BATCH) {
-        return err({ kind: "BatchTooLarge" });
-      }
-
-      const results: Array<UploadAcceptedResult | UploadRejectedResult> = [];
-      let accepted = 0;
-      let rejected = 0;
-
-      // Sequential, not parallel, so a mixed batch is deterministic. 5.2 step 4.
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item) continue;
-        const outcome = await uploadSingleFile(tenantId, uploaderId, item, i, singleDeps);
-        if (outcome.status === "accepted") {
-          accepted++;
-        } else {
-          rejected++;
-        }
-        results.push(outcome);
-      }
-
-      return ok({
-        accepted,
-        rejected,
-        summary: buildBatchSummary(accepted, rejected),
-        results,
-      });
+    async uploadBatch(tenantId, uploaderId, items, sessionToken) {
+      return uploadBatch(tenantId, uploaderId, items, deps, sessionToken);
     },
 
     addVersion() {

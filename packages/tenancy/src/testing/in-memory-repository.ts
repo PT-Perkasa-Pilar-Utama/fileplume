@@ -135,6 +135,24 @@ export function inMemoryTenancyRepository(
       if (i >= 0) held.splice(i, 1);
     },
 
+    async revertCommitReservation(reservation) {
+      const i = held.findIndex((r) => r.id === reservation.id);
+      if (i >= 0) held.splice(i, 1);
+
+      const tenant = allTenants.find((t) => t.id === reservation.tenantId);
+      const currentUsed = tenant ? tenant.storageUsedBytes : unscopedUsedBytes;
+      if (currentUsed < reservation.bytes) {
+        throw new Error(
+          `revertCommitReservation: used bytes ${currentUsed} below ${reservation.bytes}`,
+        );
+      }
+      if (tenant) {
+        tenant.storageUsedBytes -= reservation.bytes;
+      } else {
+        unscopedUsedBytes -= reservation.bytes;
+      }
+    },
+
     async sweepExpiredReservations(now) {
       const before = held.length;
       const surviving = held.filter((r) => r.expiresAt > now);

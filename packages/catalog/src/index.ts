@@ -14,6 +14,7 @@ export type {
   JobQueue,
   QuotaPort,
   QuotaReservationToken,
+  SessionPort,
 } from "./ports.ts";
 export { type CatalogRepository, createDrizzleCatalogRepository } from "./repository.ts";
 export type {

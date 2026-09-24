@@ -28,6 +28,7 @@ export interface CatalogRepository {
   allocateVersionNumber(tenantId: TenantId, documentId: DocumentId): Promise<number>;
   findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
   findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null>;
+  deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void>;
   updateProcessingState(
     tenantId: TenantId,
     documentId: DocumentId,
@@ -176,6 +177,26 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
         )
         .limit(1);
       return row ? row.blobKey : null;
+    },
+
+    async deleteDocument(tenantId, documentId) {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(schema.documents)
+          .set({ currentVersionId: null })
+          .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
+        await tx
+          .delete(schema.documentVersions)
+          .where(
+            and(
+              eq(schema.documentVersions.documentId, documentId),
+              eq(schema.documentVersions.tenantId, tenantId),
+            ),
+          );
+        await tx
+          .delete(schema.documents)
+          .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
+      });
     },
 
     async updateProcessingState(tenantId, documentId, state) {

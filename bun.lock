@@ -87,6 +87,9 @@
         "@archiva/shared": "workspace:*",
         "drizzle-orm": "0.45.2",
       },
+      "devDependencies": {
+        "@testcontainers/postgresql": "12.1.0",
+      },
     },
     "packages/classification": {
       "name": "@archiva/classification",

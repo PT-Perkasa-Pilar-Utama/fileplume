@@ -210,9 +210,9 @@ The 80 percent threshold lives on the server. Putting it in the client would let
 
 ## 4.6 The quota protocol is not exposed
 
-`reserveQuota`, `commitQuota` and `releaseQuota` are internal to `tenancy` and have no endpoint. A client cannot reserve capacity, and there is no operation that reports a reservation.
+`reserveQuota`, `commitQuota`, `releaseQuota` and `revertCommit` are internal to `tenancy` and have no endpoint. A client cannot reserve capacity, and there is no operation that reports a reservation.
 
-This is the point of module invariant 5.1.4: reading `GET /storage` and then deciding whether to upload is a race, and AC-35.04 tests exactly that race. The upload operation reserves before it writes a blob and commits after the row lands, or releases on any failure ([05-documents.md 5.2](05-documents.md)). Reservations expire after 15 minutes and are swept, so an abandoned upload returns its capacity without an operator touching anything.
+This is the point of module invariant 5.1.4: reading `GET /storage` and then deciding whether to upload is a race, and AC-35.04 tests exactly that race. The upload operation reserves before it writes a blob and commits after each row lands, or releases on any failure ([05-documents.md 5.2](05-documents.md)). A later session expiry debits committed bytes back through `revertCommit`. Reservations expire after 15 minutes and are swept, so an abandoned upload returns its capacity without an operator touching anything.
 
 Consequently AC-01.07's interrupted upload leaves the quota untouched, and AC-35.04's third file is refused inside the same request that accepted the first two.
 

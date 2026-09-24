@@ -155,6 +155,28 @@ describe("quota reservation", () => {
     expect((await service.reserveQuota(TENANT, 60)).ok).toBe(false);
   });
 
+  test("reverting a commit returns the capacity", async () => {
+    // AC-01.08: the batch rollback debits files committed before the expiry.
+    const { service, repository } = build({ quotaBytes: 100 });
+    const first = await service.reserveQuota(TENANT, 60);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    await service.commitQuota(first.value);
+    await service.revertCommit(first.value);
+    expect((await repository.usage(TENANT)).usedBytes).toBe(0);
+    expect((await service.reserveQuota(TENANT, 60)).ok).toBe(true);
+  });
+
+  test("reverting twice fails loudly instead of double-debiting", async () => {
+    const { service } = build({ quotaBytes: 100 });
+    const first = await service.reserveQuota(TENANT, 60);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    await service.commitQuota(first.value);
+    await service.revertCommit(first.value);
+    await expect(service.revertCommit(first.value)).rejects.toThrow();
+  });
+
   test("reservation expires after 15 minutes releasing capacity", async () => {
     let now = new Date("2026-09-10T10:00:00.000Z");
     const mutableClock = { now: () => now };

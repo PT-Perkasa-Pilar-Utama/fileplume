@@ -9,6 +9,7 @@ import { RedisClient } from "bun";
 import { createActivityAuditAdapter } from "./adapters/activity-audit-adapter.ts";
 import { bunPasswordHasher } from "./adapters/bun-password-hasher.ts";
 import { createDependencyProbes } from "./adapters/dependency-probes.ts";
+import { createIdentitySessionAdapter } from "./adapters/identity-session-adapter.ts";
 import { nullJobQueue } from "./adapters/null-job-queue.ts";
 import { createS3BlobStore } from "./adapters/s3-blob-store.ts";
 import { systemClock } from "./adapters/system-clock.ts";
@@ -50,6 +51,7 @@ const catalog = createCatalogService({
   quota: createTenancyQuotaAdapter(tenancy),
   queue: nullJobQueue,
   audit: createActivityAuditAdapter(activity),
+  session: createIdentitySessionAdapter(identity),
 });
 
 const probes = createDependencyProbes({ config, dbHandle, redisClient });

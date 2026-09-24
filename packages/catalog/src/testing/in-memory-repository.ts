@@ -50,12 +50,14 @@ export function inMemoryCatalogRepository(): CatalogRepository & {
       tenantId: TenantId,
       input: InsertDocumentInput,
     ): Promise<Result<DocumentRecord, E.DuplicateContent>> {
-      // Check UNIQUE (tenant_id, content_hash)
-      const existingDocId = await findByContentHash(tenantId, input.contentHash);
-      if (existingDocId !== null) {
+      // Synchronous check & write mirrors PostgreSQL UNIQUE (tenant_id, content_hash) constraint
+      const existing = versions.find(
+        (v) => v.tenantId === tenantId && v.contentHash === input.contentHash,
+      );
+      if (existing) {
         return err({
           kind: "DuplicateContent",
-          existingDocumentId: existingDocId,
+          existingDocumentId: existing.documentId,
         });
       }
 
@@ -114,6 +116,19 @@ export function inMemoryCatalogRepository(): CatalogRepository & {
     async findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null> {
       const ver = versions.find((v) => v.tenantId === tenantId && v.id === versionId);
       return ver ? ver.blobKey : null;
+    },
+
+    async deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void> {
+      for (let i = versions.length - 1; i >= 0; i--) {
+        const v = versions[i];
+        if (v && v.tenantId === tenantId && v.documentId === documentId) {
+          versions.splice(i, 1);
+        }
+      }
+      const docIndex = documents.findIndex((d) => d.tenantId === tenantId && d.id === documentId);
+      if (docIndex !== -1) {
+        documents.splice(docIndex, 1);
+      }
     },
 
     async updateProcessingState(

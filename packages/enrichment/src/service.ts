@@ -1,10 +1,12 @@
-import type {
-  DocumentId,
-  FailureReason,
-  ProcessingState,
-  Result,
-  TenantId,
-  UserId,
+import {
+  type DocumentId,
+  FAILURE_MESSAGE,
+  type FailureReason,
+  type ProcessingState,
+  type Result,
+  STATE_LABEL,
+  type TenantId,
+  type UserId,
 } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { AiProvider, JobQueue, MalwareScanner, TextExtractor } from "./ports.ts";
@@ -27,20 +29,7 @@ export type ExtractionMethod = "native" | "ocr" | "mixed";
 export type TagSource = "ai" | "user";
 
 /** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
-export const STATE_LABEL: Record<ProcessingState, string> = {
-  queued: "Antre",
-  processing: "Diproses",
-  ready: "Siap",
-  failed: "Gagal",
-};
-
-export const FAILURE_MESSAGE: Record<FailureReason, string> = {
-  password_protected: "Dokumen terproteksi password",
-  unreadable_content: "Isi dokumen tidak dapat dibaca",
-  extraction_timeout: "Proses ekstraksi melebihi batas waktu",
-  ai_unavailable: "Layanan AI tidak tersedia",
-  index_failed: "Dokumen gagal diindeks",
-};
+export { FAILURE_MESSAGE, STATE_LABEL };
 
 /** Network, timeout, 5xx and rate limit retry. Bad input does not. */
 export function isTransient(reason: FailureReason): boolean {

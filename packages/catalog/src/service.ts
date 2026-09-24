@@ -126,7 +126,7 @@ export interface CatalogService {
     tenantId: TenantId,
     documentId: DocumentId,
     viewer: ViewerContext,
-    pendingConfirmationDays?: number,
+    pendingConfirmationDays: number,
     now?: Date,
   ): Promise<Result<DocumentDetailView, E.NotFound>>;
   openBlob(versionId: VersionId): Promise<ReadableStream>;
@@ -182,7 +182,7 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     listDocuments(input) {
       return handleListDocuments(deps.repository, input);
     },
-    getDocument(tenantId, documentId, viewer, pendingConfirmationDays = 7, now) {
+    getDocument(tenantId, documentId, viewer, pendingConfirmationDays, now) {
       // viewer is required: no silent super_admin bypass. Every caller states
       // who is looking so the confirmation-window predicate always applies.
       return handleGetDocument(

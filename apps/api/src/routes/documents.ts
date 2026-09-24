@@ -1,7 +1,7 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
 import { SESSION_COOKIE_NAME } from "@archiva/identity";
-import { AppError, asDocumentId, hasRoleAtLeast, one } from "@archiva/shared";
+import { AppError, asDocumentId, one } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
 import { getCookie } from "hono/cookie";
 import { fail } from "../middleware/errors.ts";
@@ -52,12 +52,8 @@ export function createDocumentRoutes(
       if (!tenant) {
         throw new AppError("NOT_FOUND");
       }
-      const session = c.get("session");
-      if (session.kind !== "authenticated") {
-        throw new AppError("UNAUTHENTICATED");
-      }
+      const principal = c.get("principal");
       const query = c.req.valid("query");
-      const bypassesWindow = hasRoleAtLeast(session.principal.role, "head_of_team");
       const pendingConfirmationDays = await tenancy.getConfigValue(
         tenant.id,
         "pending_confirmation_days",
@@ -66,9 +62,8 @@ export function createDocumentRoutes(
       const result = await catalog.listDocuments({
         tenantId: tenant.id,
         viewer: {
-          userId: session.principal.userId,
-          role: session.principal.role,
-          bypassesWindow,
+          userId: principal.userId,
+          role: principal.role,
         },
         pendingConfirmationDays,
         query,
@@ -87,12 +82,8 @@ export function createDocumentRoutes(
       if (!tenant) {
         throw new AppError("NOT_FOUND");
       }
-      const session = c.get("session");
-      if (session.kind !== "authenticated") {
-        throw new AppError("UNAUTHENTICATED");
-      }
+      const principal = c.get("principal");
       const { id } = c.req.valid("param");
-      const bypassesWindow = hasRoleAtLeast(session.principal.role, "head_of_team");
       const pendingConfirmationDays = await tenancy.getConfigValue(
         tenant.id,
         "pending_confirmation_days",
@@ -102,9 +93,8 @@ export function createDocumentRoutes(
         tenant.id,
         asDocumentId(id),
         {
-          userId: session.principal.userId,
-          role: session.principal.role,
-          bypassesWindow,
+          userId: principal.userId,
+          role: principal.role,
         },
         pendingConfirmationDays,
       );
@@ -114,10 +104,10 @@ export function createDocumentRoutes(
         // confirmed cross-tenant attempt writes access.denied. An unknown id
         // is a plain 404 with no audit event (AC-43.03, AC-43.04).
         if (result.error.crossTenantAttempt) {
-          if (session.principal.tenantId !== null) {
+          if (principal.tenantId !== null) {
             await c.get("activity").record({
-              tenantId: session.principal.tenantId,
-              actorId: session.principal.userId,
+              tenantId: principal.tenantId,
+              actorId: principal.userId,
               action: "access.denied",
               subjectType: "document",
               subjectId: null,

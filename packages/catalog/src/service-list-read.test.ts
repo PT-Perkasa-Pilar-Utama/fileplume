@@ -83,7 +83,8 @@ describe("AC-38.01: melihat dokumen terbaru sebagai kartu visual", () => {
 
     const result = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
 
@@ -154,7 +155,8 @@ describe("AC-38.01: melihat dokumen terbaru sebagai kartu visual", () => {
       const { service } = setupHarness([doc], [ver]);
       const res = await service.listDocuments({
         tenantId: TENANT_1,
-        viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+        viewer: { userId: USER_MEMBER_1, role: "member" },
+        pendingConfirmationDays: 7,
         query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
       });
 
@@ -225,7 +227,8 @@ describe("AC-38.01: melihat dokumen terbaru sebagai kartu visual", () => {
       const { service } = setupHarness([doc], [ver]);
       const res = await service.listDocuments({
         tenantId: TENANT_1,
-        viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+        viewer: { userId: USER_MEMBER_1, role: "member" },
+        pendingConfirmationDays: 7,
         query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
       });
 
@@ -296,11 +299,15 @@ describe("AC-38.02: navigasi dari kartu ke detail dokumen", () => {
 
     const { service } = setupHarness([doc], [ver1, ver2]);
 
-    const result = await service.getDocument(TENANT_1, docId, {
-      userId: USER_MEMBER_1,
-      role: "member",
-      bypassesWindow: false,
-    });
+    const result = await service.getDocument(
+      TENANT_1,
+      docId,
+      {
+        userId: USER_MEMBER_1,
+        role: "member",
+      },
+      7,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -327,7 +334,8 @@ describe("AC-38.03: dasbor tanpa dokumen", () => {
 
     const result = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
 
@@ -380,7 +388,8 @@ describe("AC-38.03: dasbor tanpa dokumen", () => {
 
     const result = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       query: {
         page: 1,
         limit: 10,
@@ -438,7 +447,8 @@ describe("AC-38.03: dasbor tanpa dokumen", () => {
 
     const result = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       query: {
         page: 1,
         limit: 10,
@@ -499,7 +509,8 @@ describe("confirmation window predicate (5.4.1)", () => {
     // Uploader sees it
     const uploaderRes = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       now: new Date("2026-09-15T00:00:00.000Z"),
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
@@ -508,7 +519,8 @@ describe("confirmation window predicate (5.4.1)", () => {
     // Colleague does NOT see it in list
     const colleagueRes = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_2, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_2, role: "member" },
+      pendingConfirmationDays: 7,
       now: new Date("2026-09-15T00:00:00.000Z"),
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
@@ -518,7 +530,7 @@ describe("confirmation window predicate (5.4.1)", () => {
     const directRes = await service.getDocument(
       TENANT_1,
       docId,
-      { userId: USER_MEMBER_2, role: "member", bypassesWindow: false },
+      { userId: USER_MEMBER_2, role: "member" },
       7,
       new Date("2026-09-15T00:00:00.000Z"),
     );
@@ -527,7 +539,8 @@ describe("confirmation window predicate (5.4.1)", () => {
     // Head of Team bypasses the window and sees it immediately
     const headRes = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_HEAD, role: "head_of_team", bypassesWindow: true },
+      viewer: { userId: USER_HEAD, role: "head_of_team" },
+      pendingConfirmationDays: 7,
       now: new Date("2026-09-15T00:00:00.000Z"),
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
@@ -582,11 +595,12 @@ describe("in-memory adapter mirrors the SQL adapter", () => {
   test("tag filter is an exact match, like the SQL EXISTS subquery", async () => {
     const { doc, ver } = taggedDoc("Legal");
     const { service } = setupHarness([doc], [ver]);
-    const viewer = { userId: USER_MEMBER_1, role: "member" as const, bypassesWindow: false };
+    const viewer = { userId: USER_MEMBER_1, role: "member" as const };
 
     const exact = await service.listDocuments({
       tenantId: TENANT_1,
       viewer,
+      pendingConfirmationDays: 7,
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc", tags: ["Legal"] },
     });
     expect(exact.data).toHaveLength(1);
@@ -594,6 +608,7 @@ describe("in-memory adapter mirrors the SQL adapter", () => {
     const lowered = await service.listDocuments({
       tenantId: TENANT_1,
       viewer,
+      pendingConfirmationDays: 7,
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc", tags: ["legal"] },
     });
     expect(lowered.data).toHaveLength(0);
@@ -649,7 +664,8 @@ describe("in-memory adapter mirrors the SQL adapter", () => {
 
     const res = await service.listDocuments({
       tenantId: TENANT_1,
-      viewer: { userId: USER_MEMBER_1, role: "member", bypassesWindow: false },
+      viewer: { userId: USER_MEMBER_1, role: "member" },
+      pendingConfirmationDays: 7,
       query: { page: 1, limit: 10, sort: "createdAt", order: "desc" },
     });
     expect(res.data).toHaveLength(2);

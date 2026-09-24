@@ -159,11 +159,6 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       return documents.filter((d) => d.tenantId === tenantId).length;
     },
 
-    async findDocumentTenant(documentId: DocumentId): Promise<TenantId | null> {
-      const doc = documents.find((d) => d.id === documentId);
-      return doc ? doc.tenantId : null;
-    },
-
     async listDocuments(
       tenantId: TenantId,
       filter: ListDocumentsFilter,

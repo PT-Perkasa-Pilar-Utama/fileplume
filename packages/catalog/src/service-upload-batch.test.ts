@@ -206,4 +206,40 @@ describe("upload batch acceptance criteria", () => {
     if (!res.ok) return;
     expect(res.value.accepted).toBe(1);
   });
+
+  test("AC-01.08: batch upload with expired session cleans up earlier files and returns SessionExpired", async () => {
+    let callCount = 0;
+    const { service, repository, blobStore, enqueuedJobs, auditEvents } = createTestHarness({
+      session: {
+        async validateSession() {
+          callCount++;
+          // First file valid, second file expired
+          return callCount === 1;
+        },
+      },
+    });
+
+    const file1 = pdfStream("file 1");
+    const file2 = pdfStream("file 2");
+
+    const res = await service.uploadBatch(
+      TENANT_ID,
+      USER_ID,
+      [
+        { filename: "doc1.pdf", stream: file1.stream, sizeBytes: file1.sizeBytes },
+        { filename: "doc2.pdf", stream: file2.stream, sizeBytes: file2.sizeBytes },
+      ],
+      "session-token",
+    );
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error.kind).toBe("SessionExpired");
+    }
+    // Earlier file 1 was cleaned up so no partial documents are left
+    expect(repository.documents).toHaveLength(0);
+    expect(blobStore.keys()).toHaveLength(0);
+    expect(enqueuedJobs).toHaveLength(0);
+    expect(auditEvents).toHaveLength(0);
+  });
 });

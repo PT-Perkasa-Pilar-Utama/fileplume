@@ -23,6 +23,7 @@ import { createTenancyService, inMemoryTenancyRepository } from "@archiva/tenanc
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
 import { createActivityAuditAdapter } from "../adapters/activity-audit-adapter.ts";
+import { createIdentitySessionAdapter } from "../adapters/identity-session-adapter.ts";
 import { nullJobQueue } from "../adapters/null-job-queue.ts";
 import { createTenancyQuotaAdapter } from "../adapters/tenancy-quota-adapter.ts";
 import { createApp } from "../app.ts";
@@ -184,12 +185,14 @@ export type TestAppOptions = {
   probes?: DependencyProbe[];
   resetRunner?: ResetRunner;
   tenancyRepository?: TenancyRepository;
+  identityRepository?: ReturnType<typeof inMemoryIdentityRepository>;
 };
 
 export type TestApp = OpenAPIHono<AppEnv> & {
   activityRepository: InMemoryActivityRepository;
   catalogRepository: ReturnType<typeof inMemoryCatalogRepository>;
   blobStore: ReturnType<typeof inMemoryBlobStore>;
+  identityRepository: ReturnType<typeof inMemoryIdentityRepository>;
 };
 
 /** A fresh app per call, so limiter windows never leak between tests. */
@@ -218,14 +221,17 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
       }),
     clock,
   });
-  const identity = createIdentityService({
-    repository: inMemoryIdentityRepository(
+  const identityRepository =
+    options?.identityRepository ??
+    inMemoryIdentityRepository(
       {
         users: TEST_USERS,
         sessions,
       },
       { clock },
-    ),
+    );
+  const identity = createIdentityService({
+    repository: identityRepository,
     hasher: {
       verify: async (pwd, hash) => hash === `hash-${pwd}` || pwd === "x",
       hash: async (pwd) => `hash-${pwd}`,
@@ -248,6 +254,7 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     quota: createTenancyQuotaAdapter(tenancy),
     queue: nullJobQueue,
     audit: createActivityAuditAdapter(activity),
+    session: createIdentitySessionAdapter(identity),
   });
 
   const app = createApp(config, {
@@ -260,7 +267,12 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     resetRunner: options?.resetRunner,
   });
 
-  return Object.assign(app, { activityRepository, catalogRepository, blobStore });
+  return Object.assign(app, {
+    activityRepository,
+    catalogRepository,
+    blobStore,
+    identityRepository,
+  });
 }
 
 type RequestOptions = {

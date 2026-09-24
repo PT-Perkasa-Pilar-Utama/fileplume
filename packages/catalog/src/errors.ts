@@ -10,3 +10,4 @@ export type NotFound = { kind: "NotFound" };
 export type DownloadForbidden = { kind: "DownloadForbidden" };
 export type TooManySelected = { kind: "TooManySelected" };
 export type PreviewUnavailable = { kind: "PreviewUnavailable" };
+export type SessionExpired = { kind: "SessionExpired" };

@@ -165,6 +165,39 @@ describe("single upload", () => {
     expect(res2.error).toEqual({ kind: "DuplicateContent", existingDocumentId: res1.value.id });
     expect(repository.documents).toHaveLength(1);
   });
+
+  test("AC-01.08: session expired before commit releases quota, deletes blob, and stores nothing", async () => {
+    // api-specs/02-authentication.md 2.5: session resolved before first byte and again before commit.
+    const {
+      service,
+      repository,
+      blobStore,
+      committedReservations,
+      releasedReservations,
+      enqueuedJobs,
+      auditEvents,
+    } = createTestHarness({ sessionValid: false });
+    const file = pdfStream("laporan keuangan");
+
+    const res = await service.upload({
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "laporan.pdf",
+      stream: file.stream,
+      sizeBytes: file.sizeBytes,
+      sessionToken: "expired-token",
+    });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.error.kind).toBe("SessionExpired");
+    expect(repository.documents).toHaveLength(0);
+    expect(blobStore.keys()).toHaveLength(0);
+    expect(committedReservations).toHaveLength(0);
+    expect(releasedReservations).toHaveLength(1);
+    expect(enqueuedJobs).toHaveLength(0);
+    expect(auditEvents).toHaveLength(0);
+  });
 });
 
 describe("upload error mapping", () => {

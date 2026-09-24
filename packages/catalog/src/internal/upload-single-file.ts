@@ -1,6 +1,6 @@
 import type { TenantId, UserId } from "@archiva/shared";
 import { asDocumentId, asVersionId, ERROR_MESSAGES, formatErrorMessage } from "@archiva/shared";
-import type { AuditPort, BlobStore, JobQueue, QuotaPort } from "../ports.ts";
+import type { BlobStore, QuotaPort, QuotaReservationToken, SessionPort } from "../ports.ts";
 import type { CatalogRepository } from "../repository.ts";
 import type {
   UploadAcceptedResult,
@@ -13,12 +13,23 @@ import { sniffType } from "./sniff-type.ts";
 /** Header window for magic-byte sniffing. DOCX/XLSX markers sit kilobytes deep. */
 const SNIFF_LIMIT_BYTES = 65536;
 
+export type SingleUploadAccepted = UploadAcceptedResult & {
+  blobKey: string;
+  reservation: QuotaReservationToken;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+export type SingleUploadOutcome =
+  | SingleUploadAccepted
+  | UploadRejectedResult
+  | { status: "session_expired" };
+
 export type UploadSingleFileDeps = {
   repository: CatalogRepository;
   blobStore: BlobStore;
   quota: QuotaPort;
-  queue: JobQueue;
-  audit: AuditPort;
+  session?: SessionPort;
 };
 
 /**
@@ -71,7 +82,8 @@ export async function uploadSingleFile(
   item: UploadSingleFileItem,
   index: number,
   deps: UploadSingleFileDeps,
-): Promise<UploadAcceptedResult | UploadRejectedResult> {
+  sessionToken?: string,
+): Promise<SingleUploadOutcome> {
   const [sniffStream, blobStream] = item.stream.tee();
   const header = await readHeader(sniffStream);
 
@@ -115,6 +127,21 @@ export async function uploadSingleFile(
     throw blobErr;
   }
 
+  // AC-01.08, api-specs/02-authentication.md 2.5, 05-documents.md 5.2:
+  // Session resolved before the first byte and again before commit, so an
+  // expiring session leaves nothing behind.
+  const token = item.sessionToken ?? sessionToken;
+  if (token !== undefined && deps.session !== undefined) {
+    const isLive = await deps.session.validateSession(token);
+    if (!isLive) {
+      // Best-effort compensation: the primary outcome is session_expired, so
+      // a failing delete or release must not mask it. Leftovers are reclaimed
+      // by the reservation sweeper and orphan-blob collection, never surfaced.
+      await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]);
+      return { status: "session_expired" };
+    }
+  }
+
   const insertResult = await deps.repository.insertDocumentWithVersion(tenantId, {
     documentId,
     versionId,
@@ -127,8 +154,9 @@ export async function uploadSingleFile(
   });
 
   if (!insertResult.ok) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
+    // Best-effort compensation for the losing writer: DUPLICATE_CONTENT is the
+    // primary outcome, so cleanup failures must not mask it. AC-03.04.
+    await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]);
     const duplicate = insertResult.error;
     return rejected(index, item.filename, {
       code: "DUPLICATE_CONTENT",
@@ -141,26 +169,16 @@ export async function uploadSingleFile(
   // so route-level streaming never drifts quota.
   await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
 
-  await deps.queue.enqueue(documentId);
-
-  await deps.audit.record({
-    tenantId,
-    actorId: uploaderId,
-    action: "document.upload",
-    subjectType: "document",
-    subjectId: documentId,
-    outcome: "allowed",
-    metadata: {
-      filename: item.filename,
-      sizeBytes: blobOutcome.sizeBytes,
-      mimeType: sniffResult.mimeType,
-    },
-  });
-
+  // No enqueue or audit here: both are irreversible, so uploadBatch emits them
+  // only after every file in the batch has passed the session check. AC-01.08.
   return {
     index,
     filename: item.filename,
     status: "accepted",
+    blobKey: key,
+    reservation,
+    mimeType: sniffResult.mimeType,
+    sizeBytes: blobOutcome.sizeBytes,
     document: {
       id: documentId,
       title: item.filename,

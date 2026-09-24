@@ -1,8 +1,10 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
+import { SESSION_COOKIE_NAME } from "@archiva/identity";
 import { AppError, one } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
 import type { Context } from "hono";
+import { getCookie } from "hono/cookie";
 import type { AppEnv } from "../middleware/context.ts";
 import { fail } from "../middleware/errors.ts";
 import { requireRole } from "../middleware/guards.ts";
@@ -170,8 +172,12 @@ export function createDocumentRoutes(
       return fail(c, "BATCH_TOO_LARGE");
     }
 
-    const result = await catalog.uploadBatch(tenant.id, principal.userId, items);
+    const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
+    const result = await catalog.uploadBatch(tenant.id, principal.userId, items, sessionToken);
     if (!result.ok) {
+      if (result.error.kind === "SessionExpired") {
+        return fail(c, "SESSION_EXPIRED");
+      }
       return fail(c, "BATCH_TOO_LARGE");
     }
 

@@ -1,7 +1,14 @@
 import type { DocumentId, ErrorCode, Result, TenantId, UserId, VersionId } from "@archiva/shared";
-import { asDocumentId, err, ok } from "@archiva/shared";
+import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import { buildBatchSummary } from "./internal/batch-summary.ts";
+import { mapUploadFailure } from "./internal/map-upload-failure.ts";
+import {
+  ACCEPTED_MIME,
+  isAcceptedType,
+  MAX_BATCH,
+  MAX_BULK_DOWNLOAD,
+} from "./internal/mime-types.ts";
 import { type UploadSingleFileDeps, uploadSingleFile } from "./internal/upload-single-file.ts";
 import type {
   AuditPort,
@@ -10,23 +17,12 @@ import type {
   DocumentConverter,
   JobQueue,
   QuotaPort,
+  QuotaReservationToken,
+  SessionPort,
 } from "./ports.ts";
 import type { CatalogRepository } from "./repository.ts";
 
-export const MAX_BATCH = 20;
-export const MAX_BULK_DOWNLOAD = 50;
-
-export const ACCEPTED_MIME = [
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-] as const;
-
-/** Decided by magic-byte sniffing upstream, never by the extension. */
-export function isAcceptedType(mimeType: string): boolean {
-  return ACCEPTED_MIME.some((accepted) => accepted === mimeType);
-}
+export { ACCEPTED_MIME, isAcceptedType, MAX_BATCH, MAX_BULK_DOWNLOAD };
 
 export type UploadInput = {
   tenantId: TenantId;
@@ -34,12 +30,14 @@ export type UploadInput = {
   filename: string;
   stream: ReadableStream;
   sizeBytes: number;
+  sessionToken?: string;
 };
 
 export type UploadSingleFileItem = {
   filename: string;
   stream: ReadableStream;
   sizeBytes: number;
+  sessionToken?: string;
 };
 
 export type DocumentRecord = {
@@ -94,15 +92,17 @@ export type CatalogServiceDeps = {
   quota: QuotaPort;
   queue: JobQueue;
   audit: AuditPort;
+  session?: SessionPort;
 };
 
 export interface CatalogService {
-  upload(input: UploadInput): Promise<Result<DocumentRecord, UploadFailure>>;
+  upload(input: UploadInput): Promise<Result<DocumentRecord, UploadFailure | E.SessionExpired>>;
   uploadBatch(
     tenantId: TenantId,
     uploaderId: UserId,
     items: UploadSingleFileItem[],
-  ): Promise<Result<UploadBatchOutcome, E.BatchTooLarge>>;
+    sessionToken?: string,
+  ): Promise<Result<UploadBatchOutcome, E.BatchTooLarge | E.SessionExpired>>;
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
@@ -129,16 +129,30 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     repository: deps.repository,
     blobStore: deps.blobStore,
     quota: deps.quota,
-    queue: deps.queue,
-    audit: deps.audit,
+    session: deps.session,
   };
 
   return {
     async upload(input) {
-      const batchResult = await this.uploadBatch(input.tenantId, input.uploaderId, [
-        { filename: input.filename, stream: input.stream, sizeBytes: input.sizeBytes },
-      ]);
-      if (!batchResult.ok) return err({ kind: "BatchTooLarge" });
+      const batchResult = await this.uploadBatch(
+        input.tenantId,
+        input.uploaderId,
+        [
+          {
+            filename: input.filename,
+            stream: input.stream,
+            sizeBytes: input.sizeBytes,
+            sessionToken: input.sessionToken,
+          },
+        ],
+        input.sessionToken,
+      );
+      if (!batchResult.ok) {
+        if (batchResult.error.kind === "SessionExpired") {
+          return err({ kind: "SessionExpired" });
+        }
+        return err({ kind: "BatchTooLarge" });
+      }
       const first = batchResult.value.results[0];
       if (!first) throw new Error("uploadBatch returned no result for a single item");
 
@@ -150,33 +164,23 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
         });
       }
 
-      switch (first.error.code) {
-        case "UNSUPPORTED_TYPE":
-          return err({ kind: "UnsupportedType" });
-        case "FILE_TOO_LARGE": {
-          const limitMb = await deps.quota.getMaxFileSizeMb(input.tenantId);
-          return err({ kind: "TooLarge", limitMb });
-        }
-        case "QUOTA_EXCEEDED":
-          return err({ kind: "QuotaExceeded" });
-        case "DUPLICATE_CONTENT":
-          return err({
-            kind: "DuplicateContent",
-            ...(first.error.existingDocumentId
-              ? { existingDocumentId: asDocumentId(first.error.existingDocumentId) }
-              : {}),
-          });
-        default:
-          throw new Error(`unmapped upload failure code: ${first.error.code}`);
-      }
+      return await mapUploadFailure(first, input.tenantId, deps.quota);
     },
 
-    async uploadBatch(tenantId, uploaderId, items) {
+    async uploadBatch(tenantId, uploaderId, items, sessionToken) {
       if (items.length > MAX_BATCH) {
         return err({ kind: "BatchTooLarge" });
       }
 
       const results: Array<UploadAcceptedResult | UploadRejectedResult> = [];
+      const createdDocuments: Array<{
+        id: DocumentId;
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+        blobKey: string;
+        reservation: QuotaReservationToken;
+      }> = [];
       let accepted = 0;
       let rejected = 0;
 
@@ -184,13 +188,65 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (!item) continue;
-        const outcome = await uploadSingleFile(tenantId, uploaderId, item, i, singleDeps);
+        const outcome = await uploadSingleFile(
+          tenantId,
+          uploaderId,
+          item,
+          i,
+          singleDeps,
+          sessionToken,
+        );
+        if (outcome.status === "session_expired") {
+          // Nothing irreversible has been emitted yet: enqueue and audit wait
+          // until the whole batch passes, so rollback only removes rows,
+          // blobs, and reservations. AC-01.08 leaves no orphan job behind.
+          // Best-effort: the primary outcome is SessionExpired, so a failing
+          // delete or release must not mask it.
+          for (const doc of createdDocuments) {
+            await Promise.allSettled([
+              deps.repository.deleteDocument(tenantId, doc.id),
+              deps.blobStore.delete(doc.blobKey),
+              deps.quota.releaseQuota(doc.reservation),
+            ]);
+          }
+          return err({ kind: "SessionExpired" });
+        }
         if (outcome.status === "accepted") {
           accepted++;
+          createdDocuments.push({
+            id: outcome.document.id,
+            filename: outcome.filename,
+            mimeType: outcome.mimeType,
+            sizeBytes: outcome.sizeBytes,
+            blobKey: outcome.blobKey,
+            reservation: outcome.reservation,
+          });
+          results.push({
+            index: outcome.index,
+            filename: outcome.filename,
+            status: "accepted",
+            document: outcome.document,
+          });
         } else {
           rejected++;
+          results.push(outcome);
         }
-        results.push(outcome);
+      }
+
+      // Irreversible side effects fire once, in order, after the batch is
+      // known good. A later session expiry therefore never leaves an orphan
+      // queue job or audit event for a deleted document. AC-01.08.
+      for (const doc of createdDocuments) {
+        await deps.queue.enqueue(doc.id);
+        await deps.audit.record({
+          tenantId,
+          actorId: uploaderId,
+          action: "document.upload",
+          subjectType: "document",
+          subjectId: doc.id,
+          outcome: "allowed",
+          metadata: { filename: doc.filename, sizeBytes: doc.sizeBytes, mimeType: doc.mimeType },
+        });
       }
 
       return ok({

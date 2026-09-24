@@ -1,5 +1,11 @@
 import { asTenantId, asUserId, ok } from "@archiva/shared";
-import type { AuditPort, JobQueue, QuotaPort, QuotaReservationToken } from "../ports.ts";
+import type {
+  AuditPort,
+  JobQueue,
+  QuotaPort,
+  QuotaReservationToken,
+  SessionPort,
+} from "../ports.ts";
 import { createCatalogService } from "../service.ts";
 import { inMemoryBlobStore } from "./in-memory-blob-store.ts";
 import { inMemoryCatalogRepository } from "./in-memory-repository.ts";
@@ -60,6 +66,8 @@ export function createTestHarness(options?: {
   maxFileSizeMb?: number;
   quotaAvailable?: boolean;
   quotaBytes?: number;
+  sessionValid?: boolean;
+  session?: SessionPort;
 }) {
   const repository = inMemoryCatalogRepository();
   const blobStore = inMemoryBlobStore();
@@ -116,6 +124,12 @@ export function createTestHarness(options?: {
     },
   };
 
+  const session: SessionPort = options?.session ?? {
+    async validateSession() {
+      return options?.sessionValid ?? true;
+    },
+  };
+
   const service = createCatalogService({
     repository,
     blobStore,
@@ -123,6 +137,7 @@ export function createTestHarness(options?: {
     quota,
     queue,
     audit,
+    session,
   });
 
   return {
@@ -133,5 +148,6 @@ export function createTestHarness(options?: {
     releasedReservations,
     enqueuedJobs,
     auditEvents,
+    session,
   };
 }

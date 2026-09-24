@@ -20,7 +20,7 @@
     "@archiva/shared": "workspace:*",
     "@archiva/tenancy": "workspace:*",
     "@hono/zod-openapi": "1.6.3",
-    "hono": "4.13.7",
+    "hono": "4.13.8",
     "hono-rate-limiter": "0.5.4",
     "zod": "4.6.2"
   }

@@ -23,7 +23,7 @@ export interface VersionPickerProps {
 
 /**
  * Dropdown version picker listing every document version newest first (AC-21.02).
- * Allows switching the active version for preview and download.
+ * Styled as a pill badge trigger matching Figma screen 28:3451.
  */
 export function VersionPicker({
   versions,
@@ -45,16 +45,16 @@ export function VersionPicker({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-1.5 text-xs font-medium"
+          className="h-6 rounded-full px-2.5 py-0.5 text-xs font-medium gap-1.5 border-border bg-background hover:bg-muted text-foreground transition-colors shadow-2xs"
           data-testid="version-picker-trigger"
           aria-label={`Pilih versi dokumen, saat ini ${activeLabel}`}
         >
           <span>{activeLabel}</span>
-          <ChevronDown className="size-3.5 text-muted-foreground" />
+          <ChevronDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+      <DropdownMenuContent align="end" className="w-48 rounded-xl p-1 shadow-md">
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-medium px-2 py-1.5">
           Riwayat Versi
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -68,14 +68,14 @@ export function VersionPicker({
               data-testid={`version-item-${version.id}`}
               onClick={() => onSelectVersion(version)}
               className={cn(
-                "flex items-center justify-between text-xs py-1.5",
+                "flex items-center justify-between text-xs px-2 py-1.5 rounded-lg cursor-pointer",
                 isSelected && "font-semibold bg-muted",
               )}
             >
               <div className="flex items-center gap-1.5">
                 <span>{versionLabel}</span>
                 {version.isCurrent && (
-                  <span className="rounded bg-secondary px-1 text-[10px] text-muted-foreground font-normal">
+                  <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground font-normal">
                     terbaru
                   </span>
                 )}

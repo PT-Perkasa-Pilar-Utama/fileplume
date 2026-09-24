@@ -16,24 +16,29 @@ export interface DocumentExtractedFieldsPanelProps {
 
 /**
  * Extracted fields panel in document detail view (AC-38.02).
- * Stubbed region for Sprint 3 (FE-S3-04).
+ * Stubbed region for Sprint 3 (FE-S3-04), styled after Figma screen 28:3451.
  */
 export function DocumentExtractedFieldsPanel({
   document,
 }: DocumentExtractedFieldsPanelProps): JSX.Element {
   return (
-    <Card data-testid="document-extracted-fields-region" className="shadow-xs">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">Bidang Terekstraksi</CardTitle>
-        <CardDescription className="text-xs">
-          Informasi yang diekstraksi secara otomatis dari isi dokumen
+    <Card
+      data-testid="document-extracted-fields-region"
+      className="shadow-xs rounded-xl border border-border bg-card"
+    >
+      <CardHeader className="p-6 pb-4">
+        <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
+          EXTRACTED FIELD
+        </CardTitle>
+        <CardDescription className="text-sm font-normal text-muted-foreground">
+          Show your field extracted from the document
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-1">
-        <div className="space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Tipe Dokumen</span>
+      <CardContent className="p-6 pt-0 space-y-4">
+        <div className="flex items-center justify-between gap-4 py-2 border-b border-border/50">
+          <span className="text-sm font-normal text-muted-foreground shrink-0">Tipe Dokumen</span>
           <p
-            className="text-sm font-medium text-foreground"
+            className="text-sm font-medium text-foreground text-right"
             data-testid="extracted-field-document-type"
           >
             {document.documentType ?? "Belum teridentifikasi"}

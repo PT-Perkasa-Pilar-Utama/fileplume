@@ -20,7 +20,7 @@ export interface DocumentMetadataPanelProps {
 
 /**
  * Metadata panel in document detail view (AC-38.02, AC-21.02).
- * Displays document properties and version selector.
+ * Displays document properties and version selector aligned with Figma 28:3451.
  */
 export function DocumentMetadataPanel({
   document,
@@ -32,63 +32,109 @@ export function DocumentMetadataPanel({
   const authorDisplay = document.metadata?.author ?? "Tidak diketahui";
 
   return (
-    <Card data-testid="document-metadata-region" className="shadow-xs">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">Metadata</CardTitle>
-        <CardDescription className="text-xs">
-          Informasi properti dan riwayat versi dokumen
+    <Card
+      data-testid="document-metadata-region"
+      className="shadow-xs rounded-xl border border-border bg-card"
+    >
+      <CardHeader className="p-6 pb-4">
+        <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
+          METADATA
+        </CardTitle>
+        <CardDescription className="text-sm font-normal text-muted-foreground">
+          Show your metadata of selected document
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 pt-1">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Judul</span>
+      <CardContent className="p-6 pt-0 space-y-3">
+        <div className="flex flex-col divide-y divide-border/50">
+          <div className="flex items-center justify-between gap-4 py-2.5 first:pt-0">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Judul</span>
             <p
-              className="text-sm font-medium text-foreground break-words"
+              className="text-sm font-medium text-foreground truncate max-w-[200px] text-right"
               data-testid="metadata-title"
+              title={document.title}
             >
               {document.title}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Kategori</span>
-            <p className="text-sm text-foreground" data-testid="metadata-category">
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Kategori</span>
+            <p
+              className="text-sm font-medium text-foreground truncate max-w-[200px] text-right"
+              data-testid="metadata-category"
+            >
               {document.category?.name ?? "Tanpa Kategori"}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Pengunggah</span>
-            <p className="text-sm text-foreground" data-testid="metadata-uploader">
-              {document.uploader.name}
-            </p>
+          <div className="flex items-start justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0 pt-0.5">Tag</span>
+            <div className="flex flex-wrap gap-1.5 justify-end" data-testid="metadata-tags">
+              {document.tags.length > 0 ? (
+                document.tags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="h-5 px-2 text-2xs font-medium uppercase tracking-wider"
+                  >
+                    {tag}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">Tidak ada tag</span>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Pembuat (Penulis)</span>
-            <p className="text-sm text-foreground" data-testid="metadata-author">
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">
+              Pembuat (Penulis)
+            </span>
+            <p
+              className="text-sm font-medium text-foreground truncate max-w-[200px] text-right"
+              data-testid="metadata-author"
+            >
               {authorDisplay}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Tanggal Unggah</span>
-            <p className="text-sm text-foreground" data-testid="metadata-date">
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Pengunggah</span>
+            <p
+              className="text-sm font-medium text-foreground truncate max-w-[200px] text-right"
+              data-testid="metadata-uploader"
+            >
+              {document.uploader.name}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">
+              Tanggal Unggah
+            </span>
+            <p
+              className="text-sm font-medium text-foreground text-right"
+              data-testid="metadata-date"
+            >
               {formatDocumentDate(document.createdAt)}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Ukuran File</span>
-            <p className="text-sm text-foreground" data-testid="metadata-size">
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Ukuran File</span>
+            <p
+              className="text-sm font-medium text-foreground text-right"
+              data-testid="metadata-size"
+            >
               {formatBytes(activeVersion.sizeBytes)}
             </p>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Versi Aktif</span>
-            <div className="pt-0.5">
+          <div className="flex items-center justify-between gap-4 py-2.5">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">
+              Versi Dokumen
+            </span>
+            <div>
               <VersionPicker
                 versions={document.versions}
                 activeVersionId={activeVersion.id}
@@ -98,27 +144,14 @@ export function DocumentMetadataPanel({
             </div>
           </div>
 
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">Status Pemrosesan</span>
-            <div className="pt-0.5">
+          <div className="flex items-center justify-between gap-4 py-2.5 last:pb-0">
+            <span className="text-sm font-normal text-muted-foreground shrink-0">
+              Status Pemrosesan
+            </span>
+            <div>
               <Badge variant="secondary" data-testid="metadata-status">
                 {document.processingLabel}
               </Badge>
-            </div>
-          </div>
-
-          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-            <span className="text-xs font-medium text-muted-foreground">Tag</span>
-            <div className="flex flex-wrap gap-1.5 pt-0.5" data-testid="metadata-tags">
-              {document.tags.length > 0 ? (
-                document.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-[11px] font-normal">
-                    {tag}
-                  </Badge>
-                ))
-              ) : (
-                <span className="text-xs text-muted-foreground">Tidak ada tag</span>
-              )}
             </div>
           </div>
         </div>

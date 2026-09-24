@@ -1,9 +1,10 @@
 import { EMPTY_STATE } from "@archiva/shared";
 import { Link, useParams } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft, FileX, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronRight, FileX, Loader2 } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
 import { buttonVariants } from "../../components/ui/button.tsx";
+import { EmptyState } from "../../components/ui/empty-state.tsx";
 import { ApiError } from "../../lib/api.ts";
 import { DocumentExtractedFieldsPanel } from "./internal/document-extracted-fields-panel.tsx";
 import { DocumentMetadataPanel } from "./internal/document-metadata-panel.tsx";
@@ -17,7 +18,7 @@ export interface DocumentDetailViewProps {
 /**
  * Document detail route shell (AC-38.02, AC-21.02).
  * Displays metadata region, extracted-fields region, and preview region
- * with version picker and download capabilities.
+ * with version picker and download capabilities, aligned with Figma screen 28:3451.
  */
 export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {}): JSX.Element {
   const params = useParams({ strict: false }) as { id?: string };
@@ -51,7 +52,7 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
     );
   }
 
-  // Not found or error state
+  // Not found or error state using EmptyState primitive
   if (isError || !document || !activeVersion) {
     const isNotFound =
       !document ||
@@ -59,48 +60,47 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
       error?.message === EMPTY_STATE.DOCUMENT_NOT_FOUND;
 
     return (
-      <div
-        data-testid="document-detail-error"
-        className="flex min-h-[400px] flex-col items-center justify-center space-y-4 text-center p-6"
-      >
-        <div className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <FileX className="size-7" />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-foreground">
-            {isNotFound ? EMPTY_STATE.DOCUMENT_NOT_FOUND : "Gagal Memuat Dokumen"}
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-md">
-            {isNotFound
+      <div data-testid="document-detail-error" className="py-12">
+        <EmptyState
+          variant="borderless"
+          icon={FileX}
+          title={isNotFound ? EMPTY_STATE.DOCUMENT_NOT_FOUND : "Gagal Memuat Dokumen"}
+          description={
+            isNotFound
               ? "Dokumen yang Anda cari tidak ditemukan atau telah dihapus."
-              : (error?.message ?? "Terjadi kesalahan saat memuat dokumen.")}
-          </p>
-        </div>
-        <Link to="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
-          <ArrowLeft className="mr-1.5 size-4" />
-          Kembali ke Dasbor
-        </Link>
+              : (error?.message ?? "Terjadi kesalahan saat memuat dokumen.")
+          }
+          action={
+            <Link to="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <ArrowLeft className="mr-1.5 size-4" />
+              Kembali ke Dasbor
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div data-testid="document-detail-shell" className="space-y-4">
-      {/* Breadcrumb & Navigation */}
+    <div data-testid="document-detail-shell" className="space-y-6">
+      {/* Breadcrumb & Navigation matching Figma document management / detail */}
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+        >
           <Link
             to="/dashboard"
-            className="hover:text-foreground transition-colors flex items-center gap-1"
+            className="hover:text-foreground transition-colors flex items-center gap-1 font-medium"
           >
             <ArrowLeft className="size-3.5" />
             <span>Dasbor</span>
           </Link>
-          <span>/</span>
-          <span className="text-foreground font-medium truncate max-w-[240px] sm:max-w-md">
+          <ChevronRight className="size-3.5 text-muted-foreground/60 shrink-0" />
+          <span className="text-foreground font-medium truncate max-w-[200px] sm:max-w-md">
             {document.title}
           </span>
-        </div>
+        </nav>
       </div>
 
       {/* Download error alert */}
@@ -111,10 +111,24 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
         </Alert>
       )}
 
-      {/* Document Detail 2-column grid: Preview + Metadata / Extracted Fields */}
+      {/* Document Detail 2-column layout matching Figma 28:3451:
+          Left: Metadata (360px) + Extracted Fields
+          Right: Document Preview (814px) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        {/* Preview Region (Left, 7 or 8 columns on large screens) */}
-        <div className="lg:col-span-7 xl:col-span-8">
+        {/* Left Column: Metadata & Extracted Fields Regions */}
+        <div className="space-y-6 lg:col-span-5 xl:col-span-4 order-2 lg:order-1">
+          <DocumentMetadataPanel
+            document={document}
+            activeVersion={activeVersion}
+            onSelectVersion={selectVersion}
+            isVersionSwitching={isLoadingPreview}
+          />
+
+          <DocumentExtractedFieldsPanel document={document} />
+        </div>
+
+        {/* Right Column: Preview Region */}
+        <div className="lg:col-span-7 xl:col-span-8 order-1 lg:order-2">
           <DocumentPreviewPanel
             document={document}
             activeVersion={activeVersion}
@@ -124,18 +138,6 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
             isDownloading={isDownloading}
             onDownload={handleDownload}
           />
-        </div>
-
-        {/* Metadata & Extracted Fields Regions (Right, 5 or 4 columns) */}
-        <div className="space-y-6 lg:col-span-5 xl:col-span-4">
-          <DocumentMetadataPanel
-            document={document}
-            activeVersion={activeVersion}
-            onSelectVersion={selectVersion}
-            isVersionSwitching={isLoadingPreview}
-          />
-
-          <DocumentExtractedFieldsPanel document={document} />
         </div>
       </div>
     </div>

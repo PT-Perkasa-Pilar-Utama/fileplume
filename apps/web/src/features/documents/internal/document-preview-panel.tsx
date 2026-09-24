@@ -4,7 +4,13 @@ import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../../components/ui/alert.tsx";
 import { Badge } from "../../../components/ui/badge.tsx";
 import { Button } from "../../../components/ui/button.tsx";
-import { Card, CardContent, CardHeader } from "../../../components/ui/card.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card.tsx";
 import type { ApiError } from "../../../lib/api.ts";
 
 export interface DocumentPreviewPanelProps {
@@ -19,7 +25,7 @@ export interface DocumentPreviewPanelProps {
 
 /**
  * Preview panel with viewer and download button (AC-38.02, AC-21.02).
- * Allows viewing PDF document preview and downloading the selected version.
+ * Styled after Figma screen 28:3451 with exact toolbar and dark canvas.
  */
 export function DocumentPreviewPanel({
   document,
@@ -31,27 +37,22 @@ export function DocumentPreviewPanel({
   onDownload,
 }: DocumentPreviewPanelProps): JSX.Element {
   const versionLabel = `v${activeVersion.versionNumber}`;
+  const totalPages = activeVersion.pageCount ?? 1;
 
   return (
-    <Card data-testid="document-preview-region" className="flex flex-col shadow-xs">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border py-3 px-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText className="size-4 text-muted-foreground shrink-0" />
-          <span className="truncate text-sm font-medium text-foreground">
-            {activeVersion.filename || document.title}
-          </span>
-          <Badge
-            variant="secondary"
-            className="text-[11px] font-normal"
-            data-testid="preview-version-badge"
-          >
-            {versionLabel}
-          </Badge>
-          {activeVersion.pageCount !== null && (
-            <span className="hidden sm:inline text-xs text-muted-foreground">
-              {`${activeVersion.pageCount} Halaman`}
-            </span>
-          )}
+    <Card
+      data-testid="document-preview-region"
+      className="flex flex-col shadow-xs rounded-xl border border-border bg-card"
+    >
+      {/* Figma Card Header: Title + Subtitle on Left, Download Button on Right */}
+      <CardHeader className="p-6 pb-4 flex flex-row items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
+            DOCUMENT PREVIEW
+          </CardTitle>
+          <CardDescription className="text-sm font-normal text-muted-foreground truncate">
+            Displays a live visual preview of the active document.
+          </CardDescription>
         </div>
 
         {/* AC-21.02: Tombol "Download" mengunduh file versi aktif */}
@@ -61,7 +62,7 @@ export function DocumentPreviewPanel({
           onClick={onDownload}
           disabled={isDownloading || !document.downloadAllowed}
           data-testid="download-button"
-          className="gap-1.5 text-xs h-8"
+          className="h-8 gap-1.5 px-3 text-xs font-medium shrink-0"
         >
           {isDownloading ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -72,43 +73,76 @@ export function DocumentPreviewPanel({
         </Button>
       </CardHeader>
 
-      <CardContent className="p-4 flex-1">
+      <CardContent className="p-6 pt-0 flex-1">
+        {/* Figma Preview Container with Toolbar + Canvas */}
         <div
           data-testid="document-preview-viewer"
-          className="relative min-h-[500px] w-full flex items-center justify-center rounded-lg border border-border bg-muted/10 overflow-hidden"
+          className="rounded-lg border border-border overflow-hidden bg-card flex flex-col"
         >
-          {isLoadingPreview && (
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <Loader2 className="size-6 animate-spin text-primary" />
-              <span className="text-xs">Memuat pratinjau...</span>
+          {/* Toolbar */}
+          <div className="bg-muted/80 border-b border-border px-4 py-2.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="size-4 text-muted-foreground shrink-0" />
+              <span className="truncate text-sm font-medium text-foreground max-w-[180px] sm:max-w-md">
+                {activeVersion.filename || document.title}
+              </span>
+              <Badge
+                variant="secondary"
+                className="h-5 px-2 text-2xs font-normal shrink-0"
+                data-testid="preview-version-badge"
+              >
+                {versionLabel}
+              </Badge>
             </div>
-          )}
 
-          {!isLoadingPreview && previewError && (
-            <div className="p-6 max-w-md w-full">
-              <Alert variant="warning" data-testid="preview-error-alert">
-                <AlertCircle className="size-4" />
-                <AlertDescription className="text-xs">
-                  {previewError.code === "PREVIEW_UNAVAILABLE"
-                    ? ERROR_MESSAGES.PREVIEW_UNAVAILABLE
-                    : previewError.message}
-                </AlertDescription>
-              </Alert>
+            {/* Page Count Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="inline-flex h-7 items-center justify-center rounded-md border border-border bg-card px-2.5 text-xs font-medium text-foreground shadow-2xs">
+                <span>{`1 / ${totalPages}`}</span>
+              </div>
+              {activeVersion.pageCount !== null && (
+                <span className="hidden sm:inline text-xs text-muted-foreground">
+                  {`${activeVersion.pageCount} Halaman`}
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
-          {!isLoadingPreview && !previewError && previewUrl && (
-            <iframe
-              src={previewUrl}
-              title={`Pratinjau ${document.title} - ${versionLabel}`}
-              className="h-[600px] w-full rounded-md border-0"
-              data-testid="preview-iframe"
-            />
-          )}
+          {/* Canvas (Slate background matching Figma rgba(49,65,88,1.00)) */}
+          <div className="bg-[#314158] dark:bg-slate-900 p-4 sm:p-6 min-h-[580px] sm:min-h-[640px] flex items-center justify-center">
+            {isLoadingPreview && (
+              <div className="flex flex-col items-center gap-2 text-slate-200">
+                <Loader2 className="size-7 animate-spin text-primary" />
+                <span className="text-xs">Memuat pratinjau...</span>
+              </div>
+            )}
 
-          {!isLoadingPreview && !previewError && !previewUrl && (
-            <div className="text-xs text-muted-foreground">Tidak ada konten pratinjau</div>
-          )}
+            {!isLoadingPreview && previewError && (
+              <div className="p-4 max-w-md w-full">
+                <Alert variant="warning" data-testid="preview-error-alert">
+                  <AlertCircle className="size-4" />
+                  <AlertDescription className="text-xs">
+                    {previewError.code === "PREVIEW_UNAVAILABLE"
+                      ? ERROR_MESSAGES.PREVIEW_UNAVAILABLE
+                      : previewError.message}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {!isLoadingPreview && !previewError && previewUrl && (
+              <iframe
+                src={previewUrl}
+                title={`Pratinjau ${document.title} - ${versionLabel}`}
+                className="min-h-[540px] sm:min-h-[600px] w-full rounded-md border-0 bg-background shadow-lg"
+                data-testid="preview-iframe"
+              />
+            )}
+
+            {!isLoadingPreview && !previewError && !previewUrl && (
+              <div className="text-xs text-slate-300">Tidak ada konten pratinjau</div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

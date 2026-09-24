@@ -287,7 +287,7 @@ describe("upload batch acceptance criteria", () => {
   });
 
   test("AC-35.04: a slow batch cannot over-allocate past an expired reservation", async () => {
-    // F8 guard: file 1 commits when it lands, so file 2 is refused on
+    // File 1 commits when it lands, so file 2 is refused on
     // committed usage even after the 15-minute TTL passes mid-batch. Under a
     // deferred commit, file 1's reservation would have expired out of the
     // accounting and file 2 would wrongly be accepted. CODING_STANDARD.md 7.3.

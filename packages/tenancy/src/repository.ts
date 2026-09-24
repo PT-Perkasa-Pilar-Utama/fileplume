@@ -2,11 +2,11 @@ import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { Result, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
-import { and, asc, count, desc, eq, gt, gte, ilike, lte, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import type * as E from "./errors.ts";
 import { findConfigEntries, findConfigRow, findConfigValue } from "./internal/config-repository.ts";
 import type { ConfigKey, StoredConfigRow } from "./internal/config-specs.ts";
-import { RESERVATION_TTL_MS } from "./internal/reservation-ttl.ts";
+import * as quotaLedger from "./internal/quota-repository.ts";
 import { isUniqueViolationOn } from "./internal/unique-violation.ts";
 import type {
   ListTenantsSort,
@@ -31,8 +31,9 @@ export interface TenancyRepository {
    * Inverse of a commit, for the batch rollback only. Each reservation commits
    * as soon as its file lands, so a later session expiry must debit committed
    * bytes back rather than release an already-consumed reservation.
-   * Call at most once per committed reservation; anything else is programmer
-   * error and fails loudly on the underflow guard below. AC-01.08, AC-35.04.
+   * Call at most once per committed reservation. A second call is refused by
+   * the underflow guard below and throws; the batch rollback logs that throw
+   * rather than masking its own outcome. AC-01.08, AC-35.04.
    */
   revertCommitReservation(reservation: QuotaReservation): Promise<void>;
   /** Global janitor across tenants, exempt from 8.3. Tenant reads use tryReserve. */
@@ -52,7 +53,7 @@ export interface TenancyRepository {
   }): Promise<{ rows: TenantListed[]; total: number }>;
 }
 
-const { tenants, tenantConfig, quotaReservations, categories, categoryPermissions } = schema;
+const { tenants, tenantConfig, categories, categoryPermissions } = schema;
 
 /**
  * The worked example for every module that follows: Drizzle queries live
@@ -108,90 +109,27 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
     },
 
     async tryReserve(tenantId, bytes, now) {
-      return db.transaction(async (tx) => {
-        const [tenant] = await tx
-          .select({ usedBytes: tenants.storageUsedBytes, quotaBytes: tenants.storageQuotaBytes })
-          .from(tenants)
-          .where(eq(tenants.id, tenantId))
-          .for("update");
-        if (!tenant) return null;
-
-        const [outstanding] = await tx
-          .select({ total: sum(quotaReservations.bytes) })
-          .from(quotaReservations)
-          .where(
-            and(eq(quotaReservations.tenantId, tenantId), gt(quotaReservations.expiresAt, now)),
-          );
-        const outstandingBytes = Number(outstanding?.total ?? 0);
-
-        if (tenant.usedBytes + outstandingBytes + bytes > tenant.quotaBytes) return null;
-
-        const [inserted] = await tx
-          .insert(quotaReservations)
-          .values({
-            tenantId,
-            bytes,
-            expiresAt: new Date(now.getTime() + RESERVATION_TTL_MS),
-          })
-          .returning({ id: quotaReservations.id });
-        if (!inserted) return null;
-
-        return { id: inserted.id, tenantId, bytes };
-      });
+      return quotaLedger.tryReserve(db, tenantId, bytes, now);
     },
 
     async commitReservation(reservation) {
-      await db.transaction(async (tx) => {
-        await tx.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
-        await tx
-          .update(tenants)
-          .set({ storageUsedBytes: sql`${tenants.storageUsedBytes} + ${reservation.bytes}` })
-          .where(eq(tenants.id, reservation.tenantId));
-      });
+      await quotaLedger.commitReservation(db, reservation);
     },
 
     async releaseReservation(reservation) {
-      await db.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
+      await quotaLedger.releaseReservation(db, reservation);
     },
 
     async revertCommitReservation(reservation) {
-      await db.transaction(async (tx) => {
-        // Defensive: the commit already deleted the row, but a retry must not
-        // double-debit, so remove any leftover before touching the counter.
-        await tx.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
-        const [updated] = await tx
-          .update(tenants)
-          .set({ storageUsedBytes: sql`${tenants.storageUsedBytes} - ${reservation.bytes}` })
-          .where(
-            and(
-              eq(tenants.id, reservation.tenantId),
-              gte(tenants.storageUsedBytes, reservation.bytes),
-            ),
-          )
-          .returning({ id: tenants.id });
-        if (!updated) {
-          throw new Error(
-            `revertCommitReservation: tenant ${reservation.tenantId} missing or used bytes below ${reservation.bytes}`,
-          );
-        }
-      });
+      await quotaLedger.revertCommitReservation(db, reservation);
     },
 
     async sweepExpiredReservations(now) {
-      const deleted = await db
-        .delete(quotaReservations)
-        .where(lte(quotaReservations.expiresAt, now))
-        .returning({ id: quotaReservations.id });
-      return deleted.length;
+      return quotaLedger.sweepExpiredReservations(db, now);
     },
 
     async usage(tenantId) {
-      const [row] = await db
-        .select({ usedBytes: tenants.storageUsedBytes, quotaBytes: tenants.storageQuotaBytes })
-        .from(tenants)
-        .where(eq(tenants.id, tenantId));
-      if (!row) throw new Error(`usage: tenant ${tenantId} not found`);
-      return row;
+      return quotaLedger.usage(db, tenantId);
     },
 
     async createTenant(input, actorId) {

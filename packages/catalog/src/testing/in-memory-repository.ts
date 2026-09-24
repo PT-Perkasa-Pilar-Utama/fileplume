@@ -1,37 +1,37 @@
 import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
 import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
+import type { RawDocumentDetail, RawDocumentRow } from "../internal/document-views.ts";
+import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
 import type { CatalogRepository, InsertDocumentInput } from "../repository.ts";
 import type { DocumentRecord } from "../service.ts";
+import { createDefaultFixtures } from "./in-memory-fixtures.ts";
+import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
+import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
 
-type StoredDocument = {
-  id: DocumentId;
-  tenantId: TenantId;
-  title: string;
-  processingState: DocumentRecord["processingState"];
-  currentVersionId: VersionId | null;
-  uploaderId: string;
+export type { StoredDocument, StoredVersion };
+
+export type InMemoryCatalogOptions = {
+  documents?: StoredDocument[];
+  versions?: StoredVersion[];
+  seedFixtures?: boolean;
 };
 
-type StoredVersion = {
-  id: VersionId;
-  tenantId: TenantId;
-  documentId: DocumentId;
-  versionNumber: number;
-  contentHash: string;
-  blobKey: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-  uploadedBy: string;
-};
-
-export function inMemoryCatalogRepository(): CatalogRepository & {
+export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): CatalogRepository & {
   documents: StoredDocument[];
   versions: StoredVersion[];
 } {
-  const documents: StoredDocument[] = [];
-  const versions: StoredVersion[] = [];
+  let initialDocs: StoredDocument[] = options?.documents ? [...options.documents] : [];
+  let initialVers: StoredVersion[] = options?.versions ? [...options.versions] : [];
+
+  if (options?.seedFixtures === true && initialDocs.length === 0) {
+    const fixtures = createDefaultFixtures();
+    initialDocs = fixtures.documents;
+    initialVers = fixtures.versions;
+  }
+
+  const documents: StoredDocument[] = initialDocs;
+  const versions: StoredVersion[] = initialVers;
 
   async function findByContentHash(
     tenantId: TenantId,
@@ -69,8 +69,20 @@ export function inMemoryCatalogRepository(): CatalogRepository & {
         tenantId,
         title: input.filename,
         processingState: "queued",
+        failureReason: null,
         currentVersionId: verId,
         uploaderId: input.uploaderId,
+        uploaderName: "Pengguna",
+        createdAt: new Date(),
+        categoryId: null,
+        categoryName: null,
+        categoryIsSystem: null,
+        categoryConfirmedAt: null,
+        categoryDownloadActive: null,
+        documentType: null,
+        tags: [],
+        author: null,
+        documentCreatedAt: null,
       };
       documents.push(doc);
 
@@ -84,7 +96,10 @@ export function inMemoryCatalogRepository(): CatalogRepository & {
         filename: input.filename,
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
-        uploadedBy: input.uploaderId,
+        pageCount: null,
+        uploadedById: input.uploaderId,
+        uploadedByName: "Pengguna",
+        createdAt: doc.createdAt,
       };
       versions.push(ver);
 
@@ -138,6 +153,50 @@ export function inMemoryCatalogRepository(): CatalogRepository & {
     ): Promise<void> {
       const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
       if (doc) doc.processingState = state;
+    },
+
+    async countTenantDocuments(tenantId: TenantId): Promise<number> {
+      return documents.filter((d) => d.tenantId === tenantId).length;
+    },
+
+    async findDocumentTenant(documentId: DocumentId): Promise<TenantId | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      return doc ? doc.tenantId : null;
+    },
+
+    async listDocuments(
+      tenantId: TenantId,
+      filter: ListDocumentsFilter,
+      viewer: ViewerContext,
+      pendingConfirmationDays: number,
+      now = new Date(),
+    ): Promise<{ rows: RawDocumentRow[]; total: number }> {
+      return filterAndSortDocuments(
+        documents,
+        versions,
+        tenantId,
+        filter,
+        viewer,
+        pendingConfirmationDays,
+        now,
+      );
+    },
+
+    async findDocumentDetail(
+      tenantId: TenantId,
+      documentId: DocumentId,
+      viewer: ViewerContext,
+      pendingConfirmationDays: number,
+      now = new Date(),
+    ): Promise<RawDocumentDetail | { kind: "cross_tenant" } | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      if (!doc) return null;
+
+      if (doc.tenantId !== tenantId) {
+        return { kind: "cross_tenant" };
+      }
+
+      return buildRawDocumentDetail(doc, versions, viewer, pendingConfirmationDays, now);
     },
   };
 }

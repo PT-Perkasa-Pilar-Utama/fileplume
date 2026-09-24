@@ -1,6 +1,20 @@
-import type { DocumentId, ErrorCode, Result, TenantId, UserId, VersionId } from "@archiva/shared";
+import type {
+  DocumentDetailView,
+  DocumentId,
+  Result,
+  TenantId,
+  UserId,
+  VersionId,
+} from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
+import { handleGetDocument } from "./internal/get-document.ts";
+import type { ViewerContext } from "./internal/list-document-query.ts";
+import {
+  handleListDocuments,
+  type ListDocumentsInput,
+  type ListDocumentsResult,
+} from "./internal/list-documents.ts";
 import { MAX_BATCH, MAX_BULK_DOWNLOAD } from "./internal/limits.ts";
 import { mapUploadFailure } from "./internal/map-upload-failure.ts";
 import { ACCEPTED_MIME, isAcceptedType } from "./internal/mime-types.ts";
@@ -63,7 +77,7 @@ export type UploadRejectedResult = {
   filename: string;
   status: "rejected";
   error: {
-    code: ErrorCode;
+    code: string;
     message: string;
     existingDocumentId?: string;
   };
@@ -88,6 +102,8 @@ export type CatalogServiceDeps = {
   session: SessionPort;
 };
 
+export type { ListDocumentsInput, ListDocumentsResult, ViewerContext };
+
 export interface CatalogService {
   upload(input: UploadInput): Promise<Result<DocumentRecord, UploadFailure | E.SessionExpired>>;
   uploadBatch(
@@ -105,10 +121,14 @@ export interface CatalogService {
       E.IdenticalContent | E.NotFound | UploadFailure
     >
   >;
+  listDocuments(input: ListDocumentsInput): Promise<ListDocumentsResult>;
   getDocument(
     tenantId: TenantId,
     documentId: DocumentId,
-  ): Promise<Result<DocumentRecord, E.NotFound>>;
+    viewer: ViewerContext,
+    pendingConfirmationDays?: number,
+    now?: Date,
+  ): Promise<Result<DocumentDetailView, E.NotFound>>;
   openBlob(versionId: VersionId): Promise<ReadableStream>;
   setProcessingState(
     documentId: DocumentId,
@@ -159,8 +179,20 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     addVersion() {
       throw new Error("SCAFFOLD: BE-S2-04");
     },
-    getDocument() {
-      throw new Error("SCAFFOLD: BE-S2-06");
+    listDocuments(input) {
+      return handleListDocuments(deps.repository, input);
+    },
+    getDocument(tenantId, documentId, viewer, pendingConfirmationDays = 7, now) {
+      // viewer is required: no silent super_admin bypass. Every caller states
+      // who is looking so the confirmation-window predicate always applies.
+      return handleGetDocument(
+        deps.repository,
+        tenantId,
+        documentId,
+        viewer,
+        pendingConfirmationDays,
+        now ?? deps.clock.now(),
+      );
     },
     openBlob() {
       throw new Error("SCAFFOLD: BE-S4-06");

@@ -1,11 +1,9 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
 import { SESSION_COOKIE_NAME } from "@archiva/identity";
-import { AppError, one } from "@archiva/shared";
+import { AppError, asDocumentId, hasRoleAtLeast, one } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
-import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
-import type { AppEnv } from "../middleware/context.ts";
 import { fail } from "../middleware/errors.ts";
 import { requireRole } from "../middleware/guards.ts";
 import {
@@ -28,9 +26,9 @@ import {
   uploadDocuments,
   uploadVersion,
 } from "./definitions/documents.ts";
+import { assertDocumentInTenant } from "./internal/assert-document-in-tenant.ts";
 import { collectUploadParts } from "./internal/collect-upload-parts.ts";
 import {
-  isDocumentInTenant,
   listOf,
   MOCK_BULK_TICKET,
   MOCK_CLASSIFIED_DOCUMENT,
@@ -43,37 +41,41 @@ import {
 } from "./mocks.ts";
 import { createRouter } from "./router.ts";
 
-/**
- * 5.5, 5.9: A denied cross-tenant attempt writes an access.denied audit event
- * against the caller's own tenant with { attemptedId: id } in metadata, and
- * returns 404, never 403 (AC-43.03, AC-43.04).
- */
-async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): Promise<void> {
-  const tenant = c.get("tenant");
-  const session = c.get("session");
-  if (!isDocumentInTenant(documentId, tenant?.id ?? null)) {
-    if (session.kind === "authenticated" && session.principal.tenantId !== null) {
-      await c.get("activity").record({
-        tenantId: session.principal.tenantId,
-        actorId: session.principal.userId,
-        action: "access.denied",
-        subjectType: "document",
-        subjectId: null,
-        outcome: "denied",
-        metadata: { attemptedId: documentId },
-      });
-    }
-    throw new AppError("NOT_FOUND");
-  }
-}
-
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
 export function createDocumentRoutes(
   catalog: CatalogService,
   tenancy: Pick<TenancyService, "getConfigValue">,
 ) {
   const router = createRouter()
-    .openapi(listDocuments, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
+    .openapi(listDocuments, async (c) => {
+      const tenant = c.get("tenant");
+      if (!tenant) {
+        throw new AppError("NOT_FOUND");
+      }
+      const session = c.get("session");
+      if (session.kind !== "authenticated") {
+        throw new AppError("UNAUTHENTICATED");
+      }
+      const query = c.req.valid("query");
+      const bypassesWindow = hasRoleAtLeast(session.principal.role, "head_of_team");
+      const pendingConfirmationDays = await tenancy.getConfigValue(
+        tenant.id,
+        "pending_confirmation_days",
+      );
+
+      const result = await catalog.listDocuments({
+        tenantId: tenant.id,
+        viewer: {
+          userId: session.principal.userId,
+          role: session.principal.role,
+          bypassesWindow,
+        },
+        pendingConfirmationDays,
+        query,
+      });
+
+      return c.json(result, 200);
+    })
     // Static paths are registered before /{id} so they are not shadowed.
     .openapi(listUnconfirmed, (c) => c.json(listOf(MOCK_DOCUMENT), 200))
     .openapi(createBulkDownload, (c) => c.json(one(MOCK_BULK_TICKET), 200))
@@ -81,9 +83,53 @@ export function createDocumentRoutes(
       c.body(new Uint8Array(), 200, { "Content-Type": "application/zip" }),
     )
     .openapi(getDocument, async (c) => {
+      const tenant = c.get("tenant");
+      if (!tenant) {
+        throw new AppError("NOT_FOUND");
+      }
+      const session = c.get("session");
+      if (session.kind !== "authenticated") {
+        throw new AppError("UNAUTHENTICATED");
+      }
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
-      return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
+      const bypassesWindow = hasRoleAtLeast(session.principal.role, "head_of_team");
+      const pendingConfirmationDays = await tenancy.getConfigValue(
+        tenant.id,
+        "pending_confirmation_days",
+      );
+
+      const result = await catalog.getDocument(
+        tenant.id,
+        asDocumentId(id),
+        {
+          userId: session.principal.userId,
+          role: session.principal.role,
+          bypassesWindow,
+        },
+        pendingConfirmationDays,
+      );
+
+      if (!result.ok) {
+        // The repository is the single source of truth for tenancy: only a
+        // confirmed cross-tenant attempt writes access.denied. An unknown id
+        // is a plain 404 with no audit event (AC-43.03, AC-43.04).
+        if (result.error.crossTenantAttempt) {
+          if (session.principal.tenantId !== null) {
+            await c.get("activity").record({
+              tenantId: session.principal.tenantId,
+              actorId: session.principal.userId,
+              action: "access.denied",
+              subjectType: "document",
+              subjectId: null,
+              outcome: "denied",
+              metadata: { attemptedId: id },
+            });
+          }
+        }
+        throw new AppError("NOT_FOUND");
+      }
+
+      return c.json(one(result.value), 200);
     })
     .openapi(listVersions, async (c) => {
       const { id } = c.req.valid("param");

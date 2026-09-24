@@ -59,6 +59,6 @@ export interface UploadedDocumentDisplay {
   readonly sizeBytes: number;
   readonly processingState: TrayItemDocument["processingState"];
   readonly processingLabel: string;
-  readonly uploaderName: string;
+  readonly uploaderName?: string;
   readonly createdAt: string;
 }

@@ -81,7 +81,7 @@ async function renderWithRouter(component: React.ReactElement): Promise<string> 
   return renderToString(<RouterProvider router={router} />);
 }
 
-describe("DocumentCardGrid component (US-38, AC-38.01, AC-38.02, AC-38.03, AC-01.02)", () => {
+describe("DocumentCardGrid component (US-38, AC-38.01, AC-38.03, AC-01.02)", () => {
   test("renders loading skeleton state when isLoading is true", () => {
     const html = renderToString(
       <DocumentCardGridView documents={[]} isLoading={true} isError={false} />,
@@ -115,9 +115,11 @@ describe("DocumentCardGrid component (US-38, AC-38.01, AC-38.02, AC-38.03, AC-01
     expect(html).toContain("Belum ada dokumen. Seret file ke area unggah untuk memulai");
   });
 
-  // AC-38.01, AC-38.02, AC-01.02: Grid kartu dokumen visual
-  test("AC-38.01, AC-38.02: renders responsive grid of visual document cards", async () => {
-    const html = await renderWithRouter(<DocumentCardGrid documents={MOCK_DOCS} />);
+  // AC-38.01, AC-01.02: Grid kartu dokumen visual
+  test("AC-38.01: renders responsive grid of visual document cards", async () => {
+    const html = await renderWithRouter(
+      <DocumentCardGridView documents={MOCK_DOCS} isLoading={false} isError={false} />,
+    );
 
     expect(html).toContain('data-testid="documents-grid"');
     expect(html).toContain("grid-cols-1");

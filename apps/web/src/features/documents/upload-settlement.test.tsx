@@ -11,8 +11,29 @@ import {
 import { act, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
+import { formatDocumentDate } from "../../lib/format.ts";
 import { DashboardView } from "../../routes/views.tsx";
+import { useAuthStore } from "../auth/auth-store.ts";
 import { type TrayItem, UploadTray } from "./index.ts";
+
+const stubUploader = async (files: File[]): Promise<UploadBatch> => ({
+  accepted: 1,
+  rejected: 0,
+  summary: null,
+  results: [
+    {
+      index: 0,
+      filename: files[0]?.name ?? "anggaran-2026.pdf",
+      status: "accepted",
+      document: {
+        id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
+        title: files[0]?.name ?? "anggaran-2026.pdf",
+        processingState: "queued",
+        processingLabel: "Antre",
+      },
+    },
+  ],
+});
 
 function createTestQueryClient(): QueryClient {
   const client = new QueryClient({
@@ -28,7 +49,7 @@ function createTestQueryClient(): QueryClient {
   return client;
 }
 
-async function renderWithProviders(ui: JSX.Element): Promise<string> {
+async function createTestRouter(ui: JSX.Element) {
   const queryClient = createTestQueryClient();
   const rootRoute = createRootRoute({
     component: () => <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
@@ -44,7 +65,11 @@ async function renderWithProviders(ui: JSX.Element): Promise<string> {
   const history = createMemoryHistory({ initialEntries: ["/"] });
   const router = createRouter({ routeTree: rootRoute, history });
   await router.load();
+  return router;
+}
 
+async function renderWithProviders(ui: JSX.Element): Promise<string> {
+  const router = await createTestRouter(ui);
   return renderToString(<RouterProvider router={router} />);
 }
 
@@ -52,22 +77,7 @@ async function mountWithProviders(ui: JSX.Element): Promise<{
   container: HTMLDivElement;
   cleanup: () => Promise<void>;
 }> {
-  const queryClient = createTestQueryClient();
-  const rootRoute = createRootRoute({
-    component: () => <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  });
-
-  const documentDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: "/documents/$id",
-    component: () => <div>Detail Dokumen</div>,
-  });
-
-  rootRoute.addChildren([documentDetailRoute]);
-  const history = createMemoryHistory({ initialEntries: ["/"] });
-  const router = createRouter({ routeTree: rootRoute, history });
-  await router.load();
-
+  const router = await createTestRouter(ui);
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -85,8 +95,8 @@ async function mountWithProviders(ui: JSX.Element): Promise<{
   };
 }
 
-describe("Upload settlement & DashboardView integration (FE-S2-01)", () => {
-  test("DashboardView mounts UploadTray and UploadedDocumentsList", async () => {
+describe("Upload settlement & DashboardView integration (FE-S2-01, FE-S2-03)", () => {
+  test("DashboardView mounts UploadTray and document grid", async () => {
     const html = await renderWithProviders(<DashboardView />);
 
     expect(html).toContain("AREA UNGGAH");
@@ -107,25 +117,6 @@ describe("Upload settlement & DashboardView integration (FE-S2-01)", () => {
 
     const testFile = new File(["x".repeat(50 * 1024)], "anggaran-2026.pdf", {
       type: "application/pdf",
-    });
-
-    const stubUploader = async (files: File[]): Promise<UploadBatch> => ({
-      accepted: 1,
-      rejected: 0,
-      summary: null,
-      results: [
-        {
-          index: 0,
-          filename: files[0]?.name ?? "anggaran-2026.pdf",
-          status: "accepted",
-          document: {
-            id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
-            title: files[0]?.name ?? "anggaran-2026.pdf",
-            processingState: "queued",
-            processingLabel: "Antre",
-          },
-        },
-      ],
     });
 
     const { container, cleanup } = await mountWithProviders(
@@ -161,28 +152,9 @@ describe("Upload settlement & DashboardView integration (FE-S2-01)", () => {
     await cleanup();
   });
 
-  test("DashboardView renders document in UploadedDocumentsList with real size and never '0 B' after upload settles", async () => {
+  test("a settled upload appears as a card with its real size and never '0 B'", async () => {
     const testFile = new File(["x".repeat(50 * 1024)], "anggaran-2026.pdf", {
       type: "application/pdf",
-    });
-
-    const stubUploader = async (files: File[]): Promise<UploadBatch> => ({
-      accepted: 1,
-      rejected: 0,
-      summary: null,
-      results: [
-        {
-          index: 0,
-          filename: files[0]?.name ?? "anggaran-2026.pdf",
-          status: "accepted",
-          document: {
-            id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
-            title: files[0]?.name ?? "anggaran-2026.pdf",
-            processingState: "queued",
-            processingLabel: "Antre",
-          },
-        },
-      ],
     });
 
     const { container, cleanup } = await mountWithProviders(
@@ -202,7 +174,7 @@ describe("Upload settlement & DashboardView integration (FE-S2-01)", () => {
     }
 
     const docCard = container.querySelector(
-      '[data-testid="uploaded-doc-0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01"]',
+      '[data-testid="document-card-0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01"]',
     );
     expect(docCard).not.toBeNull();
     expect(docCard?.textContent).toContain("anggaran-2026.pdf");
@@ -210,5 +182,64 @@ describe("Upload settlement & DashboardView integration (FE-S2-01)", () => {
     expect(docCard?.textContent).not.toContain("0 B");
 
     await cleanup();
+  });
+
+  // AC-01.02: Tanggal unggah dan pengunggah pada kartu dokumen yang baru diselesaikan
+  test("AC-01.02: settled upload card displays today's formatted date and signed-in user name", async () => {
+    useAuthStore.getState().setPrincipal({
+      user: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Sari Dewi",
+        email: "sari@example.com",
+        role: "member",
+        avatarUrl: null,
+      },
+      tenant: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Tenant Demo",
+        subdomain: "demo",
+      },
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      menus: ["dashboard", "document"],
+    });
+
+    const testFile = new File(["x".repeat(10 * 1024)], "surat-perjanjian.pdf", {
+      type: "application/pdf",
+    });
+
+    const { container, cleanup } = await mountWithProviders(
+      <DashboardView uploader={stubUploader} />,
+    );
+
+    const fileInput = container.querySelector(
+      'input[data-testid="upload-file-input"]',
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+    if (fileInput) {
+      Object.defineProperty(fileInput, "files", { value: [testFile], writable: true });
+      await act(async () => {
+        fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
+
+    const docCard = container.querySelector(
+      '[data-testid="document-card-0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01"]',
+    );
+    expect(docCard).not.toBeNull();
+
+    const uploaderEl = docCard?.querySelector(
+      '[data-testid="document-uploader-0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01"]',
+    );
+    expect(uploaderEl?.textContent).toBe("Sari Dewi");
+
+    const dateEl = docCard?.querySelector(
+      '[data-testid="document-date-0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01"]',
+    );
+    const expectedToday = formatDocumentDate(new Date().toISOString());
+    expect(dateEl?.textContent).toBe(expectedToday);
+
+    await cleanup();
+    useAuthStore.getState().clearSession();
   });
 });

@@ -8,9 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card.tsx";
+import { useAuthStore } from "../features/auth/auth-store.ts";
 import {
   DOCUMENTS_QUERY_KEY,
-  DocumentCardGrid,
+  DocumentCardGridView,
   getAcceptedFileTypeByName,
   type TrayItem,
   type UploadedDocumentDisplay,
@@ -19,10 +20,6 @@ import {
   useDocuments,
 } from "../features/documents/index.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
-
-// Fallback metadata for settled uploads before server classification completes.
-const PLACEHOLDER_UPLOADER = "Member Team";
-const PLACEHOLDER_UPLOAD_DATE = "Hari ini";
 
 export interface DashboardViewProps {
   readonly uploader?: UploadTrayProps["uploader"];
@@ -35,12 +32,14 @@ export function DashboardView({
 }: DashboardViewProps = {}): JSX.Element {
   const queryClient = useQueryClient();
   const documentsQuery = useDocuments();
+  const uploaderName = useAuthStore((state) => state.principal?.user.name);
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([
     ...initialDocuments,
   ]);
 
   const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
+    const uploadedAt = new Date().toISOString();
     for (const item of acceptedItems) {
       if (!item.document) continue;
       const fileType = getAcceptedFileTypeByName(item.document.title) ?? "other";
@@ -52,8 +51,8 @@ export function DashboardView({
         sizeBytes: item.sizeBytes,
         processingState: item.document.processingState,
         processingLabel: item.document.processingLabel,
-        uploaderName: PLACEHOLDER_UPLOADER,
-        createdAt: PLACEHOLDER_UPLOAD_DATE,
+        uploaderName,
+        createdAt: uploadedAt,
       });
     }
 
@@ -104,7 +103,7 @@ export function DashboardView({
                 Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.
               </p>
             </div>
-            <DocumentCardGrid
+            <DocumentCardGridView
               documents={displayDocuments}
               isLoading={documentsQuery.isLoading && displayDocuments.length === 0}
               isError={documentsQuery.isError && displayDocuments.length === 0}

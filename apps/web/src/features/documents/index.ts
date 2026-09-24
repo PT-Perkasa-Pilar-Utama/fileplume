@@ -13,6 +13,8 @@ export {
 export {
   DocumentCardGrid,
   type DocumentCardGridProps,
+  DocumentCardGridView,
+  type DocumentCardGridViewProps,
 } from "./document-card-grid.tsx";
 export {
   DocumentEmptyState,
@@ -40,10 +42,6 @@ export type {
   UploadTransportConstructor,
 } from "./types.ts";
 export { UploadTray, type UploadTrayProps } from "./upload-tray.tsx";
-export {
-  UploadedDocumentsList,
-  type UploadedDocumentsListProps,
-} from "./uploaded-documents-list.tsx";
 export {
   DOCUMENTS_QUERY_KEY,
   type UseDocumentsResult,

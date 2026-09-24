@@ -141,7 +141,7 @@ describe("Sidebar navigation derived from role menus (FE-S1-03)", () => {
 
     expect(html).toContain('href="/documents"');
     // Active link has light active styling and aria-current="page" (Figma slicing)
-    expect(html).toContain("bg-slate-100");
+    expect(html).toContain("bg-muted");
     expect(html).toContain('aria-current="page"');
   });
 
@@ -189,7 +189,7 @@ describe("Sidebar navigation derived from role menus (FE-S1-03)", () => {
 
     expect(html).toContain("Storage Usage");
     expect(html).toContain("80%");
-    expect(html).toContain("bg-amber-500");
+    expect(html).toContain("bg-warning");
     expect(html).toContain('role="alert"');
     expect(html).toContain("Kapasitas penyimpanan hampir penuh");
   });

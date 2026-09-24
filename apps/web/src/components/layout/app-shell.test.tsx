@@ -113,7 +113,7 @@ describe("AppShell storage wiring (FE-S2-02)", () => {
 
     expect(html).toContain("Storage Usage");
     expect(html).toContain("80%");
-    expect(html).toContain("bg-amber-500");
+    expect(html).toContain("bg-warning");
     expect(html).toContain('role="alert"');
     expect(html).toContain("Kapasitas penyimpanan hampir penuh");
   });

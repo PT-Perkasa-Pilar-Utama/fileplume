@@ -51,15 +51,15 @@ describe("StorageUsage component (FE-S2-02)", () => {
     expect(html).toContain("80%");
 
     // Indikator berubah warna menjadi kuning atau oranye (warning)
-    expect(html).toContain("bg-amber-500");
+    expect(html).toContain("bg-warning");
     expect(html).toContain('data-level="warning"');
 
     // Pesan peringatan verbatim sesuai kriteria AC-35.02
     expect(html).toContain('role="alert"');
     expect(html).toContain("Kapasitas penyimpanan hampir penuh");
-    expect(html).toContain("bg-amber-50");
-    expect(html).toContain("border-amber-500/50");
-    expect(html).toContain("text-amber-900");
+    expect(html).toContain("bg-alert-warning-bg");
+    expect(html).toContain("border-alert-warning-border");
+    expect(html).toContain("text-alert-warning-text");
   });
 
   test("renders full capacity state with destructive color and full message", () => {
@@ -96,7 +96,7 @@ describe("StorageUsage component (FE-S2-02)", () => {
       />,
     );
     expect(htmlOkOverThreshold).toContain("bg-primary");
-    expect(htmlOkOverThreshold).not.toContain("bg-amber-500");
+    expect(htmlOkOverThreshold).not.toContain("bg-warning");
     expect(htmlOkOverThreshold).not.toContain('role="alert"');
 
     // 50% but server says 'warning' -> must render warning color & warning banner
@@ -111,7 +111,7 @@ describe("StorageUsage component (FE-S2-02)", () => {
         }}
       />,
     );
-    expect(htmlWarningBelowThreshold).toContain("bg-amber-500");
+    expect(htmlWarningBelowThreshold).toContain("bg-warning");
     expect(htmlWarningBelowThreshold).toContain("Kapasitas penyimpanan hampir penuh");
   });
 

@@ -81,8 +81,8 @@ export function LoginPage(): JSX.Element {
         <div className="mx-auto flex w-full max-w-100 flex-col gap-6 py-8">
           {/* Header matching Figma login-header (gap 10px) */}
           <div className="flex flex-col items-center gap-2.5 text-center">
-            <div className="flex size-14 items-center justify-center rounded-[18px] border border-primary/20 bg-primary text-primary-foreground shadow-md shadow-primary/15">
-              <LogIn className="size-6" />
+            <div className="flex size-14 items-center justify-center rounded-2xl border border-primary-foreground/20 bg-primary text-primary-foreground shadow-md shadow-primary/20">
+              <LogIn className="size-6 text-primary-foreground" />
             </div>
             <div className="flex flex-col gap-1">
               <h1 className="font-bold text-xl text-foreground tracking-tight">
@@ -118,7 +118,6 @@ export function LoginPage(): JSX.Element {
                 placeholder="nama@perusahaan.com"
                 disabled={isSubmitting}
                 aria-invalid={Boolean(errors.email)}
-                className="h-10 rounded-[10px]"
                 {...register("email")}
               />
               {errors.email ? (
@@ -134,7 +133,7 @@ export function LoginPage(): JSX.Element {
                   placeholder="••••••••"
                   disabled={isSubmitting}
                   aria-invalid={Boolean(errors.password)}
-                  className="h-10 rounded-[10px] pr-10"
+                  className="pr-10"
                   {...register("password")}
                 />
                 <button
@@ -152,7 +151,8 @@ export function LoginPage(): JSX.Element {
             </div>
             <Button
               type="submit"
-              className="h-10 w-full gap-1.5 rounded-[10px] px-2.5"
+              size="lg"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={isSubmitting}
             >
               <span>{isSubmitting ? "Memproses..." : "Login"}</span>

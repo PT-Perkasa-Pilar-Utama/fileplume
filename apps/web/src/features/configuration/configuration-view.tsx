@@ -1,9 +1,9 @@
 import { ERROR_MESSAGES } from "@archiva/shared";
-import { AlertCircle, CheckCircle2, Search, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
 import { Button } from "../../components/ui/button.tsx";
-import { Input } from "../../components/ui/input.tsx";
+import { SearchInput } from "../../components/ui/search-input.tsx";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "../../components/ui/table.tsx";
 import { ConfigurationRow } from "./configuration-row.tsx";
 import { useConfiguration } from "./use-configuration.ts";
@@ -45,16 +45,15 @@ export function ConfigurationView(): JSX.Element {
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="relative w-[240px] max-w-[240px]">
-          <Input
+        <div className="w-60 max-w-60">
+          <SearchInput
+            iconPosition="trailing"
             type="text"
             placeholder="Cari parameter..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-[240px] max-w-[240px] rounded-[10px] border-input bg-background px-3 pr-9 text-sm font-normal text-foreground placeholder:text-muted-foreground shadow-none focus-visible:ring-1 focus-visible:ring-primary"
             data-testid="search-input"
           />
-          <Search className="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>
       </div>
 
@@ -62,7 +61,7 @@ export function ConfigurationView(): JSX.Element {
         <Alert
           variant="success"
           data-testid="success-alert"
-          className="justify-between rounded-[10px] shadow-none"
+          className="justify-between shadow-none"
         >
           <div className="flex items-center gap-2">
             <CheckCircle2 className="size-4 shrink-0" />
@@ -84,7 +83,7 @@ export function ConfigurationView(): JSX.Element {
         <Alert
           variant="destructive"
           data-testid="error-alert"
-          className="justify-between rounded-[10px] shadow-none"
+          className="justify-between shadow-none"
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="size-4 shrink-0" />
@@ -102,7 +101,7 @@ export function ConfigurationView(): JSX.Element {
         </Alert>
       )}
 
-      <div className="overflow-hidden rounded-[10px] border border-border bg-card shadow-none">
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-none">
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground text-sm font-normal">
             Memuat konfigurasi...
@@ -114,23 +113,13 @@ export function ConfigurationView(): JSX.Element {
         ) : (
           <>
             <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow className="hover:bg-transparent border-b border-border h-8">
-                  <TableHead className="w-1/3 font-medium text-xs text-foreground py-1.5 h-8">
-                    Parameter
-                  </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
-                    Nilai
-                  </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
-                    Satuan
-                  </TableHead>
-                  <TableHead className="w-1/6 font-medium text-xs text-foreground py-1.5 h-8">
-                    Nilai Default
-                  </TableHead>
-                  <TableHead className="text-right font-medium text-xs text-foreground py-1.5 h-8 pr-4">
-                    Aksi
-                  </TableHead>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-1/3">Parameter</TableHead>
+                  <TableHead className="w-1/6">Nilai</TableHead>
+                  <TableHead className="w-1/6">Satuan</TableHead>
+                  <TableHead className="w-1/6">Nilai Default</TableHead>
+                  <TableHead className="text-right pr-4">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

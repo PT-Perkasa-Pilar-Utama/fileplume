@@ -102,7 +102,7 @@ export function Header({ principal, className }: HeaderProps): JSX.Element {
             <div className="px-2 py-1.5 text-left">
               <p className="font-medium text-sm leading-none">{user.name}</p>
               <p className="text-xs text-muted-foreground mt-1 truncate">{user.email}</p>
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">
+              <p className="text-2xs text-muted-foreground uppercase font-semibold mt-1">
                 {user.role.toUpperCase()}
               </p>
             </div>

@@ -1,6 +1,7 @@
 import type { TenantListItem } from "@archiva/shared";
 import type { JSX } from "react";
 import { Badge } from "../../components/ui/badge.tsx";
+import { EmptyState } from "../../components/ui/empty-state.tsx";
 import {
   Table,
   TableBody,
@@ -18,23 +19,15 @@ export interface TenantTableProps {
 
 export function TenantTable({ tenants, isLoading = false }: TenantTableProps): JSX.Element {
   if (isLoading) {
-    return (
-      <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
-        Memuat daftar tenant...
-      </div>
-    );
+    return <EmptyState variant="compact" title="Memuat daftar tenant..." />;
   }
 
   if (tenants.length === 0) {
-    return (
-      <div className="flex h-32 items-center justify-center text-muted-foreground text-sm">
-        Belum ada tenant terdaftar.
-      </div>
-    );
+    return <EmptyState variant="compact" title="Belum ada tenant terdaftar." />;
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-hidden rounded-lg border border-border">
       <Table>
         <TableHeader>
           <TableRow>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatBytes, formatStorage } from "./format.ts";
+import { formatBytes, formatDocumentDate, formatStorage } from "./format.ts";
 
 describe("formatBytes utility", () => {
   test("formats 0 or negative bytes as 0 B", () => {
@@ -36,5 +36,16 @@ describe("formatStorage utility", () => {
     const quotaBytes = 1000;
     const usedBytes = 500;
     expect(formatStorage(usedBytes, quotaBytes)).toBe("500 B / 1000 B (50%)");
+  });
+});
+
+describe("formatDocumentDate utility", () => {
+  test("formats ISO UTC date correctly with Indonesian month", () => {
+    expect(formatDocumentDate("2026-03-25T14:30:00Z")).toBe("25 Mar 2026, 14:30 UTC");
+    expect(formatDocumentDate("2026-08-01T09:05:00Z")).toBe("01 Agu 2026, 09:05 UTC");
+  });
+
+  test("returns original string for invalid date", () => {
+    expect(formatDocumentDate("invalid-date")).toBe("invalid-date");
   });
 });

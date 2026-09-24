@@ -48,11 +48,26 @@ async function mountWithProviders(ui: JSX.Element): Promise<{
   cleanup: () => Promise<void>;
 }> {
   const queryClient = createTestQueryClient();
+  const rootRoute = createRootRoute({
+    component: () => <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  });
+
+  const documentDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/documents/$id",
+    component: () => <div>Detail Dokumen</div>,
+  });
+
+  rootRoute.addChildren([documentDetailRoute]);
+  const history = createMemoryHistory({ initialEntries: ["/"] });
+  const router = createRouter({ routeTree: rootRoute, history });
+  await router.load();
+
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+    root.render(<RouterProvider router={router} />);
   });
   return {
     container,

@@ -12,7 +12,7 @@
     "@archiva/shared": "workspace:*",
     "@hookform/resolvers": "5.9.1",
     "@tanstack/react-query": "5.102.8",
-    "@tanstack/react-router": "1.170.36",
+    "@tanstack/react-router": "1.170.38",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "1.46.0",

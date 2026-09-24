@@ -22,6 +22,6 @@
     "@hono/zod-openapi": "1.6.3",
     "hono": "4.13.7",
     "hono-rate-limiter": "0.5.4",
-    "zod": "4.6.2"
+    "zod": "4.6.5"
   }
 }

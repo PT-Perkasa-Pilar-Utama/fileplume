@@ -10,7 +10,7 @@ export async function handleGetDocument(
   tenantId: TenantId,
   documentId: DocumentId,
   viewer: ViewerContext,
-  pendingConfirmationDays = 7,
+  pendingConfirmationDays: number,
   now = new Date(),
 ): Promise<Result<DocumentDetailView, E.NotFound>> {
   const detail = await repository.findDocumentDetail(

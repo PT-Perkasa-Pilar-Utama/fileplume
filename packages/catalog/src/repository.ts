@@ -4,7 +4,7 @@ import type { DocumentId, Result, TenantId, UserId, VersionId } from "@archiva/s
 import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import { and, eq, sql } from "drizzle-orm";
 import type * as E from "./errors.ts";
-import { findDocumentTenant, queryDocumentDetail } from "./internal/detail-document-query.ts";
+import { queryDocumentDetail } from "./internal/detail-document-query.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "./internal/document-views.ts";
 import {
   countTenantDocuments,
@@ -60,7 +60,6 @@ export interface CatalogRepository {
     now?: Date,
   ): Promise<RawDocumentDetail | { kind: "cross_tenant" } | null>;
   countTenantDocuments(tenantId: TenantId): Promise<number>;
-  findDocumentTenant(documentId: DocumentId): Promise<TenantId | null>;
 }
 
 export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
@@ -242,10 +241,6 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
 
     countTenantDocuments(tenantId) {
       return countTenantDocuments(db, tenantId);
-    },
-
-    findDocumentTenant(documentId) {
-      return findDocumentTenant(db, documentId);
     },
   };
 }

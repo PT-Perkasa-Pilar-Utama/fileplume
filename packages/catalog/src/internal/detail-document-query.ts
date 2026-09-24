@@ -1,7 +1,7 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { DocumentId, TenantId } from "@archiva/shared";
-import { asDocumentId, asTenantId, asUserId, asVersionId } from "@archiva/shared";
+import { asDocumentId, asTenantId, asUserId, asVersionId, hasRoleAtLeast } from "@archiva/shared";
 import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { RawDocumentDetail, RawVersionRow } from "./document-views.ts";
 import type { ViewerContext } from "./list-document-query.ts";
@@ -29,7 +29,8 @@ export async function queryDocumentDetail(
     isNull(schema.documents.deletedAt),
   ];
 
-  if (!viewer.bypassesWindow) {
+  // 05-documents.md 5.4.1: head_of_team and above bypass the window entirely.
+  if (!hasRoleAtLeast(viewer.role, "head_of_team")) {
     const vis = or(
       isNotNull(schema.documentClassification.confirmedAt),
       eq(schema.documents.uploaderId, viewer.userId),
@@ -49,10 +50,10 @@ export async function queryDocumentDetail(
       createdAt: schema.documents.createdAt,
       uploaderId: schema.documents.uploaderId,
       uploaderName: schema.users.name,
-      versionNumber: sql<number>`coalesce(${schema.documentVersions.versionNumber}, 1)`,
-      filename: sql<string>`coalesce(${schema.documentVersions.filename}, ${schema.documents.title})`,
-      mimeType: sql<string>`coalesce(${schema.documentVersions.mimeType}, 'application/pdf')`,
-      sizeBytes: sql<number>`coalesce(${schema.documentVersions.sizeBytes}, 0)`,
+      versionNumber: schema.documentVersions.versionNumber,
+      filename: schema.documentVersions.filename,
+      mimeType: schema.documentVersions.mimeType,
+      sizeBytes: schema.documentVersions.sizeBytes,
       pageCount: schema.documentVersions.pageCount,
       versionCount: sql<number>`(SELECT count(*)::int FROM ${schema.documentVersions} dv WHERE dv.document_id = ${schema.documents.id})`,
       categoryId: schema.documentClassification.categoryId,
@@ -63,8 +64,8 @@ export async function queryDocumentDetail(
       documentType: schema.documentClassification.documentType,
     })
     .from(schema.documents)
-    .leftJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
-    .leftJoin(
+    .innerJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
+    .innerJoin(
       schema.documentVersions,
       eq(schema.documents.currentVersionId, schema.documentVersions.id),
     )
@@ -114,7 +115,7 @@ export async function queryDocumentDetail(
       uploadedByName: schema.users.name,
     })
     .from(schema.documentVersions)
-    .leftJoin(schema.users, eq(schema.documentVersions.uploadedBy, schema.users.id))
+    .innerJoin(schema.users, eq(schema.documentVersions.uploadedBy, schema.users.id))
     .where(
       and(
         eq(schema.documentVersions.tenantId, tenantId),
@@ -140,7 +141,7 @@ export async function queryDocumentDetail(
     sizeBytes: Number(v.sizeBytes),
     pageCount: v.pageCount,
     uploadedById: asUserId(v.uploadedById),
-    uploadedByName: v.uploadedByName ?? "Pengguna",
+    uploadedByName: v.uploadedByName,
     createdAt: v.createdAt,
     isCurrent: doc.currentVersionId === v.id,
   }));
@@ -154,7 +155,7 @@ export async function queryDocumentDetail(
     failureReason: doc.failureReason,
     createdAt: doc.createdAt,
     uploaderId: asUserId(doc.uploaderId),
-    uploaderName: doc.uploaderName ?? "Pengguna",
+    uploaderName: doc.uploaderName,
     versionNumber: Number(doc.versionNumber),
     filename: doc.filename,
     mimeType: doc.mimeType,

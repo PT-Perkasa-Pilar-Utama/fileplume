@@ -1,4 +1,5 @@
 import type { TenantId } from "@archiva/shared";
+import { hasRoleAtLeast } from "@archiva/shared";
 import type {
   RawDocumentDetail,
   RawDocumentRow,
@@ -21,8 +22,12 @@ export function filterAndSortDocuments(
   const filtered = documents.filter((d) => {
     if (d.tenantId !== tenantId) return false;
 
+    // Mirrors the SQL adapter's innerJoin on document_versions.
+    const curVer = versions.find((v) => v.id === d.currentVersionId);
+    if (!curVer) return false;
+
     const isVisible =
-      viewer.bypassesWindow ||
+      hasRoleAtLeast(viewer.role, "head_of_team") ||
       d.categoryConfirmedAt !== null ||
       d.uploaderId === viewer.userId ||
       d.createdAt.getTime() + windowMs < now.getTime();
@@ -67,6 +72,9 @@ export function filterAndSortDocuments(
 
   const rows: RawDocumentRow[] = paged.map((d) => {
     const curVer = versions.find((v) => v.id === d.currentVersionId);
+    if (!curVer) {
+      throw new Error(`Document ${d.id} has no matching current version`);
+    }
     const docVersions = versions.filter((v) => v.documentId === d.id);
 
     return {
@@ -79,11 +87,11 @@ export function filterAndSortDocuments(
       createdAt: d.createdAt,
       uploaderId: d.uploaderId,
       uploaderName: d.uploaderName,
-      versionNumber: curVer?.versionNumber ?? 1,
-      filename: curVer?.filename ?? d.title,
-      mimeType: curVer?.mimeType ?? "application/pdf",
-      sizeBytes: curVer?.sizeBytes ?? 0,
-      pageCount: curVer?.pageCount ?? null,
+      versionNumber: curVer.versionNumber,
+      filename: curVer.filename,
+      mimeType: curVer.mimeType,
+      sizeBytes: curVer.sizeBytes,
+      pageCount: curVer.pageCount,
       versionCount: docVersions.length,
       categoryId: d.categoryId,
       categoryName: d.categoryName,
@@ -107,7 +115,7 @@ export function buildRawDocumentDetail(
 ): RawDocumentDetail | null {
   const windowMs = pendingConfirmationDays * 86_400_000;
   const isVisible =
-    viewer.bypassesWindow ||
+    hasRoleAtLeast(viewer.role, "head_of_team") ||
     doc.categoryConfirmedAt !== null ||
     doc.uploaderId === viewer.userId ||
     doc.createdAt.getTime() + windowMs < now.getTime();
@@ -115,11 +123,14 @@ export function buildRawDocumentDetail(
     return null;
   }
 
+  const curVer = versions.find((v) => v.id === doc.currentVersionId);
+  if (!curVer) {
+    return null;
+  }
+
   const docVersions = versions
     .filter((v) => v.documentId === doc.id)
     .sort((a, b) => b.versionNumber - a.versionNumber);
-
-  const curVer = versions.find((v) => v.id === doc.currentVersionId);
 
   const rawVersions: RawVersionRow[] = docVersions.map((v) => ({
     id: v.id,
@@ -143,11 +154,11 @@ export function buildRawDocumentDetail(
     createdAt: doc.createdAt,
     uploaderId: doc.uploaderId,
     uploaderName: doc.uploaderName,
-    versionNumber: curVer?.versionNumber ?? 1,
-    filename: curVer?.filename ?? doc.title,
-    mimeType: curVer?.mimeType ?? "application/pdf",
-    sizeBytes: curVer?.sizeBytes ?? 0,
-    pageCount: curVer?.pageCount ?? null,
+    versionNumber: curVer.versionNumber,
+    filename: curVer.filename,
+    mimeType: curVer.mimeType,
+    sizeBytes: curVer.sizeBytes,
+    pageCount: curVer.pageCount,
     versionCount: docVersions.length,
     categoryId: doc.categoryId,
     categoryName: doc.categoryName,

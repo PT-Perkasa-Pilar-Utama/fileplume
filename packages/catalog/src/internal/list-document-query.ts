@@ -1,7 +1,7 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { Role, TenantId, UserId } from "@archiva/shared";
-import { asDocumentId, asTenantId, asUserId, asVersionId } from "@archiva/shared";
+import { asDocumentId, asTenantId, asUserId, asVersionId, hasRoleAtLeast } from "@archiva/shared";
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { RawDocumentRow } from "./document-views.ts";
 
@@ -20,7 +20,6 @@ export type ListDocumentsFilter = {
 export type ViewerContext = {
   userId: UserId;
   role: Role;
-  bypassesWindow: boolean;
 };
 
 export async function countTenantDocuments(db: Db, tenantId: TenantId): Promise<number> {
@@ -41,7 +40,8 @@ export async function queryListDocuments(
 ): Promise<{ rows: RawDocumentRow[]; total: number }> {
   const conditions = [eq(schema.documents.tenantId, tenantId), isNull(schema.documents.deletedAt)];
 
-  if (!viewer.bypassesWindow) {
+  // 05-documents.md 5.4.1: head_of_team and above bypass the window entirely.
+  if (!hasRoleAtLeast(viewer.role, "head_of_team")) {
     const vis = or(
       isNotNull(schema.documentClassification.confirmedAt),
       eq(schema.documents.uploaderId, viewer.userId),
@@ -113,10 +113,10 @@ export async function queryListDocuments(
       createdAt: schema.documents.createdAt,
       uploaderId: schema.documents.uploaderId,
       uploaderName: schema.users.name,
-      versionNumber: sql<number>`coalesce(${schema.documentVersions.versionNumber}, 1)`,
-      filename: sql<string>`coalesce(${schema.documentVersions.filename}, ${schema.documents.title})`,
-      mimeType: sql<string>`coalesce(${schema.documentVersions.mimeType}, 'application/pdf')`,
-      sizeBytes: sql<number>`coalesce(${schema.documentVersions.sizeBytes}, 0)`,
+      versionNumber: schema.documentVersions.versionNumber,
+      filename: schema.documentVersions.filename,
+      mimeType: schema.documentVersions.mimeType,
+      sizeBytes: schema.documentVersions.sizeBytes,
       pageCount: schema.documentVersions.pageCount,
       versionCount: sql<number>`(SELECT count(*)::int FROM ${schema.documentVersions} dv WHERE dv.document_id = ${schema.documents.id})`,
       categoryId: schema.documentClassification.categoryId,
@@ -127,8 +127,8 @@ export async function queryListDocuments(
       documentType: schema.documentClassification.documentType,
     })
     .from(schema.documents)
-    .leftJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
-    .leftJoin(
+    .innerJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
+    .innerJoin(
       schema.documentVersions,
       eq(schema.documents.currentVersionId, schema.documentVersions.id),
     )
@@ -177,7 +177,7 @@ export async function queryListDocuments(
     failureReason: r.failureReason,
     createdAt: r.createdAt,
     uploaderId: asUserId(r.uploaderId),
-    uploaderName: r.uploaderName ?? "Pengguna",
+    uploaderName: r.uploaderName,
     versionNumber: Number(r.versionNumber),
     filename: r.filename,
     mimeType: r.mimeType,

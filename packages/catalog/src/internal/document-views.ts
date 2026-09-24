@@ -10,22 +10,7 @@ import type {
   UserId,
   VersionId,
 } from "@archiva/shared";
-import { EMPTY_STATE } from "@archiva/shared";
-
-export const FAILURE_MESSAGES: Record<FailureReason, string> = {
-  password_protected: "Dokumen terproteksi password",
-  unreadable_content: "Isi dokumen tidak dapat dibaca",
-  extraction_timeout: "Proses ekstraksi melebihi batas waktu",
-  ai_unavailable: "Layanan AI tidak tersedia",
-  index_failed: "Dokumen gagal diindeks",
-};
-
-export const PROCESSING_LABELS: Record<ProcessingState, string> = {
-  queued: "Antre",
-  processing: "Diproses",
-  ready: "Siap",
-  failed: "Gagal",
-};
+import { EMPTY_STATE, FAILURE_MESSAGE, STATE_LABEL } from "@archiva/shared";
 
 export type RawVersionRow = {
   id: VersionId;
@@ -86,7 +71,7 @@ export function fileTypeFromMime(mimeType: string): FileType {
 
 /** Served Indonesian label for document state (05-documents.md 5.1.1). */
 export function formatProcessingLabel(state: ProcessingState): string {
-  return PROCESSING_LABELS[state] ?? state;
+  return STATE_LABEL[state];
 }
 
 /** Formatted failure reason object or null (05-documents.md 5.1.1). */
@@ -95,8 +80,7 @@ export function formatFailureReason(
   code: FailureReason | null,
 ): { code: FailureReason; message: string } | null {
   if (state !== "failed" || !code) return null;
-  const message = FAILURE_MESSAGES[code] ?? code;
-  return { code, message };
+  return { code, message: FAILURE_MESSAGE[code] };
 }
 
 /**
@@ -151,7 +135,7 @@ export function toDocumentView(row: RawDocumentRow): DocumentView {
           }
         : null,
     documentType: row.documentType,
-    tags: row.tags.slice(0, 3),
+    tags: row.tags,
     downloadAllowed: row.categoryDownloadActive ?? false,
     createdAt: row.createdAt.toISOString(),
   };

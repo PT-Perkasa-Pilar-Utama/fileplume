@@ -6,7 +6,7 @@ import type { ViewerContext } from "./list-document-query.ts";
 export type ListDocumentsInput = {
   tenantId: TenantId;
   viewer: ViewerContext;
-  pendingConfirmationDays?: number;
+  pendingConfirmationDays: number;
   now?: Date;
   query: ListDocumentsQuery;
 };
@@ -21,7 +21,7 @@ export async function handleListDocuments(
   input: ListDocumentsInput,
 ): Promise<ListDocumentsResult> {
   const now = input.now ?? new Date();
-  const pendingDays = input.pendingConfirmationDays ?? 7;
+  const pendingDays = input.pendingConfirmationDays;
 
   const { rows, total } = await repository.listDocuments(
     input.tenantId,

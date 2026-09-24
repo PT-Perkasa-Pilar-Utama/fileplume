@@ -243,8 +243,9 @@ describe("upload batch acceptance criteria", () => {
     expect(auditEvents).toHaveLength(0);
   });
 
-  test("F1: session expiry mid-batch consumes no quota when reservations stay open", async () => {
-    // Quota leak guard: file 1 must not stay committed after the rollback.
+  test("AC-01.08: session expiry mid-batch consumes no quota when committed bytes debit back", async () => {
+    // Quota leak guard: file 1 committed before the expiry, so the rollback
+    // must debit it back rather than release a consumed reservation.
     const probe1 = pdfStream("quota leak probe 1");
     const probe2 = pdfStream("quota leak probe 2");
     let callCount = 0;
@@ -278,9 +279,64 @@ describe("upload batch acceptance criteria", () => {
     expect(harness.repository.documents).toHaveLength(0);
     expect(harness.blobStore.keys()).toHaveLength(0);
     expect(harness.usedBytes).toBe(0);
-    expect(harness.committedReservations).toHaveLength(0);
+    expect(harness.committedReservations).toHaveLength(1);
+    expect(harness.revertedReservations).toHaveLength(1);
     expect(harness.releasedReservations.length).toBeGreaterThan(0);
     expect(harness.enqueuedJobs).toHaveLength(0);
     expect(harness.auditEvents).toHaveLength(0);
+  });
+
+  test("AC-35.04: a slow batch cannot over-allocate past an expired reservation", async () => {
+    // F8 guard: file 1 commits when it lands, so file 2 is refused on
+    // committed usage even after the 15-minute TTL passes mid-batch. Under a
+    // deferred commit, file 1's reservation would have expired out of the
+    // accounting and file 2 would wrongly be accepted. CODING_STANDARD.md 7.3.
+    const probe = pdfStream("slow batch probe");
+    let calls = 0;
+    let advance: ((ms: number) => void) | undefined;
+    const harness = createTestHarness({
+      quotaBytes: probe.sizeBytes,
+      session: {
+        async validateSession() {
+          calls++;
+          if (calls === 1 && advance !== undefined) {
+            // Simulate a slow batch: file 2 streams in after file 1's
+            // reservation would have expired.
+            advance(16 * 60 * 1000);
+          }
+          return true;
+        },
+      },
+    });
+    advance = harness.advanceTime;
+
+    const file1 = pdfStream("slow batch probe");
+    const file2 = pdfStream("slow batch q2");
+
+    const res = await harness.service.uploadBatch(
+      TENANT_ID,
+      USER_ID,
+      [
+        { filename: "doc1.pdf", stream: file1.stream, sizeBytes: file1.sizeBytes },
+        { filename: "doc2.pdf", stream: file2.stream, sizeBytes: file2.sizeBytes },
+      ],
+      "session-token",
+    );
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    // File 2 is refused at reserve, before its session check.
+    expect(calls).toBe(1);
+    expect(res.value.accepted).toBe(1);
+    expect(res.value.rejected).toBe(1);
+    expect(res.value.summary).toBe("1 dari 2 file berhasil diunggah");
+    const second = res.value.results[1];
+    expect(second?.status).toBe("rejected");
+    if (second?.status === "rejected") {
+      expect(second.error.code).toBe("QUOTA_EXCEEDED");
+      expect(second.error.message).toBe("Kapasitas penyimpanan penuh");
+    }
+    expect(harness.repository.documents).toHaveLength(1);
+    expect(harness.usedBytes).toBe(file1.sizeBytes);
   });
 });

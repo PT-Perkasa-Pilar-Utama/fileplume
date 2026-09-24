@@ -2,7 +2,7 @@ import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { Result, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
-import { and, asc, count, desc, eq, gt, ilike, lte, or, sql, sum } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, ilike, lte, or, sql, sum } from "drizzle-orm";
 import type * as E from "./errors.ts";
 import { findConfigEntries, findConfigRow, findConfigValue } from "./internal/config-repository.ts";
 import type { ConfigKey, StoredConfigRow } from "./internal/config-specs.ts";
@@ -27,6 +27,14 @@ export interface TenancyRepository {
   tryReserve(tenantId: TenantId, bytes: number, now: Date): Promise<QuotaReservation | null>;
   commitReservation(reservation: QuotaReservation): Promise<void>;
   releaseReservation(reservation: QuotaReservation): Promise<void>;
+  /**
+   * Inverse of a commit, for the batch rollback only. Each reservation commits
+   * as soon as its file lands, so a later session expiry must debit committed
+   * bytes back rather than release an already-consumed reservation.
+   * Call at most once per committed reservation; anything else is programmer
+   * error and fails loudly on the underflow guard below. AC-01.08, AC-35.04.
+   */
+  revertCommitReservation(reservation: QuotaReservation): Promise<void>;
   /** Global janitor across tenants, exempt from 8.3. Tenant reads use tryReserve. */
   sweepExpiredReservations(now: Date): Promise<number>;
   usage(tenantId: TenantId): Promise<{ usedBytes: number; quotaBytes: number }>;
@@ -144,6 +152,29 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
 
     async releaseReservation(reservation) {
       await db.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
+    },
+
+    async revertCommitReservation(reservation) {
+      await db.transaction(async (tx) => {
+        // Defensive: the commit already deleted the row, but a retry must not
+        // double-debit, so remove any leftover before touching the counter.
+        await tx.delete(quotaReservations).where(eq(quotaReservations.id, reservation.id));
+        const [updated] = await tx
+          .update(tenants)
+          .set({ storageUsedBytes: sql`${tenants.storageUsedBytes} - ${reservation.bytes}` })
+          .where(
+            and(
+              eq(tenants.id, reservation.tenantId),
+              gte(tenants.storageUsedBytes, reservation.bytes),
+            ),
+          )
+          .returning({ id: tenants.id });
+        if (!updated) {
+          throw new Error(
+            `revertCommitReservation: tenant ${reservation.tenantId} missing or used bytes below ${reservation.bytes}`,
+          );
+        }
+      });
     },
 
     async sweepExpiredReservations(now) {

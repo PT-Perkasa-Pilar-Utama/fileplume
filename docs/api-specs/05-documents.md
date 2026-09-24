@@ -92,15 +92,16 @@ Per-file constraints, each evaluated against the file rather than the batch:
 3. For each file in order, run `catalog.upload`:
    a. Sniff the type. Reject unsupported (AC-01.03).
    b. Check size against the tenant's current limit (AC-01.06).
-   c. `tenancy.reserveQuota(tenantId, sizeBytes)`. Refused: `QUOTA_EXCEEDED` (AC-35.03). The reservation stays open for the whole batch; nothing commits it early.
+   c. `tenancy.reserveQuota(tenantId, sizeBytes)`. Refused: `QUOTA_EXCEEDED` (AC-35.03).
    d. Stream to the blob store at `t/<tenant>/d/<document>/v/<version>`, computing SHA-256 as it streams.
-   e. Insert `documents` and `document_versions` version 1. A duplicate hash loses on insert, not on a read-then-check (AC-03.01, AC-03.04).
-   f. Re-validate the session before commit. Expired mid-batch: `401`, every file inserted so far is deleted with its blob, every open reservation is released, and no job or audit event is left behind (AC-01.08).
+   e. Re-validate the session, after the bytes have landed and before any row does. Expired mid-batch: `401`, this file never inserts, every file inserted before it is deleted with its blob, committed quota debits back, and no job or audit event is left behind (AC-01.08).
+   f. Insert `documents` and `document_versions` version 1. A duplicate hash loses on insert, not on a read-then-check (AC-03.01, AC-03.04).
+   g. `commitQuota` with the bytes the blob store actually wrote. Each reservation commits as soon as its file lands and is never held open across the batch, so a slow batch cannot outlive the 15-minute reservation TTL into over-allocation (AC-35.04).
 4. Deferred phase, once every file has passed the session check, for each accepted document in order:
-   f. `commitQuota` with the bytes the blob store actually wrote, then `enrichment.enqueue(documentId)` (state `queued`), then a `document.upload` audit event.
-   The batch cap of 20 bounds this window: a process crash between the last insert and the deferred phase can leave at most 20 rows in `queued` with no job, which the reconciler reaps. Deferring is what keeps a session expiry from leaving an orphan job or audit event.
-4. A filename matching an existing document is not a duplicate and never a new version. It becomes a separate document (AC-03.03, matrix in [../technical-specs/06-data-model.md 6.6](../technical-specs/06-data-model.md)).
-5. A connection that drops mid-stream releases the reservation and stores nothing. No partial document appears and no quota is consumed (AC-01.07).
+   a. `enrichment.enqueue(documentId)` (state `queued`), then a `document.upload` audit event.
+   The batch cap of 20 bounds this window: a process crash, or a throw inside the deferred phase, can leave at most 20 rows in `queued` with no job. Nothing reaps them at HEAD; the sweep that does lands with the worker in `BE-S3-01`. Deferring enqueue and audit is what keeps a session expiry from leaving an orphan job or audit event.
+5. A filename matching an existing document is not a duplicate and never a new version. It becomes a separate document (AC-03.03, matrix in [../technical-specs/06-data-model.md 6.6](../technical-specs/06-data-model.md)).
+6. A connection that drops mid-stream releases the reservation and stores nothing. No partial document appears and no quota is consumed (AC-01.07).
 
 Files are processed sequentially, not in parallel, so AC-35.04's "first two succeed, third is refused" is deterministic rather than a function of which stream finished first.
 

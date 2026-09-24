@@ -86,6 +86,13 @@ export interface TenancyService {
   ): Promise<Result<QuotaReservation, E.QuotaExceeded>>;
   commitQuota(reservation: QuotaReservation): Promise<void>;
   releaseQuota(reservation: QuotaReservation): Promise<void>;
+  /**
+   * Inverse of `commitQuota`, for the batch rollback only. Each reservation
+   * commits as soon as its file lands, so a later session expiry debits
+   * committed bytes back instead of releasing a consumed reservation.
+   * At most once per committed reservation. AC-01.08, AC-35.04.
+   */
+  revertCommit(reservation: QuotaReservation): Promise<void>;
   sweepExpiredReservations(): Promise<number>;
   getQuotaUsage(tenantId: TenantId): Promise<StorageView>;
   /** AC-43.01. Provisions the Uncategorized system category inside the same transaction. */
@@ -190,6 +197,7 @@ export function createTenancyService(deps: {
 
     commitQuota: (r) => repository.commitReservation(r),
     releaseQuota: (r) => repository.releaseReservation(r),
+    revertCommit: (r) => repository.revertCommitReservation(r),
     // SCAFFOLD: the interval that calls this lands with the worker in BE-S3-01.
     // Until then expiry is honoured by tryReserve, but the rows are not removed.
     // api-specs/04-configuration.md 4.6.

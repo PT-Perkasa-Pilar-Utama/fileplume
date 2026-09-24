@@ -45,11 +45,15 @@ async function rollbackBatch(
   deps: UploadBatchDeps,
 ): Promise<void> {
   for (const doc of docs) {
+    // Every entry here committed when its file landed, so debit the bytes
+    // back rather than release an already-consumed reservation. Releasing a
+    // consumed reservation would leak quota into storage_used_bytes for a
+    // deleted document. AC-01.08.
     reportSettled(
       await Promise.allSettled([
         deps.repository.deleteDocument(tenantId, doc.id),
         deps.blobStore.delete(doc.blobKey),
-        deps.quota.releaseQuota(doc.reservation),
+        deps.quota.revertCommit({ ...doc.reservation, bytes: doc.sizeBytes }),
       ]),
       "batch rollback failed after session expiry",
     );
@@ -63,9 +67,8 @@ async function emitPostBatch(
   deps: UploadBatchDeps,
 ): Promise<void> {
   for (const doc of docs) {
-    // Commit what the blob store actually wrote, not the declared size,
-    // so route-level streaming never drifts quota.
-    await deps.quota.commitQuota({ ...doc.reservation, bytes: doc.sizeBytes });
+    // Quota already committed per file when each landed; only the
+    // irreversible fan-out remains: enqueue (state `queued`), then audit.
     await deps.queue.enqueue(doc.id);
     await deps.audit.record({
       tenantId,
@@ -80,11 +83,13 @@ async function emitPostBatch(
 }
 
 /**
- * Sequential, not parallel, so a mixed batch is deterministic. 5.2 step 4.
- * Reservations stay open for the whole batch; commit, enqueue and audit fire
- * once, in order, after the batch is known good. A later session expiry
- * therefore never leaves an orphan queue job or audit event for a deleted
- * document, and rollback always has a live reservation to release. AC-01.08.
+ * Sequential, not parallel, so a mixed batch is deterministic. 5.2 step 3.
+ * Each reservation commits as soon as its file lands, so the batch never
+ * depends on a reservation outliving the 15-minute TTL; enqueue and audit
+ * fire once, in order, after the batch is known good (5.2 step 4). A later
+ * session expiry therefore never leaves an orphan queue job or audit event
+ * for a deleted document, and rollback always debits committed bytes back.
+ * CODING_STANDARD.md 7.3, AC-01.08, AC-35.04.
  */
 export async function uploadBatch(
   tenantId: TenantId,
@@ -116,11 +121,11 @@ export async function uploadBatch(
     if (!item) continue;
     const outcome = await uploadSingleFile(tenantId, uploaderId, item, i, singleDeps, sessionToken);
     if (outcome.status === "session_expired") {
-      // Nothing irreversible has been emitted yet: commit, enqueue and audit
-      // wait until the whole batch passes, so rollback only removes rows,
-      // blobs, and live reservations. AC-01.08 leaves no orphan job behind.
+      // Enqueue and audit wait until the whole batch passes, so rollback only
+      // removes rows, blobs, and committed quota: each accepted file debits
+      // back through `revertCommit`. AC-01.08 leaves no orphan job behind.
       // Best-effort: the primary outcome is SessionExpired, so a failing
-      // delete or release must not mask it.
+      // delete or debit must not mask it.
       await rollbackBatch(tenantId, createdDocuments, deps);
       return err({ kind: "SessionExpired" });
     }
@@ -146,8 +151,8 @@ export async function uploadBatch(
     }
   }
 
-  // Irreversible side effects fire once, in order, after the batch is
-  // known good. api-specs/05-documents.md 5.2 deferred phase. AC-01.08.
+  // Enqueue and audit fire once, in order, after the batch is known good.
+  // api-specs/05-documents.md 5.2 step 4. AC-01.08.
   await emitPostBatch(tenantId, uploaderId, createdDocuments, deps);
 
   return ok({

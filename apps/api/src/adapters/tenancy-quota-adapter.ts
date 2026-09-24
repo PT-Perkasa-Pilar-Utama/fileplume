@@ -22,5 +22,9 @@ export function createTenancyQuotaAdapter(tenancy: TenancyService): QuotaPort {
     async releaseQuota(reservation: QuotaReservationToken): Promise<void> {
       await tenancy.releaseQuota(reservation);
     },
+
+    async revertCommit(reservation: QuotaReservationToken): Promise<void> {
+      await tenancy.revertCommit(reservation);
+    },
   };
 }

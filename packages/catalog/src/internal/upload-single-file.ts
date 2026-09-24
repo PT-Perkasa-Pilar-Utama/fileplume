@@ -173,9 +173,31 @@ export async function uploadSingleFile(
     });
   }
 
-  // No commit, enqueue or audit here. A commit cannot be undone, so uploadBatch
-  // holds the reservation open and emits all three only after every file in the
-  // batch has passed the session check. AC-01.08.
+  // CODING_STANDARD.md 7.3, AC-35.04: the reservation commits as soon as its
+  // file lands, never held open across the batch. A slow batch can therefore
+  // never outlive the 15-minute reservation TTL into over-allocation, and the
+  // batch rollback debits committed bytes back through `revertCommit`.
+  try {
+    await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
+  } catch (commitErr) {
+    // The commit is transactional: a throw leaves the reservation open, so
+    // release it and remove the row and blob, then let the throw surface.
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(reservation),
+        deps.blobStore.delete(key),
+        deps.repository.deleteDocument(tenantId, documentId),
+      ]),
+      "upload compensation failed after quota commit",
+    );
+    throw commitErr;
+  }
+
+  // No enqueue or audit here. A queue job cannot be taken back, so uploadBatch
+  // holds those two until every file in the batch has passed the session
+  // check. The quota commit above is reversible through `revertCommit`, which
+  // is what lets the rollback debit files committed before a later session
+  // expiry. AC-01.08.
   return {
     index,
     filename: item.filename,

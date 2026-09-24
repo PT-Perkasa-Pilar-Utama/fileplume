@@ -13,6 +13,12 @@ import { inMemoryCatalogRepository } from "./in-memory-repository.ts";
 export const TENANT_ID = asTenantId("11111111-1111-4111-8111-111111111111");
 export const USER_ID = asUserId("22222222-2222-4222-8222-222222222222");
 
+/**
+ * Mirrors the production ledger. Source of truth:
+ * `packages/tenancy/src/internal/reservation-ttl.ts`.
+ */
+const RESERVATION_TTL_MS = 15 * 60 * 1000;
+
 function streamOf(bytes: Uint8Array<ArrayBuffer>): {
   stream: ReadableStream;
   sizeBytes: number;
@@ -71,13 +77,18 @@ export function createTestHarness(options?: {
 }) {
   const repository = inMemoryCatalogRepository();
   const blobStore = inMemoryBlobStore();
-  const clock = { now: () => new Date("2026-09-14T08:00:00.000Z") };
+  let now = new Date("2026-09-14T08:00:00.000Z");
+  const clock = { now: () => now };
   const committedReservations: QuotaReservationToken[] = [];
   const releasedReservations: QuotaReservationToken[] = [];
+  const revertedReservations: QuotaReservationToken[] = [];
   const enqueuedJobs: string[] = [];
   const auditEvents: unknown[] = [];
   let usedBytes = 0;
-  const outstandingBytes = new Map<string, number>();
+  // Outstanding reservations carry their expiry so a slow batch is modelled
+  // the way the Drizzle ledger counts it: an expired reservation stops
+  // counting. `tryReserve` filters on `expiresAt > now`.
+  const outstanding = new Map<string, { bytes: number; expiresAt: Date }>();
 
   const quota: QuotaPort = {
     async getMaxFileSizeMb() {
@@ -88,26 +99,38 @@ export function createTestHarness(options?: {
         return { ok: false, error: { kind: "QuotaExceeded" } };
       }
       if (options?.quotaBytes !== undefined) {
-        const outstanding =
-          outstandingBytes.size > 0
-            ? [...outstandingBytes.values()].reduce((sum, b) => sum + b, 0)
-            : 0;
-        if (usedBytes + outstanding + bytes > options.quotaBytes) {
+        const live = [...outstanding.values()]
+          .filter((r) => r.expiresAt > now)
+          .reduce((sum, r) => sum + r.bytes, 0);
+        if (usedBytes + live + bytes > options.quotaBytes) {
           return { ok: false, error: { kind: "QuotaExceeded" } };
         }
         const token = { id: crypto.randomUUID(), tenantId, bytes };
-        outstandingBytes.set(token.id, bytes);
+        outstanding.set(token.id, {
+          bytes,
+          expiresAt: new Date(now.getTime() + RESERVATION_TTL_MS),
+        });
         return ok(token);
       }
       return ok({ id: crypto.randomUUID(), tenantId, bytes });
     },
     async commitQuota(res) {
-      outstandingBytes.delete(res.id);
+      outstanding.delete(res.id);
       if (options?.quotaBytes !== undefined) usedBytes += res.bytes;
       committedReservations.push(res);
     },
+    async revertCommit(res) {
+      outstanding.delete(res.id);
+      if (options?.quotaBytes !== undefined) {
+        if (usedBytes < res.bytes) {
+          throw new Error(`revertCommit: used bytes ${usedBytes} below ${res.bytes}`);
+        }
+        usedBytes -= res.bytes;
+      }
+      revertedReservations.push(res);
+    },
     async releaseQuota(res) {
-      outstandingBytes.delete(res.id);
+      outstanding.delete(res.id);
       releasedReservations.push(res);
     },
   };
@@ -146,9 +169,13 @@ export function createTestHarness(options?: {
     blobStore,
     committedReservations,
     releasedReservations,
+    revertedReservations,
     enqueuedJobs,
     auditEvents,
     session,
+    advanceTime(ms: number) {
+      now = new Date(now.getTime() + ms);
+    },
     get usedBytes() {
       return usedBytes;
     },

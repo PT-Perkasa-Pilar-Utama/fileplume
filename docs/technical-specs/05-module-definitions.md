@@ -29,6 +29,7 @@ setConfigValue(tenantId, key: ConfigKey, value: string, actor: UserId)
 reserveQuota(tenantId, bytes: number): Promise<Result<QuotaReservation, QuotaExceeded>>
 commitQuota(reservation: QuotaReservation): Promise<void>
 releaseQuota(reservation: QuotaReservation): Promise<void>
+revertCommit(reservation: QuotaReservation): Promise<void>
 getQuotaUsage(tenantId): Promise<{ usedBytes, quotaBytes, percent }>
 ```
 
@@ -36,7 +37,7 @@ getQuotaUsage(tenantId): Promise<{ usedBytes, quotaBytes, percent }>
 
 1. `ConfigKey` is a closed union of known parameters, never a free string (grooming D16). An unknown key is a type error, not a silent miss.
 2. `storage_quota` is writable only by Super Admin. `setConfigValue` returns `NotEditableByTenant` for it regardless of the caller's role inside the tenant. AC-42.01 shows it read-only.
-3. Quota is reserved before a blob is written and committed after, or released on failure. Reservations expire after 15 minutes and are swept.
+3. Quota is reserved before a blob is written and committed after, or released on failure. Reservations expire after 15 minutes and are swept. A committed reservation is undone only by the batch rollback through `revertCommit`, at most once per reservation.
 4. `reserveQuota` is the only correct way to check quota. Reading `getQuotaUsage` and then deciding is a race, and AC-35.04 tests exactly that race.
 
 **Seams.** None. Pure database.

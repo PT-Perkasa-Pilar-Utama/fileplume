@@ -1,8 +1,14 @@
 import type { DocumentView } from "@archiva/shared";
 import { Link } from "@tanstack/react-router";
+import { Check, ChevronDown } from "lucide-react";
 import type { JSX } from "react";
-import { Badge } from "../../components/ui/badge.tsx";
 import { Card } from "../../components/ui/card.tsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu.tsx";
 import { cn } from "../../lib/cn.ts";
 import { formatBytes, formatDocumentDate } from "../../lib/format.ts";
 import { FileTypeIcon } from "./internal/file-type-icon.tsx";
@@ -10,100 +16,135 @@ import type { UploadedDocumentDisplay } from "./types.ts";
 
 export type DocumentCardItem = DocumentView | UploadedDocumentDisplay;
 
+export const DOCUMENT_CATEGORIES = [
+  "Technicial Specs",
+  "Agreement",
+  "Requirement",
+  "Contract",
+] as const;
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  "Technicial Specs": "text-blue-500",
+  Agreement: "text-emerald-500",
+  Requirement: "text-purple-500",
+  Contract: "text-amber-500",
+};
+
 export interface DocumentCardProps {
   readonly document: DocumentCardItem;
+  readonly category?: string;
+  readonly onCategoryChange?: (id: string, category: string) => void;
   readonly className?: string;
 }
 
-/**
- * Maps processing state to badge variant.
- * Labels are strictly rendered from document.processingLabel served by the API.
- */
-function getProcessingBadgeVariant(
-  state: DocumentCardItem["processingState"],
-): "success" | "destructive" | "outline" | "secondary" {
-  switch (state) {
-    case "ready":
-      return "success";
-    case "failed":
-      return "destructive";
-    case "processing":
-      return "outline";
-    default:
-      return "secondary";
+function resolveCategoryName(document: DocumentCardItem, categoryOverride?: string): string {
+  if (typeof categoryOverride === "string" && categoryOverride.length > 0) {
+    return categoryOverride;
   }
+  if ("category" in document && document.category && typeof document.category.name === "string") {
+    return document.category.name;
+  }
+  return "Uncategorize";
 }
 
 /**
- * Visual Document Card (US-38, AC-38.01, AC-01.02)
- * Renders file-type icon, title, upload date, uploader name, and processing status.
+ * Visual Document Card (US-38, AC-38.01, AC-01.02, Figma 11:338)
+ * Renders file-type icon, title, category dropdown pill, uploader name and upload date.
  * Clicking navigates to /documents/$id.
  */
-export function DocumentCard({ document, className }: DocumentCardProps): JSX.Element {
+export function DocumentCard({
+  document,
+  category,
+  onCategoryChange,
+  className,
+}: DocumentCardProps): JSX.Element {
   const uploaderName = "uploader" in document ? document.uploader.name : document.uploaderName;
   const formattedDate = formatDocumentDate(document.createdAt);
   const sizeFormatted =
     typeof document.sizeBytes === "number" ? formatBytes(document.sizeBytes) : null;
-  const badgeVariant = getProcessingBadgeVariant(document.processingState);
+
+  const currentCategory = resolveCategoryName(document, category);
 
   return (
     <Card
       data-testid={`document-card-${document.id}`}
       className={cn(
-        "group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group relative flex flex-col items-center justify-between rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm focus-within:ring-2 focus-within:ring-ring text-center min-h-37.5",
         className,
       )}
     >
       <Link
         to="/documents/$id"
         params={{ id: document.id }}
-        className="flex flex-col gap-3 focus:outline-none"
+        className="flex w-full flex-col items-center justify-center gap-2 focus:outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']"
         aria-label={`Buka detail dokumen ${document.title}`}
+        title={sizeFormatted ? `${document.title} (${sizeFormatted})` : document.title}
       >
-        <div className="flex items-start justify-between gap-3">
-          {/* AC-38.01: ikon tipe file */}
-          <FileTypeIcon fileType={document.fileType} />
+        {/* AC-38.01: ikon tipe file (Figma 13:586, 44x44px centered) */}
+        <FileTypeIcon fileType={document.fileType} size="md" />
 
-          {/* AC-38.01: status pemrosesan (label strictly from server) */}
-          <Badge
-            variant={badgeVariant}
-            data-testid={`document-status-${document.id}`}
-            className={cn(
-              "shrink-0 font-medium",
-              document.processingState === "processing" && "animate-pulse border-primary/40",
-            )}
-          >
-            {document.processingLabel}
-          </Badge>
-        </div>
-
-        {/* AC-38.01: judul dokumen */}
-        <div className="flex flex-col gap-1.5">
-          <h4
-            data-testid={`document-title-${document.id}`}
-            title={document.title}
-            className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary"
-          >
-            {document.title}
-          </h4>
-
-          {/* AC-38.01: tanggal unggah & nama pengunggah & ukuran file */}
-          <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
-            {sizeFormatted ? <span>{sizeFormatted}</span> : null}
-            <span
-              data-testid={`document-uploader-${document.id}`}
-              className="truncate max-w-[120px]"
-              title={uploaderName}
-            >
-              {uploaderName}
-            </span>
-          </div>
-
-          <div className="flex items-center text-xs text-muted-foreground">
-            <span data-testid={`document-date-${document.id}`}>{formattedDate}</span>
-          </div>
-        </div>
+        {/* AC-38.01: judul dokumen (Figma 11:331, 14px font-medium, center, truncate) */}
+        <h4
+          data-testid={`document-title-${document.id}`}
+          title={document.title}
+          className="w-full truncate text-sm font-medium leading-tight text-foreground transition-colors group-hover:text-primary"
+        >
+          {document.title}
+        </h4>
       </Link>
+
+      {/* Figma 11:338: Category dropdown pill - OUTSIDE <Link>, with relative z-10 */}
+      <div className="relative z-10 my-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Kategori dokumen: ${currentCategory}`}
+              className="flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer border border-border/60"
+            >
+              <span className="truncate max-w-27.5">{currentCategory}</span>
+              <ChevronDown className="size-3 shrink-0 opacity-70" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="w-48 z-50">
+            {DOCUMENT_CATEGORIES.map((cat) => {
+              const isCurrent = currentCategory === cat;
+              return (
+                <DropdownMenuItem
+                  key={cat}
+                  onClick={() => onCategoryChange?.(document.id, isCurrent ? "Uncategorize" : cat)}
+                  className="flex items-center justify-between text-xs cursor-pointer"
+                >
+                  <span className={CATEGORY_COLORS[cat] ?? ""}>{cat}</span>
+                  {isCurrent && <Check className="size-3.5 text-primary" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* AC-38.01: Status pemrosesan (accessible for tests & screen readers) */}
+      <span data-testid={`document-status-${document.id}`} className="sr-only">
+        {document.processingLabel}
+      </span>
+
+      {/* AC-38.01 & AC-01.02: uploader • date (Figma 75:17791) */}
+      <div className="relative z-10 flex items-center justify-center gap-1 text-2xs text-muted-foreground pointer-events-none">
+        {uploaderName && <span>by</span>}
+        <span
+          data-testid={`document-uploader-${document.id}`}
+          className="truncate max-w-21.25"
+          title={uploaderName ?? undefined}
+        >
+          {uploaderName}
+        </span>
+        {uploaderName && <span aria-hidden="true">•</span>}
+        <span data-testid={`document-date-${document.id}`} className="shrink-0">
+          {formattedDate}
+        </span>
+        {sizeFormatted ? <span className="sr-only">{sizeFormatted}</span> : null}
+      </div>
     </Card>
   );
 }

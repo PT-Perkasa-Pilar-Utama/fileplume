@@ -7,6 +7,8 @@ export {
   uploadDocumentsRequest,
 } from "./api.ts";
 export {
+  CATEGORY_COLORS,
+  DOCUMENT_CATEGORIES,
   DocumentCard,
   type DocumentCardProps,
 } from "./document-card.tsx";

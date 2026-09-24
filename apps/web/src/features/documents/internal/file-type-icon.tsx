@@ -59,13 +59,13 @@ const DEFAULT_VARIANT: VariantConfig = {
 
 const SIZE_CLASSES = {
   sm: "size-7 rounded p-1 text-xs",
-  md: "size-10 rounded-lg p-2 text-sm",
+  md: "size-11 rounded-[10px] p-2.5 text-sm",
   lg: "size-12 rounded-xl p-2.5 text-base",
 } as const;
 
 const ICON_SIZES = {
   sm: "size-3.5",
-  md: "size-5",
+  md: "size-6",
   lg: "size-6",
 } as const;
 

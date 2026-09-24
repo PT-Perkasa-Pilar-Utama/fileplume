@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { type ChangeEvent, type JSX, useState } from "react";
 import {
   Card,
@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card.tsx";
-import { Input } from "../../components/ui/input.tsx";
+import { SearchInput } from "../../components/ui/search-input.tsx";
 import { ApiError } from "../../lib/api.ts";
 import { createTenantRequest, fetchTenants } from "./api.ts";
 import { TenantForm } from "./tenant-form.tsx";
@@ -90,13 +90,11 @@ export function TenantManagement(): JSX.Element {
               <CardTitle className="text-base">Daftar Tenant</CardTitle>
               <CardDescription>Seluruh tenant yang terdaftar aktif dalam sistem.</CardDescription>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="w-full sm:w-64">
+              <SearchInput
                 placeholder="Cari nama atau subdomain..."
                 value={searchQuery}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                className="pl-9"
               />
             </div>
           </div>

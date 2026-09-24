@@ -50,7 +50,7 @@ describe("Sidebar slicing sesuai gambar", () => {
   test("menu aktif Dashboard memakai aria-current dan style aktif", async () => {
     const html = await renderSidebarLayout(["dashboard", "document"], "/");
     expect(html).toContain('aria-current="page"');
-    expect(html).toContain("bg-slate-100");
+    expect(html).toContain("bg-muted");
     expect(html).toContain("rounded-2xl");
     // Ikon menu aktif hitam, teks biru (detail Figma)
     expect(html).toContain("lucide-layout-grid size-4 shrink-0 text-foreground");

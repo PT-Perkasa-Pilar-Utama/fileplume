@@ -1,4 +1,4 @@
-import { UploadCloud } from "lucide-react";
+import { Upload } from "lucide-react";
 import { type DragEvent, type JSX, type KeyboardEvent, useRef, useState } from "react";
 import { cn } from "../../../lib/cn.ts";
 
@@ -71,10 +71,10 @@ export function Dropzone({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "group relative flex min-h-[220px] rounded-xl border-2 border-dashed transition-all",
+        "group relative flex min-h-56 flex-1 flex-col rounded-xl border-2 border-dashed transition-all",
         isDragOver
-          ? "border-primary bg-primary/5 shadow-inner scale-[0.99]"
-          : "border-slate-300 bg-slate-50/60 hover:border-primary/60 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40 dark:hover:border-primary/50 dark:hover:bg-slate-900/60",
+          ? "border-primary bg-primary/5 shadow-inner"
+          : "border-muted-foreground/40 bg-muted/40 hover:border-muted-foreground/70 hover:bg-muted/60 dark:border-muted-foreground/30 dark:bg-muted/20",
         disabled && "pointer-events-none opacity-50 cursor-not-allowed",
         className,
       )}
@@ -98,16 +98,16 @@ export function Dropzone({
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         aria-label="Area Unggah Dokumen. Klik atau seret file ke sini"
-        className="flex w-full flex-col items-center justify-center p-8 text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+        className="flex w-full flex-1 flex-col items-center justify-center p-8 text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
       >
-        <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform group-hover:scale-110">
-          <UploadCloud className="size-7 text-primary" />
+        <div className="mb-3 text-foreground transition-transform group-hover:scale-105">
+          <Upload className="size-6 stroke-[1.75]" />
         </div>
 
-        <p className="mb-1 text-sm font-semibold text-foreground">
+        <p className="mb-1 text-base font-normal text-foreground">
           Klik untuk mengunggah atau seret dan lepas file di sini
         </p>
-        <p className="text-xs text-muted-foreground font-medium">(PDF, DOCX, XLSX, TXT)</p>
+        <p className="text-sm font-normal text-muted-foreground">(PDF, DOCX, XLSX, TXT)</p>
       </button>
     </section>
   );

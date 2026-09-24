@@ -14,45 +14,45 @@ const ORBIT_BADGES: OrbitBadge[] = [
     Icon: FileArchive,
     angle: -50,
     radius: 208,
-    iconClassName: "text-orange-600",
+    iconClassName: "text-warning",
   },
-  { Icon: FileText, angle: 0, radius: 152, iconClassName: "text-rose-600" },
+  { Icon: FileText, angle: 0, radius: 152, iconClassName: "text-destructive" },
   {
     Icon: FileCode,
     angle: 52,
     radius: 208,
-    iconClassName: "text-purple-600",
+    iconClassName: "text-primary",
   },
-  { Icon: FileText, angle: 48, radius: 96, iconClassName: "text-blue-600" },
+  { Icon: FileText, angle: 48, radius: 96, iconClassName: "text-primary" },
   {
     Icon: FileSpreadsheet,
     angle: 90,
     radius: 160,
-    iconClassName: "text-emerald-600",
+    iconClassName: "text-success",
   },
   {
     Icon: FileArchive,
     angle: 138,
     radius: 208,
-    iconClassName: "text-orange-600",
+    iconClassName: "text-warning",
   },
   {
     Icon: FileText,
     angle: 180,
     radius: 96,
-    iconClassName: "text-rose-600",
+    iconClassName: "text-destructive",
   },
   {
     Icon: FileSpreadsheet,
     angle: 215,
     radius: 208,
-    iconClassName: "text-emerald-600",
+    iconClassName: "text-success",
   },
   {
     Icon: FileText,
     angle: 270,
     radius: 160,
-    iconClassName: "text-blue-600",
+    iconClassName: "text-primary",
   },
 ];
 
@@ -63,7 +63,7 @@ function OrbitNode({ badge }: { badge: OrbitBadge }): JSX.Element {
   };
   return (
     <div className="absolute top-1/2 left-1/2 -mt-6 -ml-6" style={style}>
-      <div className="flex size-12 items-center justify-center rounded-full bg-white/85 shadow-lg backdrop-blur-sm">
+      <div className="flex size-12 items-center justify-center rounded-full bg-card/85 shadow-lg backdrop-blur-sm">
         <Icon className={`size-5 ${iconClassName}`} />
       </div>
     </div>
@@ -73,7 +73,7 @@ function OrbitNode({ badge }: { badge: OrbitBadge }): JSX.Element {
 export function LoginBanner(): JSX.Element {
   return (
     <div className="hidden flex-1 bg-background p-4 lg:flex">
-      <div className="relative flex flex-1 flex-col justify-between overflow-hidden p-12 text-white">
+      <div className="relative flex flex-1 flex-col justify-between overflow-hidden p-12 text-primary-foreground">
         <svg
           viewBox="0 0 1000 1000"
           preserveAspectRatio="none"
@@ -94,22 +94,24 @@ export function LoginBanner(): JSX.Element {
 
         <div className="relative flex flex-1 items-center justify-center" aria-hidden="true">
           <div className="relative flex size-112 items-center justify-center">
-            <div className="absolute size-112 rounded-full border border-white/20" />
-            <div className="absolute size-80 rounded-full border border-white/20" />
-            <div className="absolute size-48 rounded-full border border-white/25" />
+            <div className="absolute size-112 rounded-full border border-primary-foreground/20" />
+            <div className="absolute size-80 rounded-full border border-primary-foreground/20" />
+            <div className="absolute size-48 rounded-full border border-primary-foreground/25" />
             {ORBIT_BADGES.map((badge) => (
               <OrbitNode key={`${badge.angle}-${badge.radius}`} badge={badge} />
             ))}
-            <div className="relative z-10 flex size-16 items-center justify-center rounded-full bg-white shadow-xl">
+            <div className="relative z-10 flex size-16 items-center justify-center rounded-full bg-card shadow-xl">
               <ArchivaLogoIcon className="h-7 w-auto" />
             </div>
           </div>
         </div>
 
         <div className="relative z-10 max-w-md">
-          <p className="font-normal text-base text-blue-100">Selamat datang di,</p>
-          <h2 className="my-1 font-bold text-5xl text-white tracking-tight">ARCHIVA</h2>
-          <p className="text-blue-100/80 text-sm leading-relaxed">
+          <p className="font-normal text-base text-primary-foreground/90">Selamat datang di,</p>
+          <h2 className="my-1 font-bold text-5xl text-primary-foreground tracking-tight">
+            ARCHIVA
+          </h2>
+          <p className="text-primary-foreground/80 text-sm leading-relaxed">
             ARCHIVA adalah sistem manajemen dokumen
             <br />
             oleh Perkasa Pilar Utama

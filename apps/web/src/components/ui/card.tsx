@@ -4,7 +4,10 @@ import { cn } from "../../lib/cn.ts";
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>): JSX.Element {
   return (
     <div
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+      className={cn(
+        "rounded-xl border border-border bg-card text-card-foreground shadow-xs",
+        className,
+      )}
       {...props}
     />
   );
@@ -19,7 +22,10 @@ export function CardTitle({
   ...props
 }: HTMLAttributes<HTMLHeadingElement>): JSX.Element {
   return (
-    <h3 className={cn("font-semibold leading-none tracking-tight text-lg", className)} {...props} />
+    <h3
+      className={cn("font-semibold leading-none tracking-tight text-base sm:text-lg", className)}
+      {...props}
+    />
   );
 }
 

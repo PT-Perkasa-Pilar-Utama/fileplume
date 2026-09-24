@@ -25,7 +25,7 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
   return (
     <div
       data-testid={`upload-item-${item.id}`}
-      className="relative flex items-start gap-3 rounded-lg border border-border bg-card p-3 shadow-xs transition-colors"
+      className="relative flex items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-2xs transition-colors"
     >
       <FileTypeIcon fileType={detectedType} size="md" />
 
@@ -56,7 +56,7 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
               </span>
             </div>
             <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800"
+              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-valuenow={item.progress}
               aria-valuemin={0}
@@ -74,12 +74,12 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
         {/* Accepted state */}
         {isAccepted && (
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="flex items-center gap-1 text-xs font-medium text-success">
               <CheckCircle2 className="size-3.5 shrink-0" />
               {UPLOAD_MESSAGES.FILE_ACCEPTED}
             </span>
             {item.document && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[11px] font-normal">
+              <Badge variant="secondary" className="h-5 px-1.5 text-2xs font-normal">
                 {item.document.processingLabel}
               </Badge>
             )}

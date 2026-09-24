@@ -42,10 +42,7 @@ export function TenantForm({
   return (
     <div className="space-y-4">
       {successMessage ? (
-        <Alert
-          data-testid="tenant-success-alert"
-          className="border-emerald-500/50 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200 [&>svg]:text-emerald-600"
-        >
+        <Alert variant="success" data-testid="tenant-success-alert">
           <CheckCircle2 className="size-4" />
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>

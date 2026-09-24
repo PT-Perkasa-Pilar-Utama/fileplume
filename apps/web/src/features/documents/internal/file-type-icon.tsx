@@ -29,7 +29,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           role="img"
           data-testid="file-icon-pdf"
           className={cn(
-            "flex shrink-0 items-center justify-center bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 font-semibold",
+            "flex shrink-0 items-center justify-center bg-alert-destructive-bg text-alert-destructive-text font-semibold",
             sizeClasses,
             className,
           )}
@@ -44,7 +44,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           role="img"
           data-testid="file-icon-docx"
           className={cn(
-            "flex shrink-0 items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400 font-semibold",
+            "flex shrink-0 items-center justify-center bg-primary/10 text-primary font-semibold",
             sizeClasses,
             className,
           )}
@@ -59,7 +59,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           role="img"
           data-testid="file-icon-xlsx"
           className={cn(
-            "flex shrink-0 items-center justify-center bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 font-semibold",
+            "flex shrink-0 items-center justify-center bg-alert-success-bg text-alert-success-text font-semibold",
             sizeClasses,
             className,
           )}
@@ -74,7 +74,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           role="img"
           data-testid="file-icon-txt"
           className={cn(
-            "flex shrink-0 items-center justify-center bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-semibold",
+            "flex shrink-0 items-center justify-center bg-muted text-muted-foreground font-semibold",
             sizeClasses,
             className,
           )}
@@ -89,7 +89,7 @@ export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconP
           role="img"
           data-testid="file-icon-unsupported"
           className={cn(
-            "flex shrink-0 items-center justify-center bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400 font-semibold",
+            "flex shrink-0 items-center justify-center bg-alert-warning-bg text-alert-warning-text font-semibold",
             sizeClasses,
             className,
           )}

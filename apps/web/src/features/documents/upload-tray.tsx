@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
+import { cn } from "../../lib/cn.ts";
 import { DEFAULT_MAX_FILE_SIZE_MB } from "./file-validation.ts";
 import { Dropzone } from "./internal/dropzone.tsx";
 import { UploadFileItem } from "./internal/upload-file-item.tsx";
@@ -35,7 +36,7 @@ export function UploadTray({
   return (
     <div
       data-testid="upload-tray"
-      className={`rounded-xl border border-border bg-card p-6 shadow-xs space-y-4 ${className ?? ""}`}
+      className={cn("rounded-xl border border-border bg-card p-6 shadow-xs space-y-4", className)}
     >
       <div className="flex flex-col space-y-1">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -56,20 +57,17 @@ export function UploadTray({
       {batchSummary && (
         <Alert
           data-testid="batch-summary-alert"
-          className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200"
+          className="border-primary/20 bg-primary/5 text-foreground"
         >
-          <Info className="size-4 text-blue-600 dark:text-blue-400" />
+          <Info className="size-4 text-primary" />
           <AlertDescription>{batchSummary}</AlertDescription>
         </Alert>
       )}
 
       {/* Success notification banner (AC-01.01, AC-01.04, AC-03.02) */}
       {successMessage && (
-        <Alert
-          data-testid="upload-success-alert"
-          className="border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-        >
-          <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+        <Alert variant="success" data-testid="upload-success-alert">
+          <CheckCircle2 className="size-4" />
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
@@ -81,7 +79,7 @@ export function UploadTray({
 
         <div className="space-y-3">
           {items.length === 0 ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-slate-50/40 dark:bg-slate-900/20 p-6 text-center text-muted-foreground">
+            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 p-6 text-center text-muted-foreground">
               <p className="text-sm font-medium">Belum ada file yang diunggah</p>
               <p className="text-xs mt-1">
                 Pilih atau seret file ke area sebelah kiri untuk memulai unggahan.

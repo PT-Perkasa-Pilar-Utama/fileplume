@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { JSX } from "react";
 import { cn } from "../../lib/cn.ts";
+import { ArchivaLogo, ArchivaLogoIcon } from "../ui/archiva-logo.tsx";
 import { Button } from "../ui/button.tsx";
 import { type SidebarUser, SidebarUserCard } from "./sidebar/internal/sidebar-user-card.tsx";
 import { StorageUsage } from "./sidebar/internal/storage-usage.tsx";
@@ -104,21 +105,40 @@ export function Sidebar({
         className,
       )}
     >
-      <div className="flex h-14 items-center justify-between border-b px-4">
-        {/* SCAFFOLD(FE-S1-02): ganti teks dengan <ArchivaLogo/> setelah PR login merge. */}
-        {collapsed ? null : (
-          <span className="font-extrabold text-lg tracking-wide uppercase">Archiva</span>
+      <div
+        className={cn(
+          "flex h-14 items-center border-b px-4",
+          collapsed ? "justify-center" : "justify-between",
         )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onToggleCollapse}
-          aria-label={collapsed ? "Buka sidebar" : "Tutup sidebar"}
-          className="size-8"
-        >
-          <PanelLeft className="size-4" />
-        </Button>
+      >
+        {collapsed ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onToggleCollapse}
+            aria-label="Buka sidebar"
+            className="size-8"
+          >
+            <ArchivaLogoIcon className="size-6" />
+          </Button>
+        ) : (
+          <>
+            <div className="flex items-center">
+              <ArchivaLogo className="h-5.5 w-auto" />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCollapse}
+              aria-label="Tutup sidebar"
+              className="size-8"
+            >
+              <PanelLeft className="size-4" />
+            </Button>
+          </>
+        )}
       </div>
       <nav aria-label="Navigasi Utama" className="flex-1 space-y-1 p-3">
         {items.map((item) => {
@@ -133,7 +153,7 @@ export function Sidebar({
               className={cn(
                 "flex items-center gap-4 rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-slate-100 font-semibold text-primary"
+                  ? "bg-muted font-semibold text-primary"
                   : "text-foreground hover:bg-accent hover:text-accent-foreground",
               )}
             >

@@ -82,7 +82,7 @@ export function DropdownMenuContent({
       role="menu"
       tabIndex={-1}
       className={cn(
-        "absolute z-50 mt-2 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 focus:outline-none",
+        "absolute z-50 mt-2 min-w-32 rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 focus:outline-none",
         alignClass,
         className,
       )}

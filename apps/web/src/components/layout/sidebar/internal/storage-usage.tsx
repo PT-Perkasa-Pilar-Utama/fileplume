@@ -16,7 +16,7 @@ export interface StorageUsageProps {
  */
 const LEVEL_PROGRESS_COLORS: Record<StorageLevel, string> = {
   ok: "bg-primary",
-  warning: "bg-amber-500", // AC-35.02: kuning atau oranye (warning)
+  warning: "bg-warning", // AC-35.02: kuning atau oranye (warning)
   full: "bg-destructive",
 };
 
@@ -89,7 +89,7 @@ export function StorageUsage({
           className={cn(
             "mt-3 flex items-start gap-2 rounded-md border p-2.5 text-xs leading-relaxed",
             level === "warning" &&
-              "border-amber-500/50 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200",
+              "border-alert-warning-border bg-alert-warning-bg text-alert-warning-text",
             level === "full" &&
               "border-alert-destructive-border bg-alert-destructive-bg text-alert-destructive-text",
           )}
@@ -97,7 +97,7 @@ export function StorageUsage({
           <AlertTriangle
             className={cn(
               "mt-0.5 size-3.5 shrink-0",
-              level === "warning" && "text-amber-600 dark:text-amber-400",
+              level === "warning" && "text-alert-warning-text",
               level === "full" && "text-alert-destructive-text",
             )}
           />

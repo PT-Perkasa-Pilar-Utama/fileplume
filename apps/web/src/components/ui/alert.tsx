@@ -3,7 +3,7 @@ import type { HTMLAttributes, JSX } from "react";
 import { cn } from "../../lib/cn.ts";
 
 export const alertVariants = cva(
-  "relative flex w-full items-center gap-2 rounded-[10px] border p-3 text-sm [&>svg]:size-4 [&>svg]:shrink-0",
+  "relative flex w-full items-center gap-2 rounded-lg border p-3 text-sm [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -11,7 +11,7 @@ export const alertVariants = cva(
         destructive:
           "border-alert-destructive-border bg-alert-destructive-bg text-alert-destructive-text [&>svg]:text-alert-destructive-text",
         warning:
-          "border-amber-500/50 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200 [&>svg]:text-amber-600",
+          "border-alert-warning-border bg-alert-warning-bg text-alert-warning-text [&>svg]:text-alert-warning-text",
         success:
           "border-alert-success-border bg-alert-success-bg text-alert-success-text [&>svg]:text-alert-success-text",
       },

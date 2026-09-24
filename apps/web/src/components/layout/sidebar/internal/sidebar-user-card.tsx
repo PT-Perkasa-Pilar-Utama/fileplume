@@ -35,7 +35,7 @@ export function SidebarUserCard({ user, className }: SidebarUserCardProps): JSX.
         </Avatar>
         <span
           aria-hidden="true"
-          className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-card bg-emerald-500"
+          className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-card bg-success"
         />
       </div>
       <div className="flex min-w-0 flex-1 flex-col text-left">

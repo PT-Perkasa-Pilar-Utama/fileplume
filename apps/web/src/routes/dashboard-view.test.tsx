@@ -82,8 +82,8 @@ describe("DashboardView (FE-S2-03, US-38)", () => {
     expect(html).toContain('data-testid="file-icon-pdf"');
   });
 
-  // AC-38.02: Navigasi dari kartu ke detail dokumen
-  test("AC-38.02: document card in dashboard links to /documents/$id", async () => {
+  // Navigasi dari kartu ke detail dokumen
+  test("card links to the document detail route", async () => {
     const html = await renderDashboard([MOCK_DOC]);
 
     expect(html).toContain(`href="/documents/${MOCK_DOC.id}"`);

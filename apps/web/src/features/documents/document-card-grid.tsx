@@ -1,3 +1,4 @@
+import { ERROR_MESSAGES } from "@archiva/shared";
 import { AlertCircle } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
@@ -6,21 +7,16 @@ import { DocumentCard, type DocumentCardItem } from "./document-card.tsx";
 import { DocumentEmptyState } from "./document-empty-state.tsx";
 import { useDocuments } from "./use-documents.ts";
 
-export interface DocumentCardGridProps {
-  readonly documents?: readonly DocumentCardItem[];
-  readonly isLoading?: boolean;
-  readonly isError?: boolean;
-  readonly errorMessage?: string | null;
-  readonly emptyMessage?: string | null;
-  readonly className?: string;
-}
-
-interface DocumentCardGridViewProps {
+export interface DocumentCardGridViewProps {
   readonly documents: readonly DocumentCardItem[];
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly errorMessage?: string | null;
   readonly emptyMessage?: string | null;
+  readonly className?: string;
+}
+
+export interface DocumentCardGridProps {
   readonly className?: string;
 }
 
@@ -69,7 +65,7 @@ export function DocumentCardGridView({
     return (
       <Alert variant="destructive" data-testid="documents-grid-error" className={className}>
         <AlertCircle className="size-4" />
-        <AlertDescription>{errorMessage || "Gagal memuat daftar dokumen"}</AlertDescription>
+        <AlertDescription>{errorMessage || ERROR_MESSAGES.INTERNAL_ERROR}</AlertDescription>
       </Alert>
     );
   }
@@ -79,7 +75,7 @@ export function DocumentCardGridView({
     return <DocumentEmptyState message={emptyMessage} className={className} />;
   }
 
-  // AC-38.01, AC-38.02, AC-01.02: Grid kartu dokumen visual
+  // AC-38.01, AC-01.02: Grid kartu dokumen visual
   return (
     <div
       data-testid="documents-grid"
@@ -95,7 +91,11 @@ export function DocumentCardGridView({
   );
 }
 
-function DocumentCardGridConnected(props: DocumentCardGridProps): JSX.Element {
+/**
+ * Responsive Document Card Grid Component (US-38)
+ * Connected component bound to useDocuments().
+ */
+export function DocumentCardGrid({ className }: DocumentCardGridProps = {}): JSX.Element {
   const query = useDocuments();
 
   return (
@@ -105,32 +105,7 @@ function DocumentCardGridConnected(props: DocumentCardGridProps): JSX.Element {
       isError={query.isError}
       errorMessage={query.error?.message}
       emptyMessage={query.data?.meta?.message}
-      className={props.className}
+      className={className}
     />
   );
-}
-
-/**
- * Responsive Document Card Grid Component (US-38)
- * Connects to useDocuments when uncontrolled, or displays controlled props.
- */
-export function DocumentCardGrid(props: DocumentCardGridProps = {}): JSX.Element {
-  if (
-    props.documents !== undefined ||
-    props.isLoading !== undefined ||
-    props.isError !== undefined
-  ) {
-    return (
-      <DocumentCardGridView
-        documents={props.documents ?? []}
-        isLoading={props.isLoading ?? false}
-        isError={props.isError ?? false}
-        errorMessage={props.errorMessage}
-        emptyMessage={props.emptyMessage}
-        className={props.className}
-      />
-    );
-  }
-
-  return <DocumentCardGridConnected {...props} />;
 }

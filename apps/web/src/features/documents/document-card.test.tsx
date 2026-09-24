@@ -60,7 +60,7 @@ async function renderCardWithRouter(doc: DocumentView = BASE_DOC): Promise<strin
   return renderToString(<RouterProvider router={router} />);
 }
 
-describe("DocumentCard component (AC-38.01, AC-38.02, AC-01.02)", () => {
+describe("DocumentCard component (AC-38.01, AC-01.02)", () => {
   // AC-38.01: Setiap dokumen ditampilkan sebagai kartu visual berisi: ikon, judul, tanggal, uploader, status
   test("AC-38.01: renders document card with file icon, title, date, uploader, and status", async () => {
     const html = await renderCardWithRouter(BASE_DOC);
@@ -85,8 +85,8 @@ describe("DocumentCard component (AC-38.01, AC-38.02, AC-01.02)", () => {
     expect(html).toContain(`data-testid="document-status-${BASE_DOC.id}"`);
   });
 
-  // AC-38.02: Navigasi dari kartu ke detail dokumen
-  test("AC-38.02: card links to document detail page /documents/$id", async () => {
+  // Navigasi dari kartu ke detail dokumen
+  test("card links to the document detail route", async () => {
     const html = await renderCardWithRouter(BASE_DOC);
 
     expect(html).toContain(`href="/documents/${BASE_DOC.id}"`);

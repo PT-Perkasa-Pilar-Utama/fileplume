@@ -8,6 +8,7 @@ import type {
   UploadSingleFileItem,
 } from "../service.ts";
 import { blobKey } from "./blob-key.ts";
+import { reportSettled } from "./report-settled.ts";
 import { sniffType } from "./sniff-type.ts";
 
 /** Header window for magic-byte sniffing. DOCX/XLSX markers sit kilobytes deep. */
@@ -29,7 +30,7 @@ export type UploadSingleFileDeps = {
   repository: CatalogRepository;
   blobStore: BlobStore;
   quota: QuotaPort;
-  session?: SessionPort;
+  session: SessionPort;
 };
 
 /**
@@ -130,14 +131,18 @@ export async function uploadSingleFile(
   // AC-01.08, api-specs/02-authentication.md 2.5, 05-documents.md 5.2:
   // Session resolved before the first byte and again before commit, so an
   // expiring session leaves nothing behind.
-  const token = item.sessionToken ?? sessionToken;
-  if (token !== undefined && deps.session !== undefined) {
-    const isLive = await deps.session.validateSession(token);
-    if (!isLive) {
+  if (sessionToken !== undefined) {
+    if (!(await deps.session.validateSession(sessionToken))) {
       // Best-effort compensation: the primary outcome is session_expired, so
       // a failing delete or release must not mask it. Leftovers are reclaimed
       // by the reservation sweeper and orphan-blob collection, never surfaced.
-      await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]);
+      reportSettled(
+        await Promise.allSettled([
+          deps.quota.releaseQuota(reservation),
+          deps.blobStore.delete(key),
+        ]),
+        "upload compensation failed after session expiry",
+      );
       return { status: "session_expired" };
     }
   }
@@ -156,7 +161,10 @@ export async function uploadSingleFile(
   if (!insertResult.ok) {
     // Best-effort compensation for the losing writer: DUPLICATE_CONTENT is the
     // primary outcome, so cleanup failures must not mask it. AC-03.04.
-    await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]);
+    reportSettled(
+      await Promise.allSettled([deps.quota.releaseQuota(reservation), deps.blobStore.delete(key)]),
+      "upload compensation failed after duplicate insert",
+    );
     const duplicate = insertResult.error;
     return rejected(index, item.filename, {
       code: "DUPLICATE_CONTENT",
@@ -165,12 +173,9 @@ export async function uploadSingleFile(
     });
   }
 
-  // Commit what the blob store actually wrote, not the declared size,
-  // so route-level streaming never drifts quota.
-  await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
-
-  // No enqueue or audit here: both are irreversible, so uploadBatch emits them
-  // only after every file in the batch has passed the session check. AC-01.08.
+  // No commit, enqueue or audit here. A commit cannot be undone, so uploadBatch
+  // holds the reservation open and emits all three only after every file in the
+  // batch has passed the session check. AC-01.08.
   return {
     index,
     filename: item.filename,

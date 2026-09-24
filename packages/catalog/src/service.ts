@@ -1,15 +1,10 @@
 import type { DocumentId, ErrorCode, Result, TenantId, UserId, VersionId } from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
-import { buildBatchSummary } from "./internal/batch-summary.ts";
+import { MAX_BATCH, MAX_BULK_DOWNLOAD } from "./internal/limits.ts";
 import { mapUploadFailure } from "./internal/map-upload-failure.ts";
-import {
-  ACCEPTED_MIME,
-  isAcceptedType,
-  MAX_BATCH,
-  MAX_BULK_DOWNLOAD,
-} from "./internal/mime-types.ts";
-import { type UploadSingleFileDeps, uploadSingleFile } from "./internal/upload-single-file.ts";
+import { ACCEPTED_MIME, isAcceptedType } from "./internal/mime-types.ts";
+import { uploadBatch } from "./internal/upload-batch.ts";
 import type {
   AuditPort,
   BlobStore,
@@ -17,7 +12,6 @@ import type {
   DocumentConverter,
   JobQueue,
   QuotaPort,
-  QuotaReservationToken,
   SessionPort,
 } from "./ports.ts";
 import type { CatalogRepository } from "./repository.ts";
@@ -37,7 +31,6 @@ export type UploadSingleFileItem = {
   filename: string;
   stream: ReadableStream;
   sizeBytes: number;
-  sessionToken?: string;
 };
 
 export type DocumentRecord = {
@@ -92,7 +85,7 @@ export type CatalogServiceDeps = {
   quota: QuotaPort;
   queue: JobQueue;
   audit: AuditPort;
-  session?: SessionPort;
+  session: SessionPort;
 };
 
 export interface CatalogService {
@@ -125,13 +118,6 @@ export interface CatalogService {
 }
 
 export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
-  const singleDeps: UploadSingleFileDeps = {
-    repository: deps.repository,
-    blobStore: deps.blobStore,
-    quota: deps.quota,
-    session: deps.session,
-  };
-
   return {
     async upload(input) {
       const batchResult = await this.uploadBatch(
@@ -142,7 +128,6 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
             filename: input.filename,
             stream: input.stream,
             sizeBytes: input.sizeBytes,
-            sessionToken: input.sessionToken,
           },
         ],
         input.sessionToken,
@@ -168,93 +153,7 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     },
 
     async uploadBatch(tenantId, uploaderId, items, sessionToken) {
-      if (items.length > MAX_BATCH) {
-        return err({ kind: "BatchTooLarge" });
-      }
-
-      const results: Array<UploadAcceptedResult | UploadRejectedResult> = [];
-      const createdDocuments: Array<{
-        id: DocumentId;
-        filename: string;
-        mimeType: string;
-        sizeBytes: number;
-        blobKey: string;
-        reservation: QuotaReservationToken;
-      }> = [];
-      let accepted = 0;
-      let rejected = 0;
-
-      // Sequential, not parallel, so a mixed batch is deterministic. 5.2 step 4.
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (!item) continue;
-        const outcome = await uploadSingleFile(
-          tenantId,
-          uploaderId,
-          item,
-          i,
-          singleDeps,
-          sessionToken,
-        );
-        if (outcome.status === "session_expired") {
-          // Nothing irreversible has been emitted yet: enqueue and audit wait
-          // until the whole batch passes, so rollback only removes rows,
-          // blobs, and reservations. AC-01.08 leaves no orphan job behind.
-          // Best-effort: the primary outcome is SessionExpired, so a failing
-          // delete or release must not mask it.
-          for (const doc of createdDocuments) {
-            await Promise.allSettled([
-              deps.repository.deleteDocument(tenantId, doc.id),
-              deps.blobStore.delete(doc.blobKey),
-              deps.quota.releaseQuota(doc.reservation),
-            ]);
-          }
-          return err({ kind: "SessionExpired" });
-        }
-        if (outcome.status === "accepted") {
-          accepted++;
-          createdDocuments.push({
-            id: outcome.document.id,
-            filename: outcome.filename,
-            mimeType: outcome.mimeType,
-            sizeBytes: outcome.sizeBytes,
-            blobKey: outcome.blobKey,
-            reservation: outcome.reservation,
-          });
-          results.push({
-            index: outcome.index,
-            filename: outcome.filename,
-            status: "accepted",
-            document: outcome.document,
-          });
-        } else {
-          rejected++;
-          results.push(outcome);
-        }
-      }
-
-      // Irreversible side effects fire once, in order, after the batch is
-      // known good. A later session expiry therefore never leaves an orphan
-      // queue job or audit event for a deleted document. AC-01.08.
-      for (const doc of createdDocuments) {
-        await deps.queue.enqueue(doc.id);
-        await deps.audit.record({
-          tenantId,
-          actorId: uploaderId,
-          action: "document.upload",
-          subjectType: "document",
-          subjectId: doc.id,
-          outcome: "allowed",
-          metadata: { filename: doc.filename, sizeBytes: doc.sizeBytes, mimeType: doc.mimeType },
-        });
-      }
-
-      return ok({
-        accepted,
-        rejected,
-        summary: buildBatchSummary(accepted, rejected),
-        results,
-      });
+      return uploadBatch(tenantId, uploaderId, items, deps, sessionToken);
     },
 
     addVersion() {

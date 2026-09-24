@@ -92,12 +92,13 @@ Per-file constraints, each evaluated against the file rather than the batch:
 3. For each file in order, run `catalog.upload`:
    a. Sniff the type. Reject unsupported (AC-01.03).
    b. Check size against the tenant's current limit (AC-01.06).
-   c. `tenancy.reserveQuota(tenantId, sizeBytes)`. Refused: `QUOTA_EXCEEDED` (AC-35.03).
+   c. `tenancy.reserveQuota(tenantId, sizeBytes)`. Refused: `QUOTA_EXCEEDED` (AC-35.03). The reservation stays open for the whole batch; nothing commits it early.
    d. Stream to the blob store at `t/<tenant>/d/<document>/v/<version>`, computing SHA-256 as it streams.
    e. Insert `documents` and `document_versions` version 1. A duplicate hash loses on insert, not on a read-then-check (AC-03.01, AC-03.04).
-   f. `commitQuota` on success, `releaseQuota` on any failure.
-   g. `enrichment.enqueue(documentId)`. State is `queued`.
-   h. Write a `document.upload` audit event.
+   f. Re-validate the session before commit. Expired mid-batch: `401`, every file inserted so far is deleted with its blob, every open reservation is released, and no job or audit event is left behind (AC-01.08).
+4. Deferred phase, once every file has passed the session check, for each accepted document in order:
+   f. `commitQuota` with the bytes the blob store actually wrote, then `enrichment.enqueue(documentId)` (state `queued`), then a `document.upload` audit event.
+   The batch cap of 20 bounds this window: a process crash between the last insert and the deferred phase can leave at most 20 rows in `queued` with no job, which the reconciler reaps. Deferring is what keeps a session expiry from leaving an orphan job or audit event.
 4. A filename matching an existing document is not a duplicate and never a new version. It becomes a separate document (AC-03.03, matrix in [../technical-specs/06-data-model.md 6.6](../technical-specs/06-data-model.md)).
 5. A connection that drops mid-stream releases the reservation and stores nothing. No partial document appears and no quota is consumed (AC-01.07).
 

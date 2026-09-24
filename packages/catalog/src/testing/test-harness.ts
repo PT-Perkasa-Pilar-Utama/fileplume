@@ -149,5 +149,8 @@ export function createTestHarness(options?: {
     enqueuedJobs,
     auditEvents,
     session,
+    get usedBytes() {
+      return usedBytes;
+    },
   };
 }

@@ -242,4 +242,45 @@ describe("upload batch acceptance criteria", () => {
     expect(enqueuedJobs).toHaveLength(0);
     expect(auditEvents).toHaveLength(0);
   });
+
+  test("F1: session expiry mid-batch consumes no quota when reservations stay open", async () => {
+    // Quota leak guard: file 1 must not stay committed after the rollback.
+    const probe1 = pdfStream("quota leak probe 1");
+    const probe2 = pdfStream("quota leak probe 2");
+    let callCount = 0;
+    const harness = createTestHarness({
+      quotaBytes: probe1.sizeBytes + probe2.sizeBytes,
+      session: {
+        async validateSession() {
+          callCount++;
+          return callCount === 1;
+        },
+      },
+    });
+
+    const file1 = pdfStream("quota leak probe 1");
+    const file2 = pdfStream("quota leak probe 2");
+
+    const res = await harness.service.uploadBatch(
+      TENANT_ID,
+      USER_ID,
+      [
+        { filename: "doc1.pdf", stream: file1.stream, sizeBytes: file1.sizeBytes },
+        { filename: "doc2.pdf", stream: file2.stream, sizeBytes: file2.sizeBytes },
+      ],
+      "session-token",
+    );
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error.kind).toBe("SessionExpired");
+    }
+    expect(harness.repository.documents).toHaveLength(0);
+    expect(harness.blobStore.keys()).toHaveLength(0);
+    expect(harness.usedBytes).toBe(0);
+    expect(harness.committedReservations).toHaveLength(0);
+    expect(harness.releasedReservations.length).toBeGreaterThan(0);
+    expect(harness.enqueuedJobs).toHaveLength(0);
+    expect(harness.auditEvents).toHaveLength(0);
+  });
 });

@@ -1,6 +1,3 @@
-export const MAX_BATCH = 20;
-export const MAX_BULK_DOWNLOAD = 50;
-
 export const ACCEPTED_MIME = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

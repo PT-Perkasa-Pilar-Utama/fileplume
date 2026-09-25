@@ -28,10 +28,12 @@ function setupHarness(initialDocs: StoredDocument[] = [], initialVers: StoredVer
       }),
       commitQuota: async () => {},
       releaseQuota: async () => {},
+      revertCommit: async () => {},
       getMaxFileSizeMb: async () => 20,
     },
     queue: { enqueue: async () => {} },
     audit: { record: async () => {} },
+    session: { validateSession: async () => true },
   });
 
   return { service, repository };

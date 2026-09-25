@@ -10,7 +10,6 @@ import {
 } from "../components/ui/card.tsx";
 import { useAuthStore } from "../features/auth/auth-store.ts";
 import {
-  DOCUMENT_CATEGORIES,
   DOCUMENTS_QUERY_KEY,
   DocumentCardGridView,
   getAcceptedFileTypeByName,
@@ -21,7 +20,6 @@ import {
   useDocuments,
 } from "../features/documents/index.ts";
 import { TenantManagement } from "../features/tenants/tenant-management.tsx";
-import { cn } from "../lib/cn.ts";
 
 export interface DashboardViewProps {
   readonly uploader?: UploadTrayProps["uploader"];
@@ -38,8 +36,6 @@ export function DashboardView({
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([
     ...initialDocuments,
   ]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [docCategories, setDocCategories] = useState<Record<string, string>>({});
 
   const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
@@ -81,20 +77,6 @@ export function DashboardView({
     return [...pendingUploads, ...serverDocs];
   }, [documentsQuery.data?.data, uploadedDocs]);
 
-  const filteredDocuments = useMemo(() => {
-    if (!selectedCategory) return displayDocuments;
-    return displayDocuments.filter((doc) => {
-      const cat =
-        docCategories[doc.id] ??
-        ("category" in doc && doc.category?.name
-          ? doc.category.name
-          : "categoryName" in doc && doc.categoryName
-            ? doc.categoryName
-            : null);
-      return cat === selectedCategory;
-    });
-  }, [displayDocuments, selectedCategory, docCategories]);
-
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Dashboard</h1>
@@ -112,61 +94,21 @@ export function DashboardView({
             className="flex flex-1 flex-col rounded-xl border border-border bg-card p-6 shadow-xs space-y-4 min-h-96"
           >
             <div className="flex flex-col space-y-1">
-              <h2
-                id="uploaded-document-heading"
-                className="text-base font-medium text-foreground"
-                aria-label="Dokumen Terunggah"
-              >
-                UPLOADED DOCUMENT
-                <span className="sr-only">Dokumen Terunggah</span>
+              <h2 id="uploaded-document-heading" className="text-base font-medium text-foreground">
+                Dokumen Terunggah
               </h2>
               <p className="text-sm font-normal text-muted-foreground">
-                Repository of uploaded files and records for quick access and verification.
-                <span className="sr-only">
-                  Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.
-                </span>
+                Repositori file dan catatan yang diunggah untuk akses dan verifikasi cepat.
               </p>
             </div>
 
-            {displayDocuments.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-sm font-normal text-foreground">Category :</span>
-                {DOCUMENT_CATEGORIES.map((category) => {
-                  const isSelected = selectedCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setSelectedCategory(isSelected ? null : category)}
-                      className={cn(
-                        "rounded-full px-3 py-1 text-xs font-normal transition-colors cursor-pointer",
-                        isSelected
-                          ? "bg-primary text-primary-foreground font-medium"
-                          : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                      )}
-                    >
-                      {category}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {filteredDocuments.length === 0 && displayDocuments.length > 0 ? (
-              <div className="flex flex-1 items-center justify-center py-12 text-center text-sm text-muted-foreground">
-                Tidak ada dokumen dalam kategori ini.
-              </div>
-            ) : (
-              <DocumentCardGridView
-                documents={filteredDocuments}
-                isLoading={documentsQuery.isLoading && displayDocuments.length === 0}
-                isError={documentsQuery.isError && displayDocuments.length === 0}
-                errorMessage={documentsQuery.error?.message}
-                emptyMessage={documentsQuery.data?.meta?.message}
-                docCategories={docCategories}
-                onCategoryChange={(id, cat) => setDocCategories((prev) => ({ ...prev, [id]: cat }))}
-              />
-            )}
+            <DocumentCardGridView
+              documents={displayDocuments}
+              isLoading={documentsQuery.isLoading && displayDocuments.length === 0}
+              isError={documentsQuery.isError && displayDocuments.length === 0}
+              errorMessage={documentsQuery.error?.message}
+              emptyMessage={documentsQuery.data?.meta?.message}
+            />
           </section>
         </div>
       </div>

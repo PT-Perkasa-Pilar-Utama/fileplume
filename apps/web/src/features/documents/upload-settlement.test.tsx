@@ -102,7 +102,7 @@ describe("Upload settlement & DashboardView integration (FE-S2-01, FE-S2-03)", (
     expect(html).toContain("AREA UNGGAH");
     expect(html).toContain("Unggah dokumen Anda di bawah ini");
     expect(html).toContain("Klik untuk mengunggah atau seret dan lepas file di sini");
-    expect(html).toContain("UPLOADED DOCUMENT");
+    expect(html).toContain("Dokumen Terunggah");
     expect(html).toContain(EMPTY_STATE.NO_DOCUMENTS);
   });
 

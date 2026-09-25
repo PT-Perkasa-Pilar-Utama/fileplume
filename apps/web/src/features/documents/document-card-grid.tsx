@@ -13,8 +13,6 @@ export interface DocumentCardGridViewProps {
   readonly isError: boolean;
   readonly errorMessage?: string | null;
   readonly emptyMessage?: string | null;
-  readonly docCategories?: Record<string, string>;
-  readonly onCategoryChange?: (id: string, category: string) => void;
   readonly className?: string;
 }
 
@@ -31,8 +29,6 @@ export function DocumentCardGridView({
   isError,
   errorMessage,
   emptyMessage,
-  docCategories,
-  onCategoryChange,
   className,
 }: DocumentCardGridViewProps): JSX.Element {
   if (isLoading) {
@@ -85,12 +81,7 @@ export function DocumentCardGridView({
       )}
     >
       {documents.map((doc) => (
-        <DocumentCard
-          key={doc.id}
-          document={doc}
-          category={docCategories?.[doc.id]}
-          onCategoryChange={onCategoryChange}
-        />
+        <DocumentCard key={doc.id} document={doc} />
       ))}
     </div>
   );

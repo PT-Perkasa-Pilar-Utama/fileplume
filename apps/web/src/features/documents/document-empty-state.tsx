@@ -29,15 +29,11 @@ export function DocumentEmptyState({ message, className }: DocumentEmptyStatePro
       >
         <FolderX className="size-6 stroke-[1.75]" />
       </div>
-      <h3 className="text-base font-medium text-foreground">
-        No Document Uploaded
-        <span className="sr-only">Belum ada dokumen yang diunggah</span>
-      </h3>
-      <p className="mt-1 text-sm text-muted-foreground whitespace-pre-line text-center">
-        {"Please upload document first.\nClick or Drag and Drop Document to the Upload Area."}
-        <span data-testid="empty-state-message" className="sr-only">
-          {displayMessage}
-        </span>
+      <p
+        data-testid="empty-state-message"
+        className="mt-1 text-sm font-medium text-foreground text-center"
+      >
+        {displayMessage}
       </p>
     </div>
   );

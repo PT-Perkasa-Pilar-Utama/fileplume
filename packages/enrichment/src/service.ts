@@ -1,12 +1,10 @@
-import {
-  type DocumentId,
-  FAILURE_MESSAGE,
-  type FailureReason,
-  type ProcessingState,
-  type Result,
-  STATE_LABEL,
-  type TenantId,
-  type UserId,
+import type {
+  DocumentId,
+  FailureReason,
+  ProcessingState,
+  Result,
+  TenantId,
+  UserId,
 } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { AiProvider, JobQueue, MalwareScanner, TextExtractor } from "./ports.ts";
@@ -27,9 +25,6 @@ export type ExtractionMethod = "native" | "ocr" | "mixed";
 
 /** technical-specs/06-data-model.md 6.8: document_tags.source. */
 export type TagSource = "ai" | "user";
-
-/** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
-export { FAILURE_MESSAGE, STATE_LABEL };
 
 /** Network, timeout, 5xx and rate limit retry. Bad input does not. */
 export function isTransient(reason: FailureReason): boolean {

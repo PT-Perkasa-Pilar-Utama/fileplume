@@ -47,7 +47,7 @@ describe("VersionPicker component (AC-21.02)", () => {
       />,
     );
 
-    expect(html).toContain("v1");
+    expect(html).toContain("Version 1.0");
     expect(html).toContain('data-testid="version-picker-trigger"');
   });
 

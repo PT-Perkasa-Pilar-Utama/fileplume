@@ -129,9 +129,7 @@ export function DocumentMetadataPanel({
           </div>
 
           <div className="flex items-center justify-between gap-4 py-2.5">
-            <span className="text-sm font-normal text-muted-foreground shrink-0">
-              Versi Dokumen
-            </span>
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Version</span>
             <div>
               <VersionPicker
                 versions={document.versions}

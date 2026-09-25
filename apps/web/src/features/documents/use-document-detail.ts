@@ -121,7 +121,10 @@ export function useDocumentDetail({
     activeVersionId,
     isLoading: documentQuery.isLoading,
     isError: documentQuery.isError,
-    error: (documentQuery.error as ApiError | Error | null) ?? null,
+    error:
+      documentQuery.error instanceof ApiError || documentQuery.error instanceof Error
+        ? documentQuery.error
+        : null,
     previewUrl: previewQuery.data?.url ?? null,
     isLoadingPreview: previewQuery.isLoading,
     previewError,

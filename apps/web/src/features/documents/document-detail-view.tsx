@@ -22,8 +22,9 @@ export interface DocumentDetailViewProps {
  * with version picker and download capabilities, aligned with Figma screen 28:3451.
  */
 export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {}): JSX.Element {
-  const params = useParams({ strict: false }) as { id?: string };
-  const effectiveId = documentId ?? params.id ?? "";
+  const params = useParams({ strict: false });
+  const paramId = "id" in params && typeof params.id === "string" ? params.id : "";
+  const effectiveId = documentId ?? paramId;
 
   const {
     document,

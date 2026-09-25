@@ -160,7 +160,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
 
     // Version picker trigger is present with active version
     expect(html).toContain('data-testid="version-picker-trigger"');
-    expect(html).toContain("v2");
+    expect(html).toContain("Version 2.0");
 
     // Download button exists with verbatim label "Download" per AC-21.02
     expect(html).toContain('data-testid="download-button"');

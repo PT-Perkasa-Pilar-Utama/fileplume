@@ -37,15 +37,15 @@ export function VersionPicker({
   const sortedVersions = [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
   const activeVersion = sortedVersions.find((v) => v.id === activeVersionId) ?? sortedVersions[0];
 
-  const activeLabel = activeVersion ? `v${activeVersion.versionNumber}` : "v1";
+  const activeLabel = activeVersion ? `Version ${activeVersion.versionNumber}.0` : "Version 1.0";
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild disabled={disabled}>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="h-6 rounded-full px-2.5 py-0.5 text-xs font-medium gap-1.5 border-border bg-background hover:bg-muted text-foreground transition-colors shadow-2xs"
+          className="h-6 rounded-full bg-muted/80 hover:bg-muted px-2.5 py-0.5 text-xs font-medium gap-1 text-foreground transition-colors"
           data-testid="version-picker-trigger"
           aria-label={`Pilih versi dokumen, saat ini ${activeLabel}`}
         >
@@ -53,14 +53,14 @@ export function VersionPicker({
           <ChevronDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 rounded-xl p-1 shadow-md">
+      <DropdownMenuContent align="end" className="w-52 rounded-xl p-1 shadow-md">
         <DropdownMenuLabel className="text-xs text-muted-foreground font-medium px-2 py-1.5">
           Riwayat Versi
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {sortedVersions.map((version) => {
           const isSelected = version.id === activeVersion?.id;
-          const versionLabel = `v${version.versionNumber}`;
+          const versionLabel = `Version ${version.versionNumber}.0`;
 
           return (
             <DropdownMenuItem

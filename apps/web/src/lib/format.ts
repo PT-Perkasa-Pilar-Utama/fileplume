@@ -19,3 +19,18 @@ export function formatStorage(usedBytes: number, quotaBytes: number, percent?: n
 
   return `${formattedUsed} / ${formattedQuota} (${pct}%)`;
 }
+
+/**
+ * Formats an ISO timestamp or date string into Indonesian short date (AC-38.01, AC-01.02).
+ * Example: "2026-09-01T10:00:00.000Z" -> "1 Sep 2026"
+ */
+export function formatDocumentDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}

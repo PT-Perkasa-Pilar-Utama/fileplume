@@ -69,8 +69,8 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 | `POST /documents` | [05 5.2](05-documents.md) | 2 | OK |
 | `GET /documents` | [05 5.4](05-documents.md) | 2 | SCAFFOLD |
 | `GET /documents/:id` | [05 5.5](05-documents.md) | 2 | SCAFFOLD |
-| `GET /documents/:id/versions` | [05 5.6](05-documents.md) | 2 | SCAFFOLD |
-| `POST /documents/:id/versions` | [05 5.7](05-documents.md) | 2 | SCAFFOLD |
+| `GET /documents/:id/versions` | [05 5.6](05-documents.md) | 2 | OK |
+| `POST /documents/:id/versions` | [05 5.7](05-documents.md) | 2 | OK |
 | `GET /documents/:id/preview` | [05 5.8](05-documents.md) | 4 | SCAFFOLD |
 | `POST /documents/:id/download` | [05 5.9](05-documents.md) | 5 | SCAFFOLD |
 | `POST /documents/download-bulk` | [05 5.10](05-documents.md) | 5 | SCAFFOLD |

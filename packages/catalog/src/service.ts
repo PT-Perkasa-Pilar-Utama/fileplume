@@ -1,9 +1,20 @@
-import type { DocumentId, ErrorCode, Result, TenantId, UserId, VersionId } from "@archiva/shared";
+import type {
+  DocumentDetailView,
+  DocumentId,
+  DocumentVersionView,
+  ErrorCode,
+  Result,
+  TenantId,
+  UserId,
+  VersionId,
+} from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
+import { addVersion } from "./internal/add-version.ts";
 import { MAX_BATCH, MAX_BULK_DOWNLOAD } from "./internal/limits.ts";
 import { mapUploadFailure } from "./internal/map-upload-failure.ts";
 import { ACCEPTED_MIME, isAcceptedType } from "./internal/mime-types.ts";
+import type { DocumentRecord } from "./internal/repository-types.ts";
 import { uploadBatch } from "./internal/upload-batch.ts";
 import type {
   AuditPort,
@@ -33,11 +44,7 @@ export type UploadSingleFileItem = {
   sizeBytes: number;
 };
 
-export type DocumentRecord = {
-  id: DocumentId;
-  title: string;
-  processingState: "queued" | "processing" | "ready" | "failed";
-};
+export type { DocumentRecord } from "./internal/repository-types.ts";
 
 export type UploadFailure =
   | E.UnsupportedType
@@ -99,12 +106,9 @@ export interface CatalogService {
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
-  ): Promise<
-    Result<
-      { versionId: VersionId; versionNumber: number },
-      E.IdenticalContent | E.NotFound | UploadFailure
-    >
-  >;
+  ): Promise<Result<DocumentDetailView, E.IdenticalContent | E.NotFound | UploadFailure>>;
+  findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
+  listVersions(tenantId: TenantId, documentId: DocumentId): Promise<DocumentVersionView[] | null>;
   getDocument(
     tenantId: TenantId,
     documentId: DocumentId,
@@ -156,8 +160,21 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       return uploadBatch(tenantId, uploaderId, items, deps, sessionToken);
     },
 
-    addVersion() {
-      throw new Error("SCAFFOLD: BE-S2-04");
+    findDocument(tenantId, documentId) {
+      return deps.repository.findDocument(tenantId, documentId);
+    },
+    listVersions(tenantId, documentId) {
+      return deps.repository.listVersions(tenantId, documentId);
+    },
+    addVersion(documentId, input) {
+      return addVersion(documentId, input, {
+        repository: deps.repository,
+        blobStore: deps.blobStore,
+        quota: deps.quota,
+        queue: deps.queue,
+        audit: deps.audit,
+        clock: deps.clock,
+      });
     },
     getDocument() {
       throw new Error("SCAFFOLD: BE-S2-06");

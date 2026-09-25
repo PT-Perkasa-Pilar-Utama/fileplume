@@ -1,54 +1,28 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { DocumentId, Result, TenantId, UserId, VersionId } from "@archiva/shared";
-import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
-import { and, eq, sql } from "drizzle-orm";
-import type * as E from "./errors.ts";
-import { isUniqueViolationOn } from "./internal/unique-violation.ts";
-import type { DocumentRecord } from "./service.ts";
+import type { DocumentId } from "@archiva/shared";
+import { asDocumentId, asVersionId, ok } from "@archiva/shared";
+import { and, eq } from "drizzle-orm";
+import type { CatalogRepository } from "./internal/repository-types.ts";
+import { toDuplicateContentError } from "./internal/unique-violation.ts";
+import * as versionRepo from "./internal/version-repository.ts";
 
-export type InsertDocumentInput = {
-  documentId?: DocumentId;
-  versionId?: VersionId;
-  uploaderId: UserId;
-  contentHash: string;
-  blobKey: string;
-  filename: string;
-  mimeType: string;
-  sizeBytes: number;
-};
+export type * from "./internal/repository-types.ts";
 
-export interface CatalogRepository {
-  insertDocumentWithVersion(
-    tenantId: TenantId,
-    input: InsertDocumentInput,
-  ): Promise<Result<DocumentRecord, E.DuplicateContent>>;
-  findByContentHash(tenantId: TenantId, contentHash: string): Promise<DocumentId | null>;
-  /** Allocates under SELECT ... FOR UPDATE on the parent row. AC-21.04. */
-  allocateVersionNumber(tenantId: TenantId, documentId: DocumentId): Promise<number>;
-  findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
-  findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null>;
-  deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void>;
-  updateProcessingState(
-    tenantId: TenantId,
-    documentId: DocumentId,
-    state: DocumentRecord["processingState"],
-    reason?: string,
-  ): Promise<void>;
-}
+const UNKNOWN_USER_NAME = "Unknown User";
+
+const docMatch = (docId: string, tId: string) =>
+  and(eq(schema.documents.id, docId), eq(schema.documents.tenantId, tId));
 
 export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
-  async function findByContentHash(
-    tenantId: TenantId,
-    contentHash: string,
-  ): Promise<DocumentId | null> {
+  async function findByContentHash(tenantId: string, hash: string): Promise<DocumentId | null> {
     const [row] = await db
       .select({ documentId: schema.documentVersions.documentId })
       .from(schema.documentVersions)
       .where(
         and(
           eq(schema.documentVersions.tenantId, tenantId),
-          eq(schema.documentVersions.contentHash, contentHash),
+          eq(schema.documentVersions.contentHash, hash),
         ),
       )
       .limit(1);
@@ -102,7 +76,7 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           await tx
             .update(schema.documents)
             .set({ currentVersionId: ver.id })
-            .where(and(eq(schema.documents.id, doc.id), eq(schema.documents.tenantId, tenantId)));
+            .where(docMatch(doc.id, tenantId));
 
           return ok({
             id: asDocumentId(doc.id),
@@ -111,38 +85,13 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           });
         });
       } catch (caughtErr) {
-        if (isUniqueViolationOn(caughtErr, "document_versions_tenant_hash_key")) {
-          // The loser of the insert race reads back the winner. AC-03.04.
-          const existingId = await findByContentHash(tenantId, input.contentHash);
-          return existingId
-            ? err({ kind: "DuplicateContent", existingDocumentId: existingId })
-            : err({ kind: "DuplicateContent" });
-        }
-        throw caughtErr;
+        return await toDuplicateContentError(
+          caughtErr,
+          tenantId,
+          input.contentHash,
+          findByContentHash,
+        );
       }
-    },
-
-    async allocateVersionNumber(tenantId, documentId) {
-      return await db.transaction(async (tx) => {
-        await tx
-          .select({ id: schema.documents.id })
-          .from(schema.documents)
-          .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)))
-          .for("update");
-
-        const [row] = await tx
-          .select({
-            maxVer: sql<number>`coalesce(max(${schema.documentVersions.versionNumber}), 0)`,
-          })
-          .from(schema.documentVersions)
-          .where(
-            and(
-              eq(schema.documentVersions.documentId, documentId),
-              eq(schema.documentVersions.tenantId, tenantId),
-            ),
-          );
-        return (row?.maxVer ?? 0) + 1;
-      });
     },
 
     async findDocument(tenantId, documentId) {
@@ -151,18 +100,36 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           id: schema.documents.id,
           title: schema.documents.title,
           processingState: schema.documents.processingState,
+          failureReason: schema.documents.failureReason,
+          createdAt: schema.documents.createdAt,
+          currentVersionId: schema.documents.currentVersionId,
+          uploaderId: schema.documents.uploaderId,
+          uploaderName: schema.users.name,
+          currentVersionHash: schema.documentVersions.contentHash,
+          currentMimeType: schema.documentVersions.mimeType,
         })
         .from(schema.documents)
-        .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)))
+        .leftJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
+        .leftJoin(
+          schema.documentVersions,
+          eq(schema.documents.currentVersionId, schema.documentVersions.id),
+        )
+        .where(docMatch(documentId, tenantId))
         .limit(1);
 
-      return row
-        ? {
-            id: asDocumentId(row.id),
-            title: row.title,
-            processingState: row.processingState,
-          }
-        : null;
+      if (!row) return null;
+      return {
+        id: asDocumentId(row.id),
+        title: row.title,
+        processingState: row.processingState,
+        failureReason: row.failureReason,
+        currentVersionId: row.currentVersionId ? asVersionId(row.currentVersionId) : null,
+        currentVersionHash: row.currentVersionHash ?? null,
+        currentMimeType: row.currentMimeType ?? null,
+        uploaderId: row.uploaderId,
+        uploaderName: row.uploaderName ?? UNKNOWN_USER_NAME,
+        createdAt: row.createdAt.toISOString(),
+      };
     },
 
     async findBlobKey(tenantId, versionId) {
@@ -203,7 +170,15 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
       await db
         .update(schema.documents)
         .set({ processingState: state })
-        .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
+        .where(docMatch(documentId, tenantId));
+    },
+
+    async insertVersionAndUpdateDocument(tenantId, input) {
+      return versionRepo.insertVersionAndUpdateDocument(db, tenantId, input, findByContentHash);
+    },
+
+    async listVersions(tenantId, documentId) {
+      return versionRepo.listVersions(db, tenantId, documentId);
     },
   };
 }

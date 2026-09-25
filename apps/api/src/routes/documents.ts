@@ -1,11 +1,9 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
 import { SESSION_COOKIE_NAME } from "@archiva/identity";
-import { AppError, one } from "@archiva/shared";
+import { AppError, asDocumentId, one, page } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
-import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
-import type { AppEnv } from "../middleware/context.ts";
 import { fail } from "../middleware/errors.ts";
 import { requireRole } from "../middleware/guards.ts";
 import {
@@ -28,9 +26,10 @@ import {
   uploadDocuments,
   uploadVersion,
 } from "./definitions/documents.ts";
+import { assertDocumentInTenant } from "./internal/assert-document-in-tenant.ts";
 import { collectUploadParts } from "./internal/collect-upload-parts.ts";
+import { handleUploadVersion } from "./internal/handle-upload-version.ts";
 import {
-  isDocumentInTenant,
   listOf,
   MOCK_BULK_TICKET,
   MOCK_CLASSIFIED_DOCUMENT,
@@ -39,33 +38,8 @@ import {
   MOCK_PROCESSING,
   MOCK_RELATED,
   MOCK_REPROCESS,
-  MOCK_VERSION,
 } from "./mocks.ts";
 import { createRouter } from "./router.ts";
-
-/**
- * 5.5, 5.9: A denied cross-tenant attempt writes an access.denied audit event
- * against the caller's own tenant with { attemptedId: id } in metadata, and
- * returns 404, never 403 (AC-43.03, AC-43.04).
- */
-async function assertDocumentInTenant(c: Context<AppEnv>, documentId: string): Promise<void> {
-  const tenant = c.get("tenant");
-  const session = c.get("session");
-  if (!isDocumentInTenant(documentId, tenant?.id ?? null)) {
-    if (session.kind === "authenticated" && session.principal.tenantId !== null) {
-      await c.get("activity").record({
-        tenantId: session.principal.tenantId,
-        actorId: session.principal.userId,
-        action: "access.denied",
-        subjectType: "document",
-        subjectId: null,
-        outcome: "denied",
-        metadata: { attemptedId: documentId },
-      });
-    }
-    throw new AppError("NOT_FOUND");
-  }
-}
 
 /** api-specs/05-documents.md. Cards BE-S2-01, BE-S2-04, BE-S2-06, BE-S4-06, BE-S5-01, BE-S5-02. */
 export function createDocumentRoutes(
@@ -82,17 +56,23 @@ export function createDocumentRoutes(
     )
     .openapi(getDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
     })
     .openapi(listVersions, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
-      return c.json(listOf(MOCK_VERSION), 200);
+      await assertDocumentInTenant(c, catalog, id);
+      const tenant = c.get("tenant");
+      if (!tenant) throw new AppError("NOT_FOUND");
+      const versions = await catalog.listVersions(tenant.id, asDocumentId(id));
+      if (!versions) {
+        throw new AppError("NOT_FOUND");
+      }
+      return c.json(page(versions, { total: versions.length }), 200);
     })
     .openapi(previewDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.body(new Uint8Array(), 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
@@ -100,7 +80,7 @@ export function createDocumentRoutes(
     })
     .openapi(downloadDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.body(new Uint8Array(), 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="kontrak-kerjasama.pdf"',
@@ -108,32 +88,32 @@ export function createDocumentRoutes(
     })
     .openapi(confirmClassification, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_CLASSIFIED_DOCUMENT), 200);
     })
     .openapi(getProcessingStatus, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_PROCESSING), 200);
     })
     .openapi(correctFields, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
     })
     .openapi(replaceTags, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
     })
     .openapi(reprocessDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_REPROCESS), 202);
     })
     .openapi(listRelated, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json({ data: [MOCK_RELATED], meta: { total: 1 } }, 200);
     });
 
@@ -186,11 +166,9 @@ export function createDocumentRoutes(
     return c.json(one(result.value), statusCode as 201 | 422);
   });
 
-  router.post("/:id/versions", requireRole("member"), async (c) => {
-    const id = c.req.param("id");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_DOCUMENT_DETAIL), 201);
-  });
+  router.post("/:id/versions", requireRole("member"), (c) =>
+    handleUploadVersion(c, catalog, tenancy),
+  );
 
   return router;
 }

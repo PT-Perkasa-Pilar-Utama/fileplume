@@ -59,6 +59,7 @@ export async function collectUploadParts(
   request: Request,
   maxBatch: number,
   maxBytesPerFile: number,
+  fieldName = "files",
 ): Promise<UploadSingleFileItem[]> {
   if (!request.body) return [];
 
@@ -159,10 +160,10 @@ export async function collectUploadParts(
 
     const name = nameMatch?.[1] ?? "";
     const filename = filenameMatch?.[1];
-    const isFiles = name === "files";
-    if (isFiles) sawFilesField = true;
+    const isTargetField = name === fieldName;
+    if (isTargetField) sawFilesField = true;
 
-    const isFilePart = isFiles && typeof filename === "string" && filename.length > 0;
+    const isFilePart = isTargetField && typeof filename === "string" && filename.length > 0;
 
     // 3. Read body bytes until boundary.
     const chunks: Uint8Array[] = [];
@@ -231,7 +232,7 @@ export async function collectUploadParts(
   }
 
   if (items.length === 0 && sawFilesField) {
-    throw new AppError("VALIDATION_ERROR", [{ field: "files", issue: "invalid_type" }]);
+    throw new AppError("VALIDATION_ERROR", [{ field: fieldName, issue: "invalid_type" }]);
   }
 
   return items;

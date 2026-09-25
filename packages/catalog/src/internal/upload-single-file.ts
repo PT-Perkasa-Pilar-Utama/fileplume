@@ -37,7 +37,7 @@ export type UploadSingleFileDeps = {
  * Reads up to the sniff window from a tee branch. The blob branch still
  * carries the full stream, so header reads never consume file bytes.
  */
-async function readHeader(branch: ReadableStream): Promise<Uint8Array> {
+export async function readHeader(branch: ReadableStream): Promise<Uint8Array> {
   const reader = branch.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;

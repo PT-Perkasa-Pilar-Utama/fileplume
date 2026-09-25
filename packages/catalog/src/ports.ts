@@ -54,10 +54,15 @@ export interface AuditPort {
   record(event: {
     tenantId: TenantId;
     actorId: UserId;
-    action: "document.upload";
+    action: "document.upload" | "document.version_add";
     subjectType: "document";
     subjectId: DocumentId;
     outcome: "allowed";
-    metadata: { filename: string; sizeBytes: number; mimeType: string };
+    metadata: {
+      filename: string;
+      sizeBytes: number;
+      mimeType: string;
+      versionNumber?: number;
+    };
   }): Promise<void>;
 }

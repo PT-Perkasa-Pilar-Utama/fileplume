@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Hono } from "hono";
-import { buildTestApp, DOC_A_ID, TOKENS, tenantRequest } from "../testing/test-app.ts";
+import { buildTestApp, TOKENS, tenantRequest } from "../testing/test-app.ts";
 import type { AppEnv } from "./context.ts";
 
 const RATE_LIMITED = {
@@ -124,6 +124,27 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
 
   test("upload: document uploads and version uploads share the user limit", async () => {
     const app = buildTestApp();
+    const seedForm = new FormData();
+    seedForm.append(
+      "files",
+      new File([new TextEncoder().encode("%PDF-1.4\nseed rate limit target")], "target.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const seedRes = await app.request(
+      tenantRequest("/documents", {
+        method: "POST",
+        token: TOKENS.adminA,
+        body: seedForm,
+      }),
+    );
+    expect(seedRes.status).toBe(201);
+    const seedBody = (await seedRes.json()) as {
+      data: { results: Array<{ document?: { id: string } }> };
+    };
+    const targetDocId = seedBody.data.results[0]?.document?.id;
+    if (!targetDocId) throw new Error("Seed upload failed");
+
     const uploadDoc = (i: number) => {
       const form = new FormData();
       form.append(
@@ -138,13 +159,20 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
         body: form,
       });
     };
-    const uploadVersion = () =>
-      tenantRequest(`/documents/${DOC_A_ID}/versions`, {
+    const uploadVersion = (i: number) => {
+      const form = new FormData();
+      form.append(
+        "file",
+        new File([new TextEncoder().encode(`%PDF-1.4\nversion probe ${i}`)], `revisi-${i}.pdf`, {
+          type: "application/pdf",
+        }),
+      );
+      return tenantRequest(`/documents/${targetDocId}/versions`, {
         method: "POST",
         token: TOKENS.memberA,
-        headers: { "content-type": "multipart/form-data; boundary=x" },
-        body: "--x--",
+        body: form,
       });
+    };
 
     const allowedDocs = await statuses(app, times(50, uploadDoc));
     expect(allowedDocs.every((status) => status === 201)).toBe(true);
@@ -152,7 +180,7 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     const allowedVersions = await statuses(app, times(50, uploadVersion));
     expect(allowedVersions.every((status) => status === 201)).toBe(true);
 
-    const overLimit = await app.request(uploadVersion());
+    const overLimit = await app.request(uploadVersion(999));
     expect(overLimit.status).toBe(429);
     expect(overLimit.headers.get("retry-after")).toMatch(/^\d+$/);
     expect(await overLimit.json()).toEqual(RATE_LIMITED);

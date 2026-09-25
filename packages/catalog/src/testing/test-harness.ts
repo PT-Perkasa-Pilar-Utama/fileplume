@@ -75,10 +75,10 @@ export function createTestHarness(options?: {
   sessionValid?: boolean;
   session?: SessionPort;
 }) {
-  const repository = inMemoryCatalogRepository();
-  const blobStore = inMemoryBlobStore();
   let now = new Date("2026-09-14T08:00:00.000Z");
   const clock = { now: () => now };
+  const repository = inMemoryCatalogRepository({ clock });
+  const blobStore = inMemoryBlobStore();
   const committedReservations: QuotaReservationToken[] = [];
   const releasedReservations: QuotaReservationToken[] = [];
   const revertedReservations: QuotaReservationToken[] = [];

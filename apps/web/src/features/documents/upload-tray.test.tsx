@@ -73,12 +73,12 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
     expect(html).toContain('data-testid="upload-file-input"');
   });
 
-  test("UploadTray renders container header AREA UNGGAH", async () => {
+  test("UploadTray renders container header AREA UNGGAH and empty dropzone", async () => {
     const html = await renderWithProviders(<UploadTray />);
 
     expect(html).toContain("AREA UNGGAH");
     expect(html).toContain("Unggah dokumen Anda di bawah ini");
-    expect(html).toContain("Belum ada file yang diunggah");
+    expect(html).toContain("Klik untuk mengunggah atau seret dan lepas file di sini");
   });
 
   // AC-01.01: Mengunggah satu file PDF yang valid

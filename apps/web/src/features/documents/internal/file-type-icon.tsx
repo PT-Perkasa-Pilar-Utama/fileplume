@@ -12,7 +12,7 @@ export interface FileTypeIconProps {
 export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconProps): JSX.Element {
   const sizeClasses = {
     sm: "size-7 rounded p-1 text-xs",
-    md: "size-10 rounded-lg p-2 text-sm",
+    md: "size-10 rounded-[10px] p-2 text-sm",
     lg: "size-12 rounded-xl p-2.5 text-base",
   }[size];
 

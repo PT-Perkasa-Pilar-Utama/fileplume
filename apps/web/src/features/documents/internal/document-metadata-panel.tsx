@@ -69,12 +69,12 @@ export function DocumentMetadataPanel({
 
           <div className="flex items-start justify-between gap-4 py-2.5">
             <span className="text-sm font-normal text-muted-foreground shrink-0 pt-0.5">Tag</span>
-            <div className="flex flex-wrap gap-1.5 justify-end" data-testid="metadata-tags">
+            <div className="flex flex-col items-end gap-1.5" data-testid="metadata-tags">
               {document.tags.length > 0 ? (
                 document.tags.map((tag) => (
                   <Badge
                     key={tag}
-                    variant="secondary"
+                    variant="info"
                     className="h-5 px-2 text-2xs font-medium uppercase tracking-wider"
                   >
                     {tag}
@@ -87,9 +87,7 @@ export function DocumentMetadataPanel({
           </div>
 
           <div className="flex items-center justify-between gap-4 py-2.5">
-            <span className="text-sm font-normal text-muted-foreground shrink-0">
-              Pembuat (Penulis)
-            </span>
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Penulis</span>
             <p
               className="text-sm font-medium text-foreground truncate max-w-[200px] text-right"
               data-testid="metadata-author"

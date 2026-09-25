@@ -36,6 +36,7 @@ import {
   MOCK_CLASSIFIED_DOCUMENT,
   MOCK_DOCUMENT,
   MOCK_DOCUMENT_DETAIL,
+  MOCK_PDF_BYTES,
   MOCK_PROCESSING,
   MOCK_RELATED,
   MOCK_REPROCESS,
@@ -93,7 +94,7 @@ export function createDocumentRoutes(
     .openapi(previewDocument, async (c) => {
       const { id } = c.req.valid("param");
       await assertDocumentInTenant(c, id);
-      return c.body(new Uint8Array(), 200, {
+      return c.body(MOCK_PDF_BYTES, 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
       });
@@ -101,7 +102,7 @@ export function createDocumentRoutes(
     .openapi(downloadDocument, async (c) => {
       const { id } = c.req.valid("param");
       await assertDocumentInTenant(c, id);
-      return c.body(new Uint8Array(), 200, {
+      return c.body(MOCK_PDF_BYTES, 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="kontrak-kerjasama.pdf"',
       });

@@ -9,6 +9,7 @@ import { ApiError } from "../../lib/api.ts";
 import { DocumentExtractedFieldsPanel } from "./internal/document-extracted-fields-panel.tsx";
 import { DocumentMetadataPanel } from "./internal/document-metadata-panel.tsx";
 import { DocumentPreviewPanel } from "./internal/document-preview-panel.tsx";
+import { DocumentRelatedPanel } from "./internal/document-related-panel.tsx";
 import { useDocumentDetail } from "./use-document-detail.ts";
 
 export interface DocumentDetailViewProps {
@@ -83,23 +84,20 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
 
   return (
     <div data-testid="document-detail-shell" className="space-y-6">
-      {/* Breadcrumb & Navigation matching Figma document management / detail */}
+      {/* Breadcrumb matching Figma 28:3451: DOCUMENT MANAGEMENT > DETAIL */}
       <div className="flex items-center justify-between gap-4">
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+          className="flex items-center gap-2 text-sm uppercase tracking-wide"
         >
           <Link
-            to="/dashboard"
-            className="hover:text-foreground transition-colors flex items-center gap-1 font-medium"
+            to="/documents"
+            className="text-muted-foreground hover:text-foreground transition-colors font-normal"
           >
-            <ArrowLeft className="size-3.5" />
-            <span>Dasbor</span>
+            DOCUMENT MANAGEMENT
           </Link>
-          <ChevronRight className="size-3.5 text-muted-foreground/60 shrink-0" />
-          <span className="text-foreground font-medium truncate max-w-[200px] sm:max-w-md">
-            {document.title}
-          </span>
+          <ChevronRight className="size-4 text-muted-foreground/60 shrink-0" />
+          <span className="text-primary font-medium">DETAIL</span>
         </nav>
       </div>
 
@@ -115,7 +113,7 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
           Left: Metadata (360px) + Extracted Fields
           Right: Document Preview (814px) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        {/* Left Column: Metadata & Extracted Fields Regions */}
+        {/* Left Column: Metadata, Extracted Fields, & Related Documents (Figma 28:3451) */}
         <div className="space-y-6 lg:col-span-5 xl:col-span-4 order-2 lg:order-1">
           <DocumentMetadataPanel
             document={document}
@@ -125,6 +123,8 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
           />
 
           <DocumentExtractedFieldsPanel document={document} />
+
+          <DocumentRelatedPanel />
         </div>
 
         {/* Right Column: Preview Region */}

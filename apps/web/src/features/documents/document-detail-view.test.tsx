@@ -112,6 +112,10 @@ describe("DocumentDetailView (FE-S2-04)", () => {
       </QueryClientProvider>,
     );
 
+    // Breadcrumb matching Figma 28:3451
+    expect(html).toContain("DOCUMENT MANAGEMENT");
+    expect(html).toContain("DETAIL");
+
     // Three required regions per AC-38.02
     expect(html).toContain('data-testid="document-metadata-region"');
     expect(html).toContain('data-testid="document-extracted-fields-region"');
@@ -131,10 +135,13 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     expect(html).toContain('data-testid="extracted-fields-placeholder"');
     expect(html).toContain("Sprint 3");
 
-    // Preview viewer
+    // Preview viewer and toolbar matching Figma 28:3451
     expect(html).toContain('data-testid="document-preview-viewer"');
-    expect(html).toContain('data-testid="preview-version-badge"');
-    expect(html).toContain("42 Halaman");
+    expect(html).toContain('data-testid="preview-page-indicator"');
+    expect(html).toContain("1 / 42");
+
+    // Related documents region (Figma 28:3451)
+    expect(html).toContain('data-testid="document-related-region"');
   });
 
   // AC-21.02: Mengakses versi lama melalui version picker

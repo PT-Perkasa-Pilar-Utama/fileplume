@@ -1,8 +1,17 @@
 import { type DocumentDetailView, type DocumentVersionView, ERROR_MESSAGES } from "@archiva/shared";
-import { AlertCircle, Download, FileText, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  Download,
+  Expand,
+  Hand,
+  Loader2,
+  Printer,
+  Search,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../../components/ui/alert.tsx";
-import { Badge } from "../../../components/ui/badge.tsx";
 import { Button } from "../../../components/ui/button.tsx";
 import {
   Card,
@@ -39,13 +48,18 @@ export function DocumentPreviewPanel({
   const versionLabel = `v${activeVersion.versionNumber}`;
   const totalPages = activeVersion.pageCount ?? 1;
 
+  const formattedPreviewUrl =
+    previewUrl && !previewUrl.includes("#toolbar=0&navpanes=0")
+      ? `${previewUrl}#toolbar=0&navpanes=0`
+      : previewUrl;
+
   return (
     <Card
       data-testid="document-preview-region"
       className="flex flex-col shadow-xs rounded-xl border border-border bg-card"
     >
-      {/* Figma Card Header: Title + Subtitle on Left, Download Button on Right */}
-      <CardHeader className="p-6 pb-4 flex flex-row items-center justify-between gap-4">
+      {/* Figma Card Header: Title + Subtitle only (card-action is hidden in Figma 28:3451) */}
+      <CardHeader className="p-6 pb-4">
         <div className="space-y-1 min-w-0">
           <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
             DOCUMENT PREVIEW
@@ -54,23 +68,6 @@ export function DocumentPreviewPanel({
             Displays a live visual preview of the active document.
           </CardDescription>
         </div>
-
-        {/* AC-21.02: Tombol "Download" mengunduh file versi aktif */}
-        <Button
-          type="button"
-          size="sm"
-          onClick={onDownload}
-          disabled={isDownloading || !document.downloadAllowed}
-          data-testid="download-button"
-          className="h-8 gap-1.5 px-3 text-xs font-medium shrink-0"
-        >
-          {isDownloading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Download className="size-3.5" />
-          )}
-          <span>Download</span>
-        </Button>
       </CardHeader>
 
       <CardContent className="p-6 pt-0 flex-1">
@@ -79,32 +76,100 @@ export function DocumentPreviewPanel({
           data-testid="document-preview-viewer"
           className="rounded-lg border border-border overflow-hidden bg-card flex flex-col"
         >
-          {/* Toolbar */}
-          <div className="bg-muted/80 border-b border-border px-4 py-2.5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <FileText className="size-4 text-muted-foreground shrink-0" />
-              <span className="truncate text-sm font-medium text-foreground max-w-[180px] sm:max-w-md">
-                {activeVersion.filename || document.title}
-              </span>
-              <Badge
-                variant="secondary"
-                className="h-5 px-2 text-2xs font-normal shrink-0"
-                data-testid="preview-version-badge"
+          {/* Toolbar matching Figma screen 28:3451 */}
+          <div className="bg-muted/60 border-b border-border p-3 sm:p-4 flex items-center justify-between gap-2 overflow-x-auto">
+            {/* Left toolbar controls: Hand, Page Indicator, Zoom Out/In, Fullscreen */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Mode geser"
+                title="Mode geser"
               >
-                {versionLabel}
-              </Badge>
-            </div>
-
-            {/* Page Count Controls */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="inline-flex h-7 items-center justify-center rounded-md border border-border bg-card px-2.5 text-xs font-medium text-foreground shadow-2xs">
+                <Hand className="size-4" />
+              </Button>
+              <div
+                className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground shadow-2xs"
+                data-testid="preview-page-indicator"
+              >
                 <span>{`1 / ${totalPages}`}</span>
               </div>
-              {activeVersion.pageCount !== null && (
-                <span className="hidden sm:inline text-xs text-muted-foreground">
-                  {`${activeVersion.pageCount} Halaman`}
-                </span>
-              )}
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Perkecil pratinjau"
+                title="Perkecil"
+              >
+                <ZoomOut className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Perbesar pratinjau"
+                title="Perbesar"
+              >
+                <ZoomIn className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Layar penuh"
+                title="Layar penuh"
+              >
+                <Expand className="size-4" />
+              </Button>
+            </div>
+
+            {/* Right toolbar controls: Search, Print, Download */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Cari dalam dokumen"
+                title="Cari"
+              >
+                <Search className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Cetak dokumen"
+                title="Cetak"
+                onClick={() => {
+                  if (typeof window !== "undefined") window.print();
+                }}
+              >
+                <Printer className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                onClick={onDownload}
+                disabled={isDownloading || !document.downloadAllowed}
+                data-testid="download-button"
+                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
+                aria-label="Download"
+                title="Download"
+              >
+                {isDownloading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+              </Button>
             </div>
           </div>
 
@@ -130,16 +195,17 @@ export function DocumentPreviewPanel({
               </div>
             )}
 
-            {!isLoadingPreview && !previewError && previewUrl && (
+            {/* SCAFFOLD: FE-S4-03 replaces iframe preview with react-pdf canvas rendering every page with no local download */}
+            {!isLoadingPreview && !previewError && formattedPreviewUrl && (
               <iframe
-                src={previewUrl}
+                src={formattedPreviewUrl}
                 title={`Pratinjau ${document.title} - ${versionLabel}`}
                 className="min-h-[540px] sm:min-h-[600px] w-full rounded-md border-0 bg-background shadow-lg"
                 data-testid="preview-iframe"
               />
             )}
 
-            {!isLoadingPreview && !previewError && !previewUrl && (
+            {!isLoadingPreview && !previewError && !formattedPreviewUrl && (
               <div className="text-xs text-slate-300">Tidak ada konten pratinjau</div>
             )}
           </div>

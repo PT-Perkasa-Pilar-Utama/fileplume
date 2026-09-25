@@ -1,4 +1,6 @@
 import type { UploadBatch } from "@archiva/shared";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, FileText } from "lucide-react";
 import { type JSX, useState } from "react";
 import {
   Card,
@@ -71,10 +73,22 @@ export function DocumentsView(): JSX.Element {
           <CardTitle>Daftar Dokumen</CardTitle>
           <CardDescription>Semua dokumen dalam tenant Anda</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Dokumen yang diunggah akan muncul di sini setelah diproses.
           </p>
+          <div className="pt-1">
+            <Link
+              to="/documents/$id"
+              params={{ id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01" }}
+              data-testid="demo-document-detail-link"
+              className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium text-foreground shadow-2xs hover:bg-muted/50 hover:border-primary/50 transition-colors"
+            >
+              <FileText className="size-4 text-primary" />
+              <span>Buka Demo Detail Dokumen (kontrak-kerjasama.pdf)</span>
+              <ArrowRight className="size-4 text-muted-foreground ml-1" />
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 import { EMPTY_STATE } from "@archiva/shared";
+import { Link } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
 import type { JSX } from "react";
 import { Badge } from "../../components/ui/badge.tsx";
@@ -45,10 +46,12 @@ export function UploadedDocumentsList({
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
         >
           {documents.map((doc) => (
-            <div
+            <Link
               key={doc.id}
+              to="/documents/$id"
+              params={{ id: doc.id }}
               data-testid={`uploaded-doc-${doc.id}`}
-              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 shadow-xs hover:border-border/80 transition-colors"
+              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 shadow-xs hover:border-border/80 hover:bg-muted/30 transition-colors text-left"
             >
               <FileTypeIcon fileType={doc.fileType} size="md" />
               <div className="min-w-0 flex-1 space-y-1">
@@ -66,7 +69,7 @@ export function UploadedDocumentsList({
                   </Badge>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

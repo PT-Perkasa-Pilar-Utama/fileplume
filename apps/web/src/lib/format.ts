@@ -19,3 +19,31 @@ export function formatStorage(usedBytes: number, quotaBytes: number, percent?: n
 
   return `${formattedUsed} / ${formattedQuota} (${pct}%)`;
 }
+
+/** Formats an ISO 8601 timestamp string into standard Indonesian date format in UTC. */
+export function formatDocumentDate(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "Mei",
+    "Jun",
+    "Jul",
+    "Agu",
+    "Sep",
+    "Okt",
+    "Nov",
+    "Des",
+  ];
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = months[date.getUTCMonth()] ?? "";
+  const year = date.getUTCFullYear();
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+
+  return `${day} ${month} ${year}, ${hours}:${minutes} UTC`;
+}

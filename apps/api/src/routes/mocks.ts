@@ -39,8 +39,8 @@ const VERSION_ID = "aa11b2c3-4d5e-4f60-8a1b-2c3d4e5f6071";
 const TICKET_ID = "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b";
 
 export const isDocumentInTenant = (id: string, tenantId: string | null): boolean =>
-  (tenantId === MOCK_TENANT_A_ID && id === MOCK_DOC_ID) ||
-  (tenantId === MOCK_TENANT_B_ID && id === MOCK_TENANT_B_DOC_ID);
+  tenantId !== null &&
+  (tenantId === MOCK_TENANT_B_ID ? id === MOCK_TENANT_B_DOC_ID : id !== MOCK_TENANT_B_DOC_ID);
 
 export const isCategoryInTenant = (id: string, tenantId: string | null): boolean =>
   (tenantId === MOCK_TENANT_A_ID && id === MOCK_CATEGORY_ID) ||
@@ -82,6 +82,14 @@ export const MOCK_TENANT_ROW: z.infer<typeof tenantListItemSchema> = {
   documentCount: 412,
   userCount: 9,
 };
+
+/** Minimal valid single-page PDF (143 bytes) for contract mock streaming. */
+export const MOCK_PDF_BYTES = Uint8Array.from(
+  Buffer.from(
+    "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1MiAwMDAwMCBuIAowMDAwMDAwMTAxIDAwMDAwIG4gCnRyYWlsZXI8PC9TaXplIDQvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxNDAKJSVFT0Y=",
+    "base64",
+  ),
+);
 
 export const MOCK_CATEGORY: z.infer<typeof categorySchema> = {
   id: MOCK_CATEGORY_ID,

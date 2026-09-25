@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { FailureReason, ProcessingState } from "./contracts/enums.ts";
 
 /** api-specs/01-conventions.md 1.4, 1.5, 1.6. One envelope, defined once. */
 export const metaSchema = z.object({
@@ -60,3 +61,19 @@ export const EMPTY_STATE = {
 export const UPLOAD_MESSAGES = {
   FILE_ACCEPTED: "File diterima untuk diproses",
 } as const;
+
+/** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
+export const STATE_LABEL: Record<ProcessingState, string> = {
+  queued: "Antre",
+  processing: "Diproses",
+  ready: "Siap",
+  failed: "Gagal",
+};
+
+export const FAILURE_MESSAGE: Record<FailureReason, string> = {
+  password_protected: "Dokumen terproteksi password",
+  unreadable_content: "Isi dokumen tidak dapat dibaca",
+  extraction_timeout: "Proses ekstraksi melebihi batas waktu",
+  ai_unavailable: "Layanan AI tidak tersedia",
+  index_failed: "Dokumen gagal diindeks",
+};

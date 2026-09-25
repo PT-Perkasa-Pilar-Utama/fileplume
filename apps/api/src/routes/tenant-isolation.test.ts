@@ -45,7 +45,9 @@ async function assertCrossTenantNotFound(
 describe("cross-tenant document isolation (BE-S1-03, BE-S1-05)", () => {
   // AC-43.03: Isolasi data pada akses langsung (Negative Path)
   test("AC-43.03: direct document detail access with Tenant B id returns 404, sterile body, and writes audit event", async () => {
-    const app = buildTestApp();
+    // Seeded so the foreign id genuinely belongs to Tenant B in the
+    // repository; an empty repo would be an unknown id, not cross-tenant.
+    const app = buildTestApp(undefined, { seedDocuments: true });
 
     const res = await app.request(
       tenantRequest(`/documents/${RAHASIA_B_DOC_ID}`, {
@@ -127,7 +129,7 @@ describe("cross-tenant document isolation (BE-S1-03, BE-S1-05)", () => {
   });
 
   test("legitimate document access within tenant succeeds without access.denied event", async () => {
-    const app = buildTestApp();
+    const app = buildTestApp(undefined, { seedDocuments: true });
 
     const res = await app.request(
       tenantRequest(`/documents/${DOC_A_ID}`, {

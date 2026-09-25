@@ -1,13 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  canTransition,
-  FAILURE_MESSAGE,
-  isTransient,
-  MAX_TAGS,
-  STAGES,
-  STATE_LABEL,
-  truncateTags,
-} from "./service.ts";
+import { FAILURE_MESSAGE, STATE_LABEL } from "@archiva/shared";
+import { canTransition, isTransient, MAX_TAGS, STAGES, truncateTags } from "./service.ts";
 
 describe("state machine", () => {
   test("queued only moves to processing", () => {

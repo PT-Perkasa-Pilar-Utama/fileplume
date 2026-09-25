@@ -12,10 +12,8 @@ export type {
 export {
   canTransition,
   createEnrichmentService,
-  FAILURE_MESSAGE,
   isTransient,
   MAX_TAGS,
   STAGES,
-  STATE_LABEL,
   truncateTags,
 } from "./service.ts";

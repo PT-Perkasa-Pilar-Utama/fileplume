@@ -40,6 +40,17 @@ Five environments: `dev` (local), `test` (CI), `sit`, `uat`, `production`.
 | `S3_SECRET_ACCESS_KEY` | string | yes | |
 | `S3_FORCE_PATH_STYLE` | bool | no | true for MinIO, false for R2 and S3 |
 
+The CI e2e job does not run MinIO. `compose.ci.yaml` points `api` and `worker` at a dedicated AWS S3 bucket, and fills the `S3_*` keys from four CI-only values:
+
+| Variable | Source in GitHub Actions | Secret |
+|---|---|---|
+| `CI_S3_REGION` | repository variable | no |
+| `CI_S3_BUCKET` | repository variable | no |
+| `CI_S3_ACCESS_KEY_ID` | repository secret | yes |
+| `CI_S3_SECRET_ACCESS_KEY` | repository secret | yes |
+
+The bucket serves CI only. Every e2e run shares it, so the job runs one at a time and empties `t/` when it ends. The access key is scoped to that bucket alone. Pull requests from forks receive no secrets, so their e2e job fails at compose render.
+
 ## 11.3 Sidecars and external services
 
 | Variable | Type | Secret | Notes |

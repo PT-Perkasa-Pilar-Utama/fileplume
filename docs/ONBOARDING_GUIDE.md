@@ -73,7 +73,7 @@ Expected: typecheck silent, Biome reporting no fixes needed, 65 tests passing.
 ### 3.1 Bring up the dependencies
 
 ```bash
-docker compose up -d postgres opensearch valkey minio clamav gotenberg
+docker compose up -d postgres opensearch valkey blobstore clamav gotenberg
 docker compose ps
 ```
 

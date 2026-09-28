@@ -72,7 +72,7 @@ export function createDependencyProbes(deps: DependencyProbesDeps): DependencyPr
             method: "HEAD",
             signal: AbortSignal.timeout(3000),
           });
-          // MinIO or S3 endpoint responding (even 403 Forbidden on root) confirms reachability
+          // Any answer below 500 from the endpoint root, 403 and 405 included, confirms reachability
           if (res.status >= 500) return { status: "down" };
           return { status: "ok" };
         } catch {

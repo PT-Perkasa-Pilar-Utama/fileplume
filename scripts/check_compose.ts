@@ -22,16 +22,8 @@ const PRODUCTION_PLACEHOLDERS = [
   "ARCHIVA_VERSION=check",
   "ARCHIVA_DOMAIN=check.invalid",
   "POSTGRES_PASSWORD=check",
-  "MINIO_ROOT_USER=check",
-  "MINIO_ROOT_PASSWORD=check",
-].join("\n");
-
-// Placeholders that let the CI overlay render. Nothing is started.
-const CI_PLACEHOLDERS = [
-  "CI_S3_REGION=check",
-  "CI_S3_BUCKET=check",
-  "CI_S3_ACCESS_KEY_ID=check",
-  "CI_S3_SECRET_ACCESS_KEY=check",
+  "S3_ACCESS_KEY_ID=check",
+  "S3_SECRET_ACCESS_KEY=check",
 ].join("\n");
 
 type Service = {
@@ -129,11 +121,8 @@ async function checkDockerfiles(): Promise<void> {
 
 const placeholders = join(tmpdir(), "archiva-check-compose.env");
 await Bun.write(placeholders, PRODUCTION_PLACEHOLDERS);
-const ciPlaceholders = join(tmpdir(), "archiva-check-compose-ci.env");
-await Bun.write(ciPlaceholders, CI_PLACEHOLDERS);
 
 checkServices("dev", render(["compose.yaml"], [".env"]));
-checkServices("ci", render(["compose.yaml", "compose.ci.yaml"], [".env", ciPlaceholders]));
 const production = render(["compose.yaml", "compose.prod.yaml"], [".env", placeholders]);
 checkServices("production", production);
 checkPublishedPorts(production);

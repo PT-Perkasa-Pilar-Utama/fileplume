@@ -527,8 +527,8 @@ df -h
 
 **Likely causes:**
 
-1. MinIO or S3 unreachable, or the bucket does not exist.
-2. Wrong credentials, or `S3_FORCE_PATH_STYLE` false against MinIO, which needs true.
+1. The blobstore or S3 unreachable, or the bucket does not exist.
+2. Wrong credentials, or `S3_FORCE_PATH_STYLE` false against the blobstore, which needs true.
 3. The blob key prefix did not match the active tenant and the adapter refused it. That refusal is a safety property, not a bug.
 4. Host disk full.
 
@@ -538,11 +538,11 @@ df -h
 curl -fsS -H "Authorization: Bearer $HEALTH_TOKEN" \
   "https://$ARCHIVA_DOMAIN/health/ready" | jq '.checks.blobStore'
 $COMPOSE exec -T api sh -c 'echo "$S3_ENDPOINT bucket=$S3_BUCKET path_style=$S3_FORCE_PATH_STYLE"'
-$COMPOSE exec -T minio mc ls local/archiva/ | head
+$COMPOSE exec -T blobstore sh -c 'echo "fs.ls /buckets" | weed shell'
 df -h
 ```
 
-**Fix:** Create the bucket, correct credentials, set `S3_FORCE_PATH_STYLE=true` for MinIO. Restart `api` and `worker` after any change; config is read once at startup.
+**Fix:** Create the bucket, correct credentials, set `S3_FORCE_PATH_STYLE=true` for the blobstore. Restart `api` and `worker` after any change; config is read once at startup.
 
 **Prevent:** Quota accounting rejects an upload before the blob write, so a full disk should be rare. Alert on host disk separately; the quota protocol does not know about it.
 

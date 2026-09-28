@@ -347,6 +347,7 @@ Do not follow a step that cannot work. Each names what clears it.
 | Five services are throwing stubs; routes return mocks | Their sprint cards |
 | No acceptance-criterion e2e specs; `e2e/` holds only the stack smoke spec | Each wiring card writes its own `*.e2e.ts` |
 | Branch protection unavailable | A paid GitHub plan |
+| `bun run stack:up` exits 1: the scaffold worker exits at once and `--wait` counts that as failure. Every other service comes up healthy. Use `docker compose up -d --build --wait api`, as CI does. | BE-S3-01 |
 
 ---
 

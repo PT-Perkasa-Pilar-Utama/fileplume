@@ -1,17 +1,7 @@
 import type { BlobStore } from "@archiva/catalog";
-import { S3Client } from "bun";
+import type { S3Client } from "bun";
 
-export type S3BlobStoreConfig = {
-  endpoint: string;
-  bucket: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  region: string;
-};
-
-export function createS3BlobStore(options: S3BlobStoreConfig): BlobStore {
-  const s3 = new S3Client(options);
-
+export function createS3BlobStore(s3: S3Client): BlobStore {
   return {
     async put(key: string, stream: ReadableStream): Promise<{ sizeBytes: number; sha256: string }> {
       // 5.2 step 3d: the digest is computed as the bytes pass, not afterwards.

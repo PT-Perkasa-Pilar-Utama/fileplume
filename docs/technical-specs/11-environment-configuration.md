@@ -33,12 +33,12 @@ Five environments: `dev` (local), `test` (CI), `sit`, `uat`, `production`.
 | `OPENSEARCH_USERNAME` | string | yes | |
 | `OPENSEARCH_PASSWORD` | string | yes | |
 | `OPENSEARCH_INDEX_PREFIX` | string | no | `archiva-dev`, `archiva-sit`, `archiva`. Prevents two environments sharing an index. |
-| `S3_ENDPOINT` | url | no | MinIO locally, R2 or S3 in cloud |
+| `S3_ENDPOINT` | url | no | The compose `blobstore` locally and on-premises, R2 or S3 in cloud |
 | `S3_REGION` | string | no | |
 | `S3_BUCKET` | string | no | |
-| `S3_ACCESS_KEY_ID` | string | yes | |
+| `S3_ACCESS_KEY_ID` | string | yes | Compose also starts `blobstore` with this pair as its admin identity |
 | `S3_SECRET_ACCESS_KEY` | string | yes | |
-| `S3_FORCE_PATH_STYLE` | bool | no | true for MinIO, false for R2 and S3 |
+| `S3_FORCE_PATH_STYLE` | bool | no | true for the compose `blobstore`. false signs virtual-hosted requests, `<bucket>.<host>`, for R2 and S3. |
 
 ## 11.3 Sidecars and external services
 

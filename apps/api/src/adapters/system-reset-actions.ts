@@ -1,16 +1,17 @@
 import type { Config } from "@archiva/config";
 import { type DbHandle, runMigrations, seedDev, seedQa } from "@archiva/db";
 import type { ResetSeed, ResetStageActions } from "@archiva/platform";
-import { type RedisClient, S3Client } from "bun";
+import type { RedisClient, S3Client } from "bun";
 
 export type SystemResetActionsDeps = {
   config: Config;
   dbHandle?: DbHandle;
   redisClient?: RedisClient;
+  s3Client?: S3Client;
 };
 
 export function createSystemResetActions(deps: SystemResetActionsDeps): ResetStageActions {
-  const { config, dbHandle, redisClient } = deps;
+  const { config, dbHandle, redisClient, s3Client } = deps;
 
   return {
     async recordAudit(): Promise<void> {
@@ -42,16 +43,10 @@ export function createSystemResetActions(deps: SystemResetActionsDeps): ResetSta
     },
 
     async purgeBlobs(): Promise<void> {
-      const s3 = new S3Client({
-        endpoint: config.S3_ENDPOINT,
-        bucket: config.S3_BUCKET,
-        accessKeyId: config.S3_ACCESS_KEY_ID,
-        secretAccessKey: config.S3_SECRET_ACCESS_KEY,
-        region: config.S3_REGION,
-      });
-      const list = await s3.list({ prefix: "t/" });
+      if (!s3Client) return;
+      const list = await s3Client.list({ prefix: "t/" });
       if (list.contents && list.contents.length > 0) {
-        await Promise.all(list.contents.map((item) => s3.delete(item.key)));
+        await Promise.all(list.contents.map((item) => s3Client.delete(item.key)));
       }
     },
 

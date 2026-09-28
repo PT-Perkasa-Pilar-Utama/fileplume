@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "docker compose up -d postgres opensearch valkey minio minio-init clamav gotenberg && bun run --filter '*' dev",
+    "dev": "docker compose up -d postgres opensearch valkey blobstore clamav gotenberg && bun run --filter '*' dev",
     "stack:up": "docker compose up -d --build --wait",
     "check:compose": "bun run scripts/check_compose.ts",
     "openapi:emit": "bun run scripts/emit_openapi.ts",

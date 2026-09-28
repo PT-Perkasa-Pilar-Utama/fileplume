@@ -38,6 +38,7 @@ Sprint 0 produces a scaffold with the API contract stable. From Sprint 1 onward,
 |---|---|---|
 | AC-43.03 and AC-43.04 say 403; the security spec says 404 | Cards implement 404 and the AC text needs amending. Raise via `/grooming`. | [api-specs/01-conventions.md](api-specs/01-conventions.md) 1.13 |
 | AC-43.02 is a Sprint 1 criterion that needs search | Deferred to `BE-S4-07`, which proves it once the index exists. Flagged rather than moved silently. | [business/sprint-breakdown.md](business/sprint-breakdown.md) |
+| MinIO images are withdrawn from quay.io and Docker Hub, and its repositories are archived | A fresh clone cannot start the local stack, and the on-premises artifact ships an unpatched server. CI e2e runs against AWS S3 through `compose.ci.yaml` until `TL-S2-01` lands. | [technical-specs/11-environment-configuration.md](technical-specs/11-environment-configuration.md) 11.2 |
 | No AC covers user administration | Users are created by an administrator ([technical-specs/09-authentication-authorization.md](technical-specs/09-authentication-authorization.md) 9.5) but no story covers the screen. Seeds cover it for release 1. Raise via `/grooming` if a UI is expected. | |
 
 ---
@@ -93,6 +94,12 @@ Goal: a tenant exists, a user can get in and out of it, the menu matches the rol
 
 Stories: US-01, US-46, US-21, US-03, US-42, US-35, US-38  
 Goal: a file gets in, is stored exactly once, respects the tenant's limits, is scanned before anyone else can reach it, and appears on the dashboard.
+
+### Tech Lead
+
+| Card ID | PM Card Title | Task Description | AC | Owner | Est | Docs |
+|---|---|---|---|---|---|---|
+| TL-S2-01 | Replace MinIO with a maintained S3-compatible server | MinIO's images are withdrawn and its repositories archived, so a fresh clone cannot start the stack and the on-premises artifact ships an unpatched server. Choose a maintained S3-compatible server with a published image that pins to a digest, and record the choice and the rejected options. Replace `minio` and `minio-init` in `compose.yaml` and `compose.prod.yaml`, the `MINIO_ROOT_*` keys in `.env.example` and `scripts/check_compose.ts`, and the `dev` script. Pass `S3_FORCE_PATH_STYLE` through to `S3Client`; config parses it but no client receives it. Return e2e to the composed stack: delete `compose.ci.yaml`, the e2e concurrency group, the bucket cleanup step, and the `CI_S3_*` variables and secrets. Update every doc that names MinIO. | — | TL | 2 | [technical-specs/04-tech-stack.md](technical-specs/04-tech-stack.md) 4.4, 4.7, 4.10; [11-environment-configuration.md](technical-specs/11-environment-configuration.md) 11.2; [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md) |
 
 ### Backend
 
@@ -238,9 +245,9 @@ A card is done when every one of these holds. Not when the code is written.
 |---|---|---|---|---|---|---|---|
 | 0 | Fondasi Teknis | 8 | 0 | 0 | 14.5 | 0 | 0 |
 | 1 | Fondasi Tenant dan Akses Pengguna | 0 | 5 | 5 | 0 | 10.5 | 8 |
-| 2 | Unggah, Simpan, dan Batas Penyimpanan | 0 | 8 | 7 | 0 | 14.5 | 12.5 |
+| 2 | Unggah, Simpan, dan Batas Penyimpanan | 1 | 8 | 7 | 2 | 14.5 | 12.5 |
 | 3 | Klasifikasi Otomatis dan Metadata | 0 | 8 | 8 | 0 | 17 | 13.5 |
 | 4 | Pencarian dan Penemuan Dokumen | 0 | 7 | 8 | 0 | 11.5 | 12 |
 | 5 | Tata Kelola, Unduhan, dan Pemantauan | 0 | 5 | 7 | 0 | 9.5 | 11 |
-| **Total** | | **8** | **33** | **35** | **14.5** | **63** | **57** |
+| **Total** | | **9** | **33** | **35** | **16.5** | **63** | **57** |
 

@@ -36,7 +36,7 @@ Two docs are the sole source for their concern. Cite them; never restate their r
 | Database | PostgreSQL 17, Drizzle ORM |
 | Search | OpenSearch 2, one index document per page |
 | Queue and cache | BullMQ on Valkey 8 |
-| Blobs | S3 API: MinIO local, R2 or S3 cloud |
+| Blobs | S3 API: SeaweedFS local, R2 or S3 cloud |
 | Sidecars | ClamAV, Gotenberg |
 | AI | Claude behind `AiProvider` port |
 | Tooling | Biome 2.5.12, lefthook 2.1.12, Playwright, Testcontainers |
@@ -310,7 +310,7 @@ Re-verify these after compaction. They are the specifics that are easy to get su
 bun install && cp .env.example .env && bunx lefthook install
 
 # Dependencies
-docker compose up -d postgres opensearch valkey minio clamav gotenberg
+docker compose up -d postgres opensearch valkey blobstore clamav gotenberg
 
 # Develop
 bun run --filter '@archiva/api' dev     # :3000
@@ -347,6 +347,7 @@ Do not follow a step that cannot work. Each names what clears it.
 | Five services are throwing stubs; routes return mocks | Their sprint cards |
 | No acceptance-criterion e2e specs; `e2e/` holds only the stack smoke spec | Each wiring card writes its own `*.e2e.ts` |
 | Branch protection unavailable | A paid GitHub plan |
+| `bun run stack:up` exits 1: the scaffold worker exits at once and `--wait` counts that as failure. Every other service comes up healthy. Use `docker compose up -d --build --wait api`, as CI does. | BE-S3-01 |
 
 ---
 

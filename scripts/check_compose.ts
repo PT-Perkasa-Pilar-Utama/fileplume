@@ -22,8 +22,8 @@ const PRODUCTION_PLACEHOLDERS = [
   "ARCHIVA_VERSION=check",
   "ARCHIVA_DOMAIN=check.invalid",
   "POSTGRES_PASSWORD=check",
-  "MINIO_ROOT_USER=check",
-  "MINIO_ROOT_PASSWORD=check",
+  "S3_ACCESS_KEY_ID=check",
+  "S3_SECRET_ACCESS_KEY=check",
 ].join("\n");
 
 type Service = {

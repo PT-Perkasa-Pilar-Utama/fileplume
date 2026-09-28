@@ -39,12 +39,15 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: cp .env.example .env
       # api and its dependency chain only. worker waits on ClamAV's first
-      # signature download, and no pipeline card is wired yet.
+      # signature download, and no pipeline card is wired yet. The last failed
+      # attempt fails the step, so the real error is not masked by the next one.
       - run: |
           for attempt in {1..3}; do
             echo "Attempt $attempt..."
-            docker compose up -d --build --wait api && break || sleep $((2 ** attempt))
+            docker compose up -d --build --wait api && exit 0
+            sleep $((2 ** attempt))
           done
+          exit 1
       # The specs need a resolvable tenant and a seeded session; a second tenant
       # gives the cross-tenant criteria a host to be refused from. Without this
       # every route answers 404 at step 1 of api-specs/01-conventions.md 1.12.

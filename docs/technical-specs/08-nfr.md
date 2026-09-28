@@ -72,7 +72,7 @@ Processing throughput is the number most likely to disappoint. A 50-page scanned
 | Upload burst | Worker concurrency | Add worker replicas; the queue already decouples them |
 | Search volume | OpenSearch heap | Add a data node, or shard per tenant |
 | Database connections | Single Postgres instance | PgBouncer, then a read replica for analytics |
-| Storage | VPS disk | Object storage is already external; move MinIO to R2 or S3 |
+| Storage | VPS disk | Object storage is already behind the S3 API; move the blobstore to R2 or S3 |
 | Tenants | Shared schema contention | Partition the large tables by `tenant_id` |
 
 None of these is designed in for release 1. Each is a known move with a known trigger, which is the point of writing them down.

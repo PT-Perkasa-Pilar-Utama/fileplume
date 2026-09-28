@@ -48,11 +48,11 @@ Internet
    |
    +--> [api]     :3000    the only public application entry point
    |       |
-   |       +--> postgres, opensearch, valkey, minio, gotenberg
+   |       +--> postgres, opensearch, valkey, blobstore, gotenberg
    |
    [worker]                BullMQ consumer, no public surface
            |
-           +--> postgres, opensearch, valkey, minio, clamav, AI provider
+           +--> postgres, opensearch, valkey, blobstore, clamav, AI provider
 ```
 
 | Component | Image | Host ports | Purpose |
@@ -64,12 +64,11 @@ Internet
 | `postgres` | `postgres:17.2` | none | Primary database |
 | `opensearch` | `opensearchproject/opensearch:2.19.0` | none | Page-level search index |
 | `valkey` | `valkey/valkey:8.1` | none | BullMQ backing and cache |
-| `minio` | `quay.io/minio/minio` | none | S3-compatible blob store |
-| `minio-init` | `quay.io/minio/mc` | none | One-shot, creates the bucket before `api` starts |
+| `blobstore` | `chrislusf/seaweedfs:4.47` | none | S3-compatible blob store. Creates the bucket on start. |
 | `clamav` | `clamav/clamav:1.4` | none | Malware scanning |
 | `gotenberg` | `gotenberg/gotenberg:8.15.0` | none | Office to PDF conversion |
 
-Every third-party image pins its tag and a digest. MinIO comes from `quay.io`, its official registry; Docker Hub no longer serves the pinned release.
+Every third-party image pins its tag and a digest. The blobstore runs with telemetry off, so an on-premises install makes no outbound call.
 
 **Network boundary.** In production only Caddy binds host ports; every datastore is reachable on the compose network alone. Confirm after any compose change:
 
@@ -115,12 +114,12 @@ openssl rand -hex 32   # AUTH_SECRET, min 32 bytes. Rotating it ends every sessi
 openssl rand -hex 24   # HEALTH_TOKEN
 openssl rand -hex 24   # RESET_API_TOKEN, non-production only
 openssl rand -hex 24   # POSTGRES_PASSWORD. Postgres reads it only when its volume is empty.
-openssl rand -hex 24   # MINIO_ROOT_PASSWORD. Also set MINIO_ROOT_USER.
+openssl rand -hex 24   # S3_SECRET_ACCESS_KEY. Also set S3_ACCESS_KEY_ID.
 ```
 
-Hex keeps both passwords URL-safe, because compose embeds them in `DATABASE_URL` and the MinIO client URL. The production overlay refuses to render while either is unset. It cannot detect the dev values copied from `.env.example`, so replace them.
+Hex keeps the Postgres password URL-safe, because compose embeds it in `DATABASE_URL`. The production overlay refuses to render while the Postgres password or either S3 key is unset. It cannot detect the dev values copied from `.env.example`, so replace them.
 
-For containers, `compose.yaml` sets the in-network URLs (`DATABASE_URL`, `VALKEY_URL`, `OPENSEARCH_URL`, `S3_ENDPOINT`, `CLAMAV_HOST`, `GOTENBERG_URL`) and the S3 credentials. The matching values in `.env` serve only processes run on the host.
+For containers, `compose.yaml` sets the in-network URLs (`DATABASE_URL`, `VALKEY_URL`, `OPENSEARCH_URL`, `S3_ENDPOINT`, `CLAMAV_HOST`, `GOTENBERG_URL`). The matching values in `.env` serve only processes run on the host. The S3 key pair in `.env` serves both: `api` and `worker` sign with it, and `blobstore` takes it as its admin identity.
 
 **Production must not set `ENABLE_RESET_API` or `RESET_API_TOKEN` at all.** The config schema refuses to boot if either is present while `APP_ENV=production`.
 
@@ -192,7 +191,7 @@ ls web-dist/index.html   # must exist, or Caddy serves nothing
 
 ```bash
 $COMPOSE pull
-$COMPOSE up -d postgres opensearch valkey minio clamav gotenberg
+$COMPOSE up -d postgres opensearch valkey blobstore clamav gotenberg
 
 # Wait for Postgres to accept connections before migrating.
 until $COMPOSE exec -T postgres pg_isready -U archiva; do sleep 2; done
@@ -435,7 +434,7 @@ $COMPOSE run --rm migrate
 $COMPOSE run --rm api bun run db:seed:qa
 
 # 5. Purge the blob prefix and drop the search index.
-$COMPOSE exec -T minio mc rm --recursive --force local/archiva/t/ || true
+$COMPOSE exec -T blobstore sh -c 'echo "fs.rm -r /buckets/archiva/t" | weed shell' || true
 $COMPOSE exec -T api sh -c 'curl -fsS -X DELETE "$OPENSEARCH_URL/${OPENSEARCH_INDEX_PREFIX}-pages"' || true
 
 # 6. Flush the queue so no job from the old dataset is redelivered.
@@ -555,8 +554,8 @@ $COMPOSE exec -T api sh -c 'curl -fsS "$OPENSEARCH_URL/_cat/indices?v"'
 # Valkey: queue depth.
 $COMPOSE exec -T valkey valkey-cli LLEN "bull:document.process:wait"
 
-# MinIO: blob count for one tenant.
-$COMPOSE exec -T minio mc ls --recursive local/archiva/t/<tenant-id>/ | wc -l
+# Blobstore: blob count for one tenant. The last line reads "N directories, M files".
+$COMPOSE exec -T blobstore sh -c 'echo "fs.tree /buckets/archiva/t/<tenant-id>" | weed shell' | tail -1
 ```
 
 ### 10.8 Common failures

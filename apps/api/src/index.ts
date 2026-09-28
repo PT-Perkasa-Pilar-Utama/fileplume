@@ -12,6 +12,7 @@ import { createDependencyProbes } from "./adapters/dependency-probes.ts";
 import { createIdentitySessionAdapter } from "./adapters/identity-session-adapter.ts";
 import { nullJobQueue } from "./adapters/null-job-queue.ts";
 import { createS3BlobStore } from "./adapters/s3-blob-store.ts";
+import { createS3Client } from "./adapters/s3-client.ts";
 import { systemClock } from "./adapters/system-clock.ts";
 import { createSystemResetActions } from "./adapters/system-reset-actions.ts";
 import { createTenancyQuotaAdapter } from "./adapters/tenancy-quota-adapter.ts";
@@ -22,6 +23,7 @@ import { createApp } from "./app.ts";
 const config = loadConfig();
 const dbHandle = createDb({ url: config.DATABASE_URL, max: config.DATABASE_POOL_MAX });
 const redisClient = new RedisClient(config.VALKEY_URL);
+const s3Client = createS3Client(config);
 
 const tenancy = createTenancyService({
   repository: createDrizzleTenancyRepository(dbHandle.db),
@@ -40,13 +42,7 @@ const activity = createActivityService({
 
 const catalog = createCatalogService({
   repository: createDrizzleCatalogRepository(dbHandle.db),
-  blobStore: createS3BlobStore({
-    endpoint: config.S3_ENDPOINT,
-    bucket: config.S3_BUCKET,
-    accessKeyId: config.S3_ACCESS_KEY_ID,
-    secretAccessKey: config.S3_SECRET_ACCESS_KEY,
-    region: config.S3_REGION,
-  }),
+  blobStore: createS3BlobStore(s3Client),
   clock: systemClock,
   quota: createTenancyQuotaAdapter(tenancy),
   queue: nullJobQueue,
@@ -57,7 +53,7 @@ const catalog = createCatalogService({
 const probes = createDependencyProbes({ config, dbHandle, redisClient });
 const resetRunner = config.ENABLE_RESET_API
   ? new ResetRunner({
-      actions: createSystemResetActions({ config, dbHandle, redisClient }),
+      actions: createSystemResetActions({ config, dbHandle, redisClient, s3Client }),
       appEnv: config.APP_ENV,
     })
   : undefined;

@@ -54,7 +54,7 @@ Goal: a running stack, a migrated database, a validated environment, and a route
 | TL-S0-01 | Stand up the monorepo and toolchain | Bun workspace with `apps/api`, `apps/worker`, `apps/web` and the eight `packages/`. TypeScript strict with `noUncheckedIndexedAccess`, ESM only, Biome for lint and format, exact version pins and a committed lockfile. Enforce the single-entry `exports` map so importing another module's `internal/` fails to compile. | — | TL | 1 | [technical-specs/03-repository-structure.md](technical-specs/03-repository-structure.md) 3.1, 3.2; [04-tech-stack.md](technical-specs/04-tech-stack.md) 4.10 |
 | TL-S0-02 | Model the schema and ship the migration runner | Drizzle schema for every table, one file per owning module. Native enums mirrored as TypeScript unions. Add `access.denied` and `search.performed` to `audit_action`. Migration runner resolving its folder relative to its own module and reading `DATABASE_URL` from the environment, never an absolute path and never an inlined string. | — | TL | 3 | [technical-specs/06-data-model.md](technical-specs/06-data-model.md) 6.1 to 6.11 |
 | TL-S0-03 | Write the dev and qa seeds | Two idempotent seeds keyed on stable natural keys. `dev`: one tenant, four users covering every role, the reserved `Uncategorized` category plus four realistic ones, roughly 20 documents across processing states. `qa`: the dev set plus every fixture the criteria name by filename. | AC-06.01, AC-33.01, AC-03.01, AC-01.06, AC-46.02 | TL | 2 | [technical-specs/06-data-model.md](technical-specs/06-data-model.md) 6.11; [api-specs/10-system.md](api-specs/10-system.md) 10.4 |
-| TL-S0-04 | Compose the full dependency stack | Docker Compose bringing up PostgreSQL 17, OpenSearch 2.x, Valkey 8, MinIO, ClamAV, Gotenberg and Caddy, with a one-shot migrate container that exits before `api` and `worker` start. Images pinned to a minor tag and a digest. | — | TL | 2 | [technical-specs/02-system-architecture.md](technical-specs/02-system-architecture.md) 2.4; [04-tech-stack.md](technical-specs/04-tech-stack.md) 4.4, 4.8 |
+| TL-S0-04 | Compose the full dependency stack | Docker Compose bringing up PostgreSQL 17, OpenSearch 2.x, Valkey 8, an S3-compatible blob store, ClamAV, Gotenberg and Caddy, with a one-shot migrate container that exits before `api` and `worker` start. Images pinned to a minor tag and a digest. | — | TL | 2 | [technical-specs/02-system-architecture.md](technical-specs/02-system-architecture.md) 2.4; [04-tech-stack.md](technical-specs/04-tech-stack.md) 4.4, 4.8 |
 | TL-S0-05 | Validate the environment at startup | `packages/config` parsing every variable with Zod once at boot into a frozen object, exiting non-zero on a missing or malformed value. Refuse startup when `ENABLE_RESET_API` or `RESET_API_TOKEN` is set while `APP_ENV=production`. Keep `.env.example` in sync and fail CI when a schema key is missing from it. | — | TL | 1 | [technical-specs/11-environment-configuration.md](technical-specs/11-environment-configuration.md) 11.1 to 11.8 |
 | TL-S0-06 | Build the Hono route skeleton | Success, collection and error envelopes. The error taxonomy with codes in English and messages in Indonesian. Tenant resolution from subdomain, session resolution, tenant-match assertion, and a `requireRole` helper whose floor argument is mandatory so an unguarded route fails to compile. Secure headers, CORS from `WEB_ORIGIN`, origin check on mutating requests, rate limiters. | — | TL | 2 | [api-specs/01-conventions.md](api-specs/01-conventions.md) 1.4 to 1.12; [technical-specs/07-security.md](technical-specs/07-security.md) 7.2, 7.4 |
 | TL-S0-07 | Publish the shared contract package | `packages/shared` with the Zod schema for every request and response in the api-specs, the `Result` type, branded id types and the error taxonomy. Wire `@hono/zod-openapi` so the OpenAPI document is generated from the same schemas the handlers validate against. | — | TL | 1.5 | [api-specs/_index.md](api-specs/_index.md); [technical-specs/05-module-definitions.md](technical-specs/05-module-definitions.md) 5.9 |
@@ -93,6 +93,12 @@ Goal: a tenant exists, a user can get in and out of it, the menu matches the rol
 
 Stories: US-01, US-46, US-21, US-03, US-42, US-35, US-38  
 Goal: a file gets in, is stored exactly once, respects the tenant's limits, is scanned before anyone else can reach it, and appears on the dashboard.
+
+### Tech Lead
+
+| Card ID | PM Card Title | Task Description | AC | Owner | Est | Docs |
+|---|---|---|---|---|---|---|
+| TL-S2-01 | Replace MinIO with a maintained S3-compatible server | MinIO's images are withdrawn and its repositories archived, so a fresh clone cannot start the stack and the on-premises artifact ships an unpatched server. Choose a maintained S3-compatible server with a published image that pins to a digest, and record the choice and the rejected options. Replace `minio` and `minio-init` in `compose.yaml` and `compose.prod.yaml`, the `MINIO_ROOT_*` keys in `.env.example` and `scripts/check_compose.ts`, and the `dev` script. Pass `S3_FORCE_PATH_STYLE` through to `S3Client`; config parses it but no client receives it. Return e2e to the composed stack: delete `compose.ci.yaml`, the e2e concurrency group, the bucket cleanup step, and the `CI_S3_*` variables and secrets. Update every doc that names MinIO. | — | TL | 2 | [technical-specs/04-tech-stack.md](technical-specs/04-tech-stack.md) 4.4, 4.7, 4.10; [11-environment-configuration.md](technical-specs/11-environment-configuration.md) 11.2; [DEPLOYMENT_PLAN.md](DEPLOYMENT_PLAN.md) |
 
 ### Backend
 
@@ -238,9 +244,9 @@ A card is done when every one of these holds. Not when the code is written.
 |---|---|---|---|---|---|---|---|
 | 0 | Fondasi Teknis | 8 | 0 | 0 | 14.5 | 0 | 0 |
 | 1 | Fondasi Tenant dan Akses Pengguna | 0 | 5 | 5 | 0 | 10.5 | 8 |
-| 2 | Unggah, Simpan, dan Batas Penyimpanan | 0 | 8 | 7 | 0 | 14.5 | 12.5 |
+| 2 | Unggah, Simpan, dan Batas Penyimpanan | 1 | 8 | 7 | 2 | 14.5 | 12.5 |
 | 3 | Klasifikasi Otomatis dan Metadata | 0 | 8 | 8 | 0 | 17 | 13.5 |
 | 4 | Pencarian dan Penemuan Dokumen | 0 | 7 | 8 | 0 | 11.5 | 12 |
 | 5 | Tata Kelola, Unduhan, dan Pemantauan | 0 | 5 | 7 | 0 | 9.5 | 11 |
-| **Total** | | **8** | **33** | **35** | **14.5** | **63** | **57** |
+| **Total** | | **9** | **33** | **35** | **16.5** | **63** | **57** |
 

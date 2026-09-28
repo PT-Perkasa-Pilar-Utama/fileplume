@@ -53,7 +53,7 @@ Every row was confirmed during the technical-spec grill. Versions are pinned; se
 | Primary database | PostgreSQL 17 | Named in the brief |
 | Search index | OpenSearch 2.x | At 100k documents times 50 pages per tenant, memory-resident engines are out. AC-33.01 needs page-level fragment highlighting, which OpenSearch does natively. Apache 2.0, so on-premises stays possible. |
 | Cache and queue backing | Valkey 8 | BSD-licensed Redis fork. Backs BullMQ and caches the US-05 Top Tags aggregation. |
-| Object storage | S3 API: Cloudflare R2 or AWS S3 in cloud, MinIO on-premises | One SDK against both targets, so US-31 needs no rewrite |
+| Object storage | S3 API: Cloudflare R2 or AWS S3 in cloud, SeaweedFS on-premises and locally | One SDK against every target, so US-31 needs no rewrite. SeaweedFS is Apache 2.0, releases often, and its `mini` mode runs the S3 gateway in one container that creates its bucket on start. Telemetry is off. |
 | Malware scanning | ClamAV via clamd TCP | AC-46.02. Self-hostable by nature, signature updates are a container concern |
 | Document conversion | Gotenberg 8 | AC-09.02 DOCX, XLSX and TXT preview without LibreOffice inside the application image |
 
@@ -111,6 +111,11 @@ The port is not optional decoration. Grooming D8 chose hosted inference on condi
 | Clerk, Auth0, WorkOS | Managed-only. They would make US-31 undeliverable. |
 | Kafka | One producer, one consumer group, thousands of jobs a day. BullMQ is the right size. |
 | Redis after 7.4 | Licence change. Valkey is the BSD continuation. |
+| MinIO | Images withdrawn from quay.io and Docker Hub in September 2026, repositories archived. A pinned digest can no longer be pulled or patched. |
+| Garage | AGPL 3.0, which binds the on-premises artifact we distribute. Its image has no shell, so bucket setup needs a separate layout, key and bucket step. |
+| Versity Gateway | Smaller community than SeaweedFS for the same fit. |
+| RustFS | Pre-1.0. Too young for a store holding customer documents. |
+| AWS S3 in local and CI stacks | A fresh clone would need cloud credentials, an on-premises install cannot depend on it, and a shared CI bucket serialised e2e runs. Cloud environments still use it. |
 | ESLint plus Prettier | Two tools, two configs, slower. Biome does both. |
 | Kubernetes | No horizontal scaling requirement at release 1, and it would force every on-premises customer to run a cluster. |
 | GraphQL | One first-party client with well-known screens. REST plus generated types is less machinery. |

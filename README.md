@@ -37,7 +37,7 @@ Five goals govern every design decision. They are the tie-breaker when two appro
 | Database | PostgreSQL 17 via Drizzle ORM |
 | Search | OpenSearch 2, one index document per page |
 | Queue and cache | BullMQ on Valkey 8 |
-| Object storage | S3 API: MinIO locally, R2 or S3 in cloud |
+| Object storage | S3 API: SeaweedFS locally, R2 or S3 in cloud |
 | Sidecars | ClamAV for malware, Gotenberg for Office to PDF |
 | AI | Claude behind a port, with a self-hostable adapter |
 | Tooling | Biome 2, lefthook, Playwright, Testcontainers |
@@ -58,7 +58,7 @@ bun install
 cp .env.example .env
 
 # 3. Bring up the datastores and sidecars.
-docker compose up -d postgres opensearch valkey minio clamav gotenberg
+docker compose up -d postgres opensearch valkey blobstore clamav gotenberg
 
 # 4. Verify the toolchain before writing anything.
 bun run complete-check

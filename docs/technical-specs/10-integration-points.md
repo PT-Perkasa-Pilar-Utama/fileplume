@@ -12,7 +12,7 @@ Six external dependencies. Each sits behind a port declared by the module that n
 
 | System | Port | Owner module | Classification | Failure impact |
 |---|---|---|---|---|
-| S3 or MinIO | `BlobStore` | catalog | remote-but-owned | Upload and download stop |
+| S3-compatible store | `BlobStore` | catalog | remote-but-owned | Upload and download stop |
 | ClamAV | `MalwareScanner` | enrichment | local-substitutable | Processing halts, uploads queue |
 | OpenSearch | `SearchIndex` | search | remote-but-owned | Search degraded, upload unaffected |
 | Gotenberg | `DocumentConverter` | catalog | local-substitutable | Office preview only |
@@ -23,7 +23,7 @@ Six external dependencies. Each sits behind a port declared by the module that n
 
 **Contract.** S3 API: `putObject`, `getObject` as a stream, `deleteObject`, `deleteObjectsByPrefix`. Keys are `t/<tenant_id>/d/<document_id>/v/<version_id>`.
 
-**Adapters.** `S3BlobStore` in production, targeting R2 or S3 in cloud and MinIO on-premises through the same SDK. `InMemoryBlobStore` in tests, shipped inside `packages/catalog/src/testing/`.
+**Adapters.** `S3BlobStore` in production, targeting R2 or S3 in cloud and SeaweedFS on-premises through the same SDK. `InMemoryBlobStore` in tests, shipped inside `packages/catalog/src/testing/`.
 
 **Failure mode.** Write failure aborts the upload, releases the quota reservation, returns 503, and no document row is created. Read failure returns 503 on download and preview; metadata still lists.
 

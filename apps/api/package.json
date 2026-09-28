@@ -23,5 +23,8 @@
     "hono": "4.13.7",
     "hono-rate-limiter": "0.5.4",
     "zod": "4.6.2"
+  },
+  "devDependencies": {
+    "testcontainers": "12.1.0"
   }
 }

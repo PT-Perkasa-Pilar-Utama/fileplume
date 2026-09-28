@@ -137,7 +137,7 @@ The screen exists in Figma before it exists in code. Open the node the card name
 The endpoint already returns a contract-valid response, so start now:
 
 ```bash
-docker compose up -d postgres opensearch valkey minio clamav gotenberg
+docker compose up -d postgres opensearch valkey blobstore clamav gotenberg
 bun run --filter '@archiva/api' dev     # terminal 1
 bun run --filter '@archiva/web' dev     # terminal 2, proxies /api to :3000
 ```

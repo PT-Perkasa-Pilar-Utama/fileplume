@@ -31,19 +31,6 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # One bucket serves every run, and the reset route purges t/ across all of
-    # it. Two runs at once would delete each other's blobs.
-    concurrency:
-      group: e2e-shared-bucket
-      cancel-in-progress: false
-    env:
-      # compose.ci.yaml swaps MinIO for AWS S3. Every compose call below,
-      # including logs and down, renders with it.
-      COMPOSE_FILE: compose.yaml:compose.ci.yaml
-      CI_S3_REGION: ${{ vars.CI_S3_REGION }}
-      CI_S3_BUCKET: ${{ vars.CI_S3_BUCKET }}
-      CI_S3_ACCESS_KEY_ID: ${{ secrets.CI_S3_ACCESS_KEY_ID }}
-      CI_S3_SECRET_ACCESS_KEY: ${{ secrets.CI_S3_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -80,13 +67,6 @@ jobs:
           retention-days: 3
       - if: always()
         run: docker compose down -v
-      # down -v clears the datastores but not the bucket.
-      - if: always()
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.CI_S3_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_S3_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ vars.CI_S3_REGION }}
-        run: aws s3 rm "s3://$CI_S3_BUCKET/t/" --recursive --only-show-errors
 
   docs:
     runs-on: ubuntu-latest

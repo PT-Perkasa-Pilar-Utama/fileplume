@@ -51,7 +51,7 @@ graph TB
     PG[(PostgreSQL 17)]
     OS[(OpenSearch 2.x)]
     VK[(Valkey)]
-    S3[(S3 / MinIO)]
+    S3[(S3 API)]
   end
 
   subgraph Sidecars
@@ -141,7 +141,7 @@ graph LR
       P[(postgres:17)]
       O[(opensearch:2)]
       V[(valkey:8)]
-      MI[(minio)]
+      MI[(blobstore)]
     end
     subgraph side["Stateless sidecars"]
       C[clamav]

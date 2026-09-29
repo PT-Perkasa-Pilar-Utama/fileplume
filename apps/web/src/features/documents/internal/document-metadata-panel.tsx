@@ -1,13 +1,7 @@
 import type { DocumentDetailView, DocumentVersionView } from "@archiva/shared";
 import type { JSX } from "react";
 import { Badge } from "../../../components/ui/badge.tsx";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
 import { formatBytes, formatDocumentDate } from "../../../lib/format.ts";
 import { VersionPicker } from "./version-picker.tsx";
 
@@ -37,12 +31,9 @@ export function DocumentMetadataPanel({
       className="shadow-xs rounded-xl border border-border bg-card"
     >
       <CardHeader className="p-6 pb-4">
-        <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
-          METADATA
+        <CardTitle className="text-base font-medium tracking-wide text-foreground">
+          Metadata Dokumen
         </CardTitle>
-        <CardDescription className="text-sm font-normal text-muted-foreground">
-          Show your metadata of selected document
-        </CardDescription>
       </CardHeader>
       <CardContent className="p-6 pt-0 space-y-3">
         <div className="flex flex-col divide-y divide-border/50">
@@ -129,7 +120,7 @@ export function DocumentMetadataPanel({
           </div>
 
           <div className="flex items-center justify-between gap-4 py-2.5">
-            <span className="text-sm font-normal text-muted-foreground shrink-0">Version</span>
+            <span className="text-sm font-normal text-muted-foreground shrink-0">Versi</span>
             <div>
               <VersionPicker
                 versions={document.versions}

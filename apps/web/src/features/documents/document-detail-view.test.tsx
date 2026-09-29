@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { type DocumentDetailView, type DocumentVersionView, EMPTY_STATE } from "@archiva/shared";
+import {
+  type DocumentDetailView,
+  type DocumentVersionView,
+  EMPTY_STATE,
+  ERROR_MESSAGES,
+} from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -10,6 +15,7 @@ import {
 } from "@tanstack/react-router";
 import type { JSX } from "react";
 import { renderToString } from "react-dom/server";
+import { ApiError } from "../../lib/api.ts";
 import { DocumentDetailView as DocumentDetailViewComponent } from "./document-detail-view.tsx";
 
 const mockVersion1: DocumentVersionView = {
@@ -112,9 +118,9 @@ describe("DocumentDetailView (FE-S2-04)", () => {
       </QueryClientProvider>,
     );
 
-    // Breadcrumb matching Figma 28:3451
-    expect(html).toContain("DOCUMENT MANAGEMENT");
-    expect(html).toContain("DETAIL");
+    // Breadcrumb matching Indonesian contract
+    expect(html).toContain("Dokumen");
+    expect(html).toContain("Detail Dokumen");
 
     // Three required regions per AC-38.02
     expect(html).toContain('data-testid="document-metadata-region"');
@@ -133,15 +139,10 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     // Extracted fields stub content
     expect(html).toContain("Kontrak Kerjasama");
     expect(html).toContain('data-testid="extracted-fields-placeholder"');
-    expect(html).toContain("Sprint 3");
+    expect(html).toContain("Bidang terekstraksi dokumen belum tersedia.");
 
-    // Preview viewer and toolbar matching Figma 28:3451
+    // Preview viewer and toolbar
     expect(html).toContain('data-testid="document-preview-viewer"');
-    expect(html).toContain('data-testid="preview-page-indicator"');
-    expect(html).toContain("1 / 42");
-
-    // Related documents region (Figma 28:3451)
-    expect(html).toContain('data-testid="document-related-region"');
   });
 
   // AC-21.02: Mengakses versi lama melalui version picker
@@ -160,7 +161,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
 
     // Version picker trigger is present with active version
     expect(html).toContain('data-testid="version-picker-trigger"');
-    expect(html).toContain("Version 2.0");
+    expect(html).toContain("v2");
 
     // Download button exists with verbatim label "Download" per AC-21.02
     expect(html).toContain('data-testid="download-button"');
@@ -171,8 +172,14 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // Set query cache to null/undefined error
-    queryClient.setQueryData(["document", "not-found-id"], null);
+    const query = queryClient.getQueryCache().build(queryClient, {
+      queryKey: ["document", "not-found-id"],
+    });
+    query.setState({
+      data: null,
+      error: new ApiError(404, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND),
+      status: "error",
+    });
 
     const html = await renderDetailView(
       <QueryClientProvider client={queryClient}>
@@ -183,6 +190,31 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     expect(html).toContain('data-testid="document-detail-error"');
     expect(html).toContain(EMPTY_STATE.DOCUMENT_NOT_FOUND);
     expect(html).toContain("Kembali ke Dasbor");
+  });
+
+  test("renders 500 server error without showing document not found title", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const query = queryClient.getQueryCache().build(queryClient, {
+      queryKey: ["document", "server-error-id"],
+    });
+    query.setState({
+      data: null,
+      error: new ApiError(500, "INTERNAL_ERROR", "Internal Server Error"),
+      status: "error",
+    });
+
+    const html = await renderDetailView(
+      <QueryClientProvider client={queryClient}>
+        <DocumentDetailViewComponent documentId="server-error-id" />
+      </QueryClientProvider>,
+    );
+
+    expect(html).toContain('data-testid="document-detail-error"');
+    expect(html).toContain(ERROR_MESSAGES.INTERNAL_ERROR);
+    expect(html).not.toContain(EMPTY_STATE.DOCUMENT_NOT_FOUND);
+    expect(html).toContain("Internal Server Error");
   });
 
   test("renders loading state while document is being fetched", async () => {

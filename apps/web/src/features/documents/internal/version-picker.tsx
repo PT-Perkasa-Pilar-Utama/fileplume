@@ -33,11 +33,10 @@ export function VersionPicker({
   open,
   onOpenChange,
 }: VersionPickerProps): JSX.Element {
-  // Sort versions newest first by versionNumber descending
   const sortedVersions = [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
   const activeVersion = sortedVersions.find((v) => v.id === activeVersionId) ?? sortedVersions[0];
 
-  const activeLabel = activeVersion ? `Version ${activeVersion.versionNumber}.0` : "Version 1.0";
+  const activeLabel = activeVersion ? `v${activeVersion.versionNumber}` : "v1";
 
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
@@ -60,7 +59,7 @@ export function VersionPicker({
         <DropdownMenuSeparator />
         {sortedVersions.map((version) => {
           const isSelected = version.id === activeVersion?.id;
-          const versionLabel = `Version ${version.versionNumber}.0`;
+          const versionLabel = `v${version.versionNumber}`;
 
           return (
             <DropdownMenuItem

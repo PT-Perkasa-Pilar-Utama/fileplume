@@ -41,8 +41,8 @@ describe("formatStorage utility", () => {
 
 describe("formatDocumentDate utility", () => {
   test("formats ISO UTC date correctly with Indonesian month", () => {
-    expect(formatDocumentDate("2026-03-25T14:30:00Z")).toBe("25 Mar 2026, 14:30 UTC");
-    expect(formatDocumentDate("2026-08-01T09:05:00Z")).toBe("01 Agu 2026, 09:05 UTC");
+    expect(formatDocumentDate("2026-03-25T14:30:00Z")).toBe("25 Mar 2026, 14.30 UTC");
+    expect(formatDocumentDate("2026-08-01T09:05:00Z")).toBe("01 Agu 2026, 09.05 UTC");
   });
 
   test("returns original string for invalid date", () => {

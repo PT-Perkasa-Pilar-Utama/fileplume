@@ -1,14 +1,5 @@
-import {
-  collectionOf,
-  type DocumentDetailView,
-  type DocumentVersionView,
-  dataOf,
-  documentDetailSchema,
-  documentVersionSchema,
-  ERROR_MESSAGES,
-  errorSchema,
-} from "@archiva/shared";
-import { API_BASE, ApiError, apiFetch } from "../../lib/api.ts";
+import { type DocumentDetailView, dataOf, documentDetailSchema } from "@archiva/shared";
+import { API_BASE, apiFetch, toApiError } from "../../lib/api.ts";
 
 /**
  * Extracts filename from Content-Disposition header.
@@ -18,11 +9,7 @@ export function parseContentDispositionFilename(header: string | null | undefine
   if (!header) return null;
   const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
   if (utf8Match?.[1]) {
-    try {
-      return decodeURIComponent(utf8Match[1]);
-    } catch {
-      return utf8Match[1];
-    }
+    return decodeURIComponent(utf8Match[1]);
   }
   const regularMatch = /filename="([^"]+)"/i.exec(header) || /filename=([^;\s]+)/i.exec(header);
   return regularMatch?.[1] ?? null;
@@ -32,15 +19,14 @@ export function parseContentDispositionFilename(header: string | null | undefine
  * Triggers a file download in the browser using a temporary anchor element.
  */
 export function triggerBlobDownload(blob: Blob, filename: string): void {
-  if (typeof window === "undefined" || !window.URL?.createObjectURL) return;
-  const url = window.URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -49,15 +35,6 @@ export function triggerBlobDownload(blob: Blob, filename: string): void {
  */
 export async function fetchDocumentDetail(id: string): Promise<DocumentDetailView> {
   const res = await apiFetch(`/documents/${id}`, dataOf(documentDetailSchema));
-  return res.data;
-}
-
-/**
- * GET /api/v1/documents/:id/versions (api-specs/05-documents.md 5.6).
- * Retrieves all versions of a document in collection envelope, newest first.
- */
-export async function fetchDocumentVersions(id: string): Promise<DocumentVersionView[]> {
-  const res = await apiFetch(`/documents/${id}/versions`, collectionOf(documentVersionSchema));
   return res.data;
 }
 
@@ -74,27 +51,10 @@ export async function fetchDocumentPreview(
     credentials: "include",
   });
 
-  if (!res.ok) {
-    let code: string = "INTERNAL_ERROR";
-    let message: string = ERROR_MESSAGES.INTERNAL_ERROR;
-    try {
-      const json = await res.json();
-      const parsed = errorSchema.safeParse(json);
-      if (parsed.success) {
-        code = parsed.data.error.code;
-        message = parsed.data.error.message;
-      }
-    } catch {
-      // Body is not JSON
-    }
-    throw new ApiError(res.status, code, message);
-  }
+  if (!res.ok) throw await toApiError(res);
 
   const blob = await res.blob();
-  const url =
-    typeof window !== "undefined" && window.URL?.createObjectURL
-      ? window.URL.createObjectURL(blob)
-      : "";
+  const url = URL.createObjectURL(blob);
   return { blob, url };
 }
 
@@ -116,21 +76,7 @@ export async function downloadDocumentRequest(
     credentials: "include",
   });
 
-  if (!res.ok) {
-    let code: string = "INTERNAL_ERROR";
-    let message: string = ERROR_MESSAGES.INTERNAL_ERROR;
-    try {
-      const json = await res.json();
-      const parsed = errorSchema.safeParse(json);
-      if (parsed.success) {
-        code = parsed.data.error.code;
-        message = parsed.data.error.message;
-      }
-    } catch {
-      // Body is not JSON
-    }
-    throw new ApiError(res.status, code, message);
-  }
+  if (!res.ok) throw await toApiError(res);
 
   const disposition = res.headers.get("Content-Disposition");
   const filename = parseContentDispositionFilename(disposition) ?? defaultFilename;

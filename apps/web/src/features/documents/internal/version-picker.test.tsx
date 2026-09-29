@@ -47,7 +47,7 @@ describe("VersionPicker component (AC-21.02)", () => {
       />,
     );
 
-    expect(html).toContain("Version 1.0");
+    expect(html).toContain("v1");
     expect(html).toContain('data-testid="version-picker-trigger"');
   });
 
@@ -63,6 +63,9 @@ describe("VersionPicker component (AC-21.02)", () => {
     );
 
     expect(html).toContain("Riwayat Versi");
+    expect(html).toContain("v3");
+    expect(html).toContain("v2");
+    expect(html).toContain("v1");
     expect(html).toContain('data-testid="version-item-version-3-id"');
     expect(html).toContain('data-testid="version-item-version-2-id"');
     expect(html).toContain('data-testid="version-item-version-1-id"');

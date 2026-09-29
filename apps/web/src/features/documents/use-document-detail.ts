@@ -50,7 +50,6 @@ export function useDocumentDetail({
 
   const doc = documentQuery.data;
 
-  // Determine active version: selected version or current / latest version
   const activeVersion = doc?.versions.find(
     (v) =>
       v.id ===
@@ -59,7 +58,6 @@ export function useDocumentDetail({
 
   const activeVersionId = activeVersion?.id ?? selectedVersionId ?? "";
 
-  // Preview query for active version
   const previewQuery = useQuery({
     queryKey: ["document-preview", documentId, activeVersion?.id],
     queryFn: async () => {
@@ -70,17 +68,15 @@ export function useDocumentDetail({
     staleTime: 1000 * 60 * 5,
   });
 
-  // Revoke preview object URL on unmount or URL change
   useEffect(() => {
     const url = previewQuery.data?.url;
     return () => {
-      if (url && typeof window !== "undefined" && window.URL?.revokeObjectURL) {
-        window.URL.revokeObjectURL(url);
+      if (url) {
+        URL.revokeObjectURL(url);
       }
     };
   }, [previewQuery.data?.url]);
 
-  // Download mutation (AC-21.02)
   const downloadMutation = useMutation({
     mutationFn: async () => {
       if (!documentId || !activeVersion) return;

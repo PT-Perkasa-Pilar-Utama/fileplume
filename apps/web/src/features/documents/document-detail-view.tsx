@@ -1,4 +1,4 @@
-import { EMPTY_STATE } from "@archiva/shared";
+import { EMPTY_STATE, ERROR_MESSAGES } from "@archiva/shared";
 import { Link, useParams } from "@tanstack/react-router";
 import { AlertCircle, ArrowLeft, ChevronRight, FileX, Loader2 } from "lucide-react";
 import type { JSX } from "react";
@@ -9,7 +9,6 @@ import { ApiError } from "../../lib/api.ts";
 import { DocumentExtractedFieldsPanel } from "./internal/document-extracted-fields-panel.tsx";
 import { DocumentMetadataPanel } from "./internal/document-metadata-panel.tsx";
 import { DocumentPreviewPanel } from "./internal/document-preview-panel.tsx";
-import { DocumentRelatedPanel } from "./internal/document-related-panel.tsx";
 import { useDocumentDetail } from "./use-document-detail.ts";
 
 export interface DocumentDetailViewProps {
@@ -41,7 +40,6 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
     handleDownload,
   } = useDocumentDetail({ documentId: effectiveId });
 
-  // Loading state
   if (isLoading) {
     return (
       <div
@@ -54,24 +52,16 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
     );
   }
 
-  // Not found or error state using EmptyState primitive
   if (isError || !document || !activeVersion) {
-    const isNotFound =
-      !document ||
-      (error instanceof ApiError && error.status === 404) ||
-      error?.message === EMPTY_STATE.DOCUMENT_NOT_FOUND;
+    const isNotFound = error instanceof ApiError && error.code === "NOT_FOUND";
 
     return (
       <div data-testid="document-detail-error" className="py-12">
         <EmptyState
           variant="borderless"
           icon={FileX}
-          title={isNotFound ? EMPTY_STATE.DOCUMENT_NOT_FOUND : "Gagal Memuat Dokumen"}
-          description={
-            isNotFound
-              ? "Dokumen yang Anda cari tidak ditemukan atau telah dihapus."
-              : (error?.message ?? "Terjadi kesalahan saat memuat dokumen.")
-          }
+          title={isNotFound ? EMPTY_STATE.DOCUMENT_NOT_FOUND : ERROR_MESSAGES.INTERNAL_ERROR}
+          description={isNotFound ? undefined : error?.message}
           action={
             <Link to="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
               <ArrowLeft className="mr-1.5 size-4" />
@@ -85,24 +75,19 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
 
   return (
     <div data-testid="document-detail-shell" className="space-y-6">
-      {/* Breadcrumb matching Figma 28:3451: DOCUMENT MANAGEMENT > DETAIL */}
       <div className="flex items-center justify-between gap-4">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-2 text-sm uppercase tracking-wide"
-        >
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
           <Link
             to="/documents"
             className="text-muted-foreground hover:text-foreground transition-colors font-normal"
           >
-            DOCUMENT MANAGEMENT
+            Dokumen
           </Link>
           <ChevronRight className="size-4 text-muted-foreground/60 shrink-0" />
-          <span className="text-primary font-medium">DETAIL</span>
+          <span className="text-primary font-medium">Detail Dokumen</span>
         </nav>
       </div>
 
-      {/* Download error alert */}
       {downloadError && (
         <Alert variant="destructive" data-testid="download-error-alert">
           <AlertCircle className="size-4" />
@@ -110,11 +95,7 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
         </Alert>
       )}
 
-      {/* Document Detail 2-column layout matching Figma 28:3451:
-          Left: Metadata (360px) + Extracted Fields
-          Right: Document Preview (814px) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-        {/* Left Column: Metadata, Extracted Fields, & Related Documents (Figma 28:3451) */}
         <div className="space-y-6 lg:col-span-5 xl:col-span-4 order-2 lg:order-1">
           <DocumentMetadataPanel
             document={document}
@@ -124,11 +105,8 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
           />
 
           <DocumentExtractedFieldsPanel document={document} />
-
-          <DocumentRelatedPanel />
         </div>
 
-        {/* Right Column: Preview Region */}
         <div className="lg:col-span-7 xl:col-span-8 order-1 lg:order-2">
           <DocumentPreviewPanel
             document={document}

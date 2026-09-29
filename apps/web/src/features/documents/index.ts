@@ -6,7 +6,6 @@ export {
   downloadDocumentRequest,
   fetchDocumentDetail,
   fetchDocumentPreview,
-  fetchDocumentVersions,
   parseContentDispositionFilename,
   triggerBlobDownload,
 } from "./detail-api.ts";
@@ -22,22 +21,6 @@ export {
   validateBatchCount,
   validateFile,
 } from "./file-validation.ts";
-export {
-  DocumentExtractedFieldsPanel,
-  type DocumentExtractedFieldsPanelProps,
-} from "./internal/document-extracted-fields-panel.tsx";
-export {
-  DocumentMetadataPanel,
-  type DocumentMetadataPanelProps,
-} from "./internal/document-metadata-panel.tsx";
-export {
-  DocumentPreviewPanel,
-  type DocumentPreviewPanelProps,
-} from "./internal/document-preview-panel.tsx";
-export {
-  VersionPicker,
-  type VersionPickerProps,
-} from "./internal/version-picker.tsx";
 export type {
   AcceptedFileType,
   TrayItem,

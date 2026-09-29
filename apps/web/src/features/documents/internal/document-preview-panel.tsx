@@ -1,25 +1,9 @@
 import { type DocumentDetailView, type DocumentVersionView, ERROR_MESSAGES } from "@archiva/shared";
-import {
-  AlertCircle,
-  Download,
-  Expand,
-  Hand,
-  Loader2,
-  Printer,
-  Search,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { AlertCircle, Download, Loader2 } from "lucide-react";
 import type { JSX } from "react";
 import { Alert, AlertDescription } from "../../../components/ui/alert.tsx";
 import { Button } from "../../../components/ui/button.tsx";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../../components/ui/card.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
 import type { ApiError } from "../../../lib/api.ts";
 
 export interface DocumentPreviewPanelProps {
@@ -46,7 +30,6 @@ export function DocumentPreviewPanel({
   onDownload,
 }: DocumentPreviewPanelProps): JSX.Element {
   const versionLabel = `v${activeVersion.versionNumber}`;
-  const totalPages = activeVersion.pageCount ?? 1;
 
   const formattedPreviewUrl =
     previewUrl && !previewUrl.includes("#toolbar=0&navpanes=0")
@@ -58,101 +41,24 @@ export function DocumentPreviewPanel({
       data-testid="document-preview-region"
       className="flex flex-col shadow-xs rounded-xl border border-border bg-card"
     >
-      {/* Figma Card Header: Title + Subtitle only (card-action is hidden in Figma 28:3451) */}
       <CardHeader className="p-6 pb-4">
         <div className="space-y-1 min-w-0">
-          <CardTitle className="text-base font-medium tracking-wide uppercase text-foreground">
-            DOCUMENT PREVIEW
+          <CardTitle className="text-base font-medium tracking-wide text-foreground">
+            Pratinjau Dokumen
           </CardTitle>
-          <CardDescription className="text-sm font-normal text-muted-foreground truncate">
-            Displays a live visual preview of the active document.
-          </CardDescription>
         </div>
       </CardHeader>
 
       <CardContent className="p-6 pt-0 flex-1">
-        {/* Figma Preview Container with Toolbar + Canvas */}
         <div
           data-testid="document-preview-viewer"
           className="rounded-lg border border-border overflow-hidden bg-card flex flex-col"
         >
-          {/* Toolbar matching Figma screen 28:3451 */}
           <div className="bg-muted/60 border-b border-border p-3 sm:p-4 flex items-center justify-between gap-2 overflow-x-auto">
-            {/* Left toolbar controls: Hand, Page Indicator, Zoom Out/In, Fullscreen */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Mode geser"
-                title="Mode geser"
-              >
-                <Hand className="size-4" />
-              </Button>
-              <div
-                className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground shadow-2xs"
-                data-testid="preview-page-indicator"
-              >
-                <span>{`1 / ${totalPages}`}</span>
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Perkecil pratinjau"
-                title="Perkecil"
-              >
-                <ZoomOut className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Perbesar pratinjau"
-                title="Perbesar"
-              >
-                <ZoomIn className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Layar penuh"
-                title="Layar penuh"
-              >
-                <Expand className="size-4" />
-              </Button>
-            </div>
+            {/* SCAFFOLD: FE-S4-03 adds paging, zoom, fullscreen and in-document search. */}
+            <div className="flex items-center gap-1.5 shrink-0" />
 
-            {/* Right toolbar controls: Search, Print, Download */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Cari dalam dokumen"
-                title="Cari"
-              >
-                <Search className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                className="h-8 w-8 rounded-lg bg-card text-foreground shadow-2xs hover:bg-muted"
-                aria-label="Cetak dokumen"
-                title="Cetak"
-                onClick={() => {
-                  if (typeof window !== "undefined") window.print();
-                }}
-              >
-                <Printer className="size-4" />
-              </Button>
               <Button
                 variant="outline"
                 size="icon"
@@ -173,7 +79,6 @@ export function DocumentPreviewPanel({
             </div>
           </div>
 
-          {/* Canvas (Slate background matching Figma rgba(49,65,88,1.00)) */}
           <div className="bg-[#314158] dark:bg-slate-900 p-4 sm:p-6 min-h-[580px] sm:min-h-[640px] flex items-center justify-center">
             {isLoadingPreview && (
               <div className="flex flex-col items-center gap-2 text-slate-200">

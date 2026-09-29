@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { ERROR_MESSAGES } from "@archiva/shared";
-import { ApiError } from "../../lib/api.ts";
-import {
-  fetchDocumentDetail,
-  fetchDocumentVersions,
-  parseContentDispositionFilename,
-} from "./detail-api.ts";
+import { fetchDocumentDetail, parseContentDispositionFilename } from "./detail-api.ts";
 
 describe("detail-api utilities", () => {
   describe("parseContentDispositionFilename", () => {
@@ -125,50 +120,11 @@ describe("detail-api document and versions", () => {
         ),
       );
 
-      let caught: unknown = null;
-      try {
-        await fetchDocumentDetail("non-existent-id");
-      } catch (err) {
-        caught = err;
-      }
-
-      expect(caught).toBeInstanceOf(ApiError);
-      expect((caught as ApiError).status).toBe(404);
-      expect((caught as ApiError).code).toBe("NOT_FOUND");
-    });
-  });
-
-  describe("fetchDocumentVersions", () => {
-    test("fetches and parses version collection", async () => {
-      const mockVersionsPayload = {
-        data: [
-          {
-            id: mockVersionId,
-            versionNumber: 2,
-            filename: "kontrak-kerjasama-rev.pdf",
-            sizeBytes: 2411520,
-            pageCount: 42,
-            uploadedBy: {
-              id: "9d1c4a70-7b53-4f0a-8a71-3c9e2d5b6f10",
-              name: "Budi Santoso",
-            },
-            createdAt: "2026-09-09T10:15:00.000Z",
-            isCurrent: true,
-          },
-        ],
-        meta: { total: 1 },
-      };
-
-      fetchSpy.mockResolvedValueOnce(
-        new Response(JSON.stringify(mockVersionsPayload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-
-      const versions = await fetchDocumentVersions(mockDocId);
-      expect(versions.length).toBe(1);
-      expect(versions[0]?.versionNumber).toBe(2);
+      await expect(fetchDocumentDetail("non-existent-id")).rejects.toMatchObject({
+        status: 404,
+        code: "NOT_FOUND",
+        message: ERROR_MESSAGES.NOT_FOUND,
+      });
     });
   });
 });

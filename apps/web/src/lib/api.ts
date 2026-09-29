@@ -20,6 +20,14 @@ export class ApiError extends Error {
   }
 }
 
+export async function toApiError(res: Response): Promise<ApiError> {
+  const isJson = res.headers.get("Content-Type")?.includes("application/json") ?? false;
+  const refusal = errorSchema.safeParse(isJson ? await res.json() : null);
+  return refusal.success
+    ? new ApiError(res.status, refusal.data.error.code, refusal.data.error.message)
+    : new ApiError(res.status, "INTERNAL_ERROR", ERROR_MESSAGES.INTERNAL_ERROR);
+}
+
 export async function apiFetch<S extends z.ZodType>(
   path: string,
   schema: S,

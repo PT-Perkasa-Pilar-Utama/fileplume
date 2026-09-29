@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { ERROR_MESSAGES } from "@archiva/shared";
-import { ApiError } from "../../lib/api.ts";
 import {
   downloadDocumentRequest,
   fetchDocumentPreview,
   triggerBlobDownload,
 } from "./detail-api.ts";
+
+if (!globalThis.URL.createObjectURL) {
+  globalThis.URL.createObjectURL = () => "blob:mock";
+}
+if (!globalThis.URL.revokeObjectURL) {
+  globalThis.URL.revokeObjectURL = () => {};
+}
 
 describe("detail-api preview and download", () => {
   const fetchSpy = spyOn(globalThis, "fetch");
@@ -57,17 +63,20 @@ describe("detail-api preview and download", () => {
         ),
       );
 
-      let caught: unknown = null;
-      try {
-        await fetchDocumentPreview(mockDocId);
-      } catch (err) {
-        caught = err;
-      }
+      await expect(fetchDocumentPreview(mockDocId)).rejects.toMatchObject({
+        status: 422,
+        code: "PREVIEW_UNAVAILABLE",
+        message: ERROR_MESSAGES.PREVIEW_UNAVAILABLE,
+      });
+    });
 
-      expect(caught).toBeInstanceOf(ApiError);
-      expect((caught as ApiError).status).toBe(422);
-      expect((caught as ApiError).code).toBe("PREVIEW_UNAVAILABLE");
-      expect((caught as ApiError).message).toBe(ERROR_MESSAGES.PREVIEW_UNAVAILABLE);
+    // AC-21.02
+    test("previewing v1 requests v1 by versionId", async () => {
+      fetchSpy.mockResolvedValueOnce(new Response(new Blob(["%PDF"]), { status: 200 }));
+
+      await fetchDocumentPreview(mockDocId, mockVersionId);
+
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain(`versionId=${mockVersionId}`);
     });
   });
 
@@ -103,17 +112,21 @@ describe("detail-api preview and download", () => {
         ),
       );
 
-      let caught: unknown = null;
-      try {
-        await downloadDocumentRequest(mockDocId);
-      } catch (err) {
-        caught = err;
-      }
+      await expect(downloadDocumentRequest(mockDocId)).rejects.toMatchObject({
+        status: 403,
+        code: "DOWNLOAD_FORBIDDEN",
+        message: ERROR_MESSAGES.DOWNLOAD_FORBIDDEN,
+      });
+    });
 
-      expect(caught).toBeInstanceOf(ApiError);
-      expect((caught as ApiError).status).toBe(403);
-      expect((caught as ApiError).code).toBe("DOWNLOAD_FORBIDDEN");
-      expect((caught as ApiError).message).toBe(ERROR_MESSAGES.DOWNLOAD_FORBIDDEN);
+    // AC-21.02
+    test("downloading after choosing v1 requests v1's bytes", async () => {
+      fetchSpy.mockResolvedValueOnce(new Response(new Blob(["v1"]), { status: 200 }));
+
+      await downloadDocumentRequest(mockDocId, mockVersionId);
+
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      expect(JSON.parse(String(init?.body))).toEqual({ versionId: mockVersionId });
     });
   });
 });

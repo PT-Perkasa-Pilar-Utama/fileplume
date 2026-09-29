@@ -53,6 +53,7 @@ const mockDocument: DocumentDetailView = {
 
 describe("useDocumentDetail hook (AC-21.02)", () => {
   let hookReturn: UseDocumentDetailReturn | undefined;
+  const activeSpies: Array<{ mockRestore: () => void }> = [];
 
   function HookConsumer({ documentId }: { readonly documentId: string }): JSX.Element | null {
     const value = useDocumentDetail({ documentId });
@@ -62,12 +63,16 @@ describe("useDocumentDetail hook (AC-21.02)", () => {
 
   afterEach(() => {
     hookReturn = undefined;
+    for (const spy of activeSpies) {
+      spy.mockRestore();
+    }
+    activeSpies.length = 0;
   });
 
   // AC-21.02: switching to v1 updates active version and sends v1 on download
   test("selectVersion(v1) updates active version and directs download to v1.id", async () => {
-    spyOn(detailApi, "fetchDocumentDetail").mockResolvedValue(mockDocument);
-    spyOn(detailApi, "fetchDocumentPreview").mockResolvedValue({
+    const fetchDetailSpy = spyOn(detailApi, "fetchDocumentDetail").mockResolvedValue(mockDocument);
+    const fetchPreviewSpy = spyOn(detailApi, "fetchDocumentPreview").mockResolvedValue({
       blob: new Blob(["preview"]),
       url: "blob:mock-url",
     });
@@ -75,7 +80,8 @@ describe("useDocumentDetail hook (AC-21.02)", () => {
       blob: new Blob(["v1 content"]),
       filename: "kontrak-kerjasama-v1.pdf",
     });
-    spyOn(detailApi, "triggerBlobDownload").mockImplementation(() => {});
+    const triggerDownloadSpy = spyOn(detailApi, "triggerBlobDownload").mockImplementation(() => {});
+    activeSpies.push(fetchDetailSpy, fetchPreviewSpy, downloadSpy, triggerDownloadSpy);
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

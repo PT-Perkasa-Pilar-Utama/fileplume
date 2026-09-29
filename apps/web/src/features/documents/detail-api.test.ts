@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
 import { ERROR_MESSAGES } from "@archiva/shared";
 import { fetchDocumentDetail, parseContentDispositionFilename } from "./detail-api.ts";
 
@@ -33,6 +33,10 @@ describe("detail-api document and versions", () => {
 
   afterEach(() => {
     fetchSpy.mockReset();
+  });
+
+  afterAll(() => {
+    fetchSpy.mockRestore();
   });
 
   const mockDocId = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";

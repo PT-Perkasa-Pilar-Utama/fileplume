@@ -1,6 +1,7 @@
 import type {
   DocumentDetailView,
   DocumentId,
+  ErrorCode,
   Result,
   TenantId,
   UserId,
@@ -77,7 +78,7 @@ export type UploadRejectedResult = {
   filename: string;
   status: "rejected";
   error: {
-    code: string;
+    code: ErrorCode;
     message: string;
     existingDocumentId?: string;
   };

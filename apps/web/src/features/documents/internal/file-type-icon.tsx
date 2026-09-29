@@ -17,7 +17,7 @@ interface VariantConfig {
   readonly testId: string;
 }
 
-const FILE_TYPE_VARIANTS: Record<string, VariantConfig> = {
+const FILE_TYPE_VARIANTS: Record<FileType | "unsupported", VariantConfig> = {
   pdf: {
     icon: FileText,
     colorClasses: "bg-alert-destructive-bg text-alert-destructive-text",
@@ -52,7 +52,7 @@ const FILE_TYPE_VARIANTS: Record<string, VariantConfig> = {
 
 const DEFAULT_VARIANT: VariantConfig = {
   icon: FileWarning,
-  colorClasses: "bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400",
+  colorClasses: "bg-alert-warning-bg text-alert-warning-text",
   label: "File",
   testId: "file-icon-other",
 };
@@ -69,12 +69,16 @@ const ICON_SIZES = {
   lg: "size-6",
 } as const;
 
+function isKnownVariant(type: string): type is FileType | "unsupported" {
+  return Object.hasOwn(FILE_TYPE_VARIANTS, type);
+}
+
 /**
  * Visual file-type icon mapping to Figma component document-icon (node 11:392)
  * for AC-38.01.
  */
 export function FileTypeIcon({ fileType, className, size = "md" }: FileTypeIconProps): JSX.Element {
-  const variant = FILE_TYPE_VARIANTS[fileType] ?? DEFAULT_VARIANT;
+  const variant = isKnownVariant(fileType) ? FILE_TYPE_VARIANTS[fileType] : DEFAULT_VARIANT;
   const Icon = variant.icon;
 
   return (

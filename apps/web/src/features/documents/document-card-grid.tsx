@@ -5,7 +5,6 @@ import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
 import { cn } from "../../lib/cn.ts";
 import { DocumentCard, type DocumentCardItem } from "./document-card.tsx";
 import { DocumentEmptyState } from "./document-empty-state.tsx";
-import { useDocuments } from "./use-documents.ts";
 
 export interface DocumentCardGridViewProps {
   readonly documents: readonly DocumentCardItem[];
@@ -13,10 +12,6 @@ export interface DocumentCardGridViewProps {
   readonly isError: boolean;
   readonly errorMessage?: string | null;
   readonly emptyMessage?: string | null;
-  readonly className?: string;
-}
-
-export interface DocumentCardGridProps {
   readonly className?: string;
 }
 
@@ -66,12 +61,10 @@ export function DocumentCardGridView({
     );
   }
 
-  // AC-38.03: Dasbor tanpa dokumen
   if (documents.length === 0) {
     return <DocumentEmptyState message={emptyMessage} className={className} />;
   }
 
-  // AC-38.01, AC-01.02: Grid kartu dokumen visual
   return (
     <div
       data-testid="documents-grid"
@@ -84,24 +77,5 @@ export function DocumentCardGridView({
         <DocumentCard key={doc.id} document={doc} />
       ))}
     </div>
-  );
-}
-
-/**
- * Responsive Document Card Grid Component (US-38)
- * Connected component bound to useDocuments().
- */
-export function DocumentCardGrid({ className }: DocumentCardGridProps = {}): JSX.Element {
-  const query = useDocuments();
-
-  return (
-    <DocumentCardGridView
-      documents={query.data?.data ?? []}
-      isLoading={query.isLoading}
-      isError={query.isError}
-      errorMessage={query.error?.message}
-      emptyMessage={query.data?.meta?.message}
-      className={className}
-    />
   );
 }

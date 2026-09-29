@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { DocumentView } from "@archiva/shared";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -9,7 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { renderToString } from "react-dom/server";
-import { DocumentCardGrid, DocumentCardGridView } from "./document-card-grid.tsx";
+import { DocumentCardGridView } from "./document-card-grid.tsx";
 
 const MOCK_DOCS: DocumentView[] = [
   {
@@ -81,7 +80,7 @@ async function renderWithRouter(component: React.ReactElement): Promise<string> 
   return renderToString(<RouterProvider router={router} />);
 }
 
-describe("DocumentCardGrid component (US-38, AC-38.01, AC-38.03, AC-01.02)", () => {
+describe("DocumentCardGridView component (US-38, AC-38.01, AC-38.03, AC-01.02)", () => {
   test("renders loading skeleton state when isLoading is true", () => {
     const html = renderToString(
       <DocumentCardGridView documents={[]} isLoading={true} isError={false} />,
@@ -142,25 +141,5 @@ describe("DocumentCardGrid component (US-38, AC-38.01, AC-38.03, AC-01.02)", () 
     expect(html).toContain("Diproses");
     expect(html).toContain("Budi Santoso");
     expect(html).toContain(`href="/documents/${MOCK_DOCS[1]?.id}"`);
-  });
-
-  test("connects to useDocuments when rendered with QueryClientProvider", async () => {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    queryClient.setQueryData(["documents", undefined], {
-      data: MOCK_DOCS,
-      meta: { page: 1, limit: 10, total: 2, totalPages: 1 },
-    });
-
-    const html = await renderWithRouter(
-      <QueryClientProvider client={queryClient}>
-        <DocumentCardGrid />
-      </QueryClientProvider>,
-    );
-
-    expect(html).toContain('data-testid="documents-grid"');
-    expect(html).toContain("kontrak-kerjasama.pdf");
-    expect(html).toContain("rencana-kerja.docx");
   });
 });

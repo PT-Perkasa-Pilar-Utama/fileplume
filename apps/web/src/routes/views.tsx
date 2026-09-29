@@ -23,19 +23,13 @@ import { TenantManagement } from "../features/tenants/tenant-management.tsx";
 
 export interface DashboardViewProps {
   readonly uploader?: UploadTrayProps["uploader"];
-  readonly initialDocuments?: readonly UploadedDocumentDisplay[];
 }
 
-export function DashboardView({
-  uploader,
-  initialDocuments = [],
-}: DashboardViewProps = {}): JSX.Element {
+export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Element {
   const queryClient = useQueryClient();
   const documentsQuery = useDocuments();
   const uploaderName = useAuthStore((state) => state.principal?.user.name);
-  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([
-    ...initialDocuments,
-  ]);
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
 
   const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
@@ -65,7 +59,8 @@ export function DashboardView({
     queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
   };
 
-  // Merge server documents with freshly uploaded items in local state.
+  // Optimistic rows cover the gap until the invalidated list returns them; the server row wins
+  // once it arrives, so its label and uploader replace the local guess. AC-01.02.
   const displayDocuments = useMemo(() => {
     const serverDocs = documentsQuery.data?.data ?? [];
     if (serverDocs.length === 0 && uploadedDocs.length === 0) {
@@ -105,7 +100,7 @@ export function DashboardView({
             <DocumentCardGridView
               documents={displayDocuments}
               isLoading={documentsQuery.isLoading && displayDocuments.length === 0}
-              isError={documentsQuery.isError && displayDocuments.length === 0}
+              isError={documentsQuery.isError}
               errorMessage={documentsQuery.error?.message}
               emptyMessage={documentsQuery.data?.meta?.message}
             />

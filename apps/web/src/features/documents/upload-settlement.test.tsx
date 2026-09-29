@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { EMPTY_STATE, type UploadBatch } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -96,6 +96,31 @@ async function mountWithProviders(ui: JSX.Element): Promise<{
 }
 
 describe("Upload settlement & DashboardView integration (FE-S2-01, FE-S2-03)", () => {
+  let fetchSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = spyOn(globalThis, "fetch");
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [],
+            meta: {
+              page: 1,
+              limit: 10,
+              total: 0,
+              totalPages: 0,
+              message: EMPTY_STATE.NO_DOCUMENTS,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
   test("DashboardView mounts UploadTray and document grid", async () => {
     const html = await renderWithProviders(<DashboardView />);
 

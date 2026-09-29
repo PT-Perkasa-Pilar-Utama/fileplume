@@ -11,8 +11,6 @@ export {
   type DocumentCardProps,
 } from "./document-card.tsx";
 export {
-  DocumentCardGrid,
-  type DocumentCardGridProps,
   DocumentCardGridView,
   type DocumentCardGridViewProps,
 } from "./document-card-grid.tsx";

@@ -61,10 +61,8 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
         aria-label={`Buka detail dokumen ${document.title}`}
       >
         <div className="flex items-start justify-between gap-3">
-          {/* AC-38.01: ikon tipe file */}
           <FileTypeIcon fileType={document.fileType} />
 
-          {/* AC-38.01: status pemrosesan (label strictly from server) */}
           <Badge
             variant={badgeVariant}
             data-testid={`document-status-${document.id}`}
@@ -77,7 +75,6 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
           </Badge>
         </div>
 
-        {/* AC-38.01: judul dokumen */}
         <div className="flex flex-col gap-1.5">
           <h4
             data-testid={`document-title-${document.id}`}
@@ -87,7 +84,6 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
             {document.title}
           </h4>
 
-          {/* AC-38.01: tanggal unggah & nama pengunggah & ukuran file */}
           <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
             {sizeFormatted ? <span>{sizeFormatted}</span> : null}
             <span

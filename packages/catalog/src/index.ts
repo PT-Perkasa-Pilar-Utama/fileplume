@@ -21,12 +21,15 @@ export type {
   CatalogService,
   CatalogServiceDeps,
   DocumentRecord,
+  ListDocumentsInput,
+  ListDocumentsResult,
   UploadAcceptedResult,
   UploadBatchOutcome,
   UploadFailure,
   UploadInput,
   UploadRejectedResult,
   UploadSingleFileItem,
+  ViewerContext,
 } from "./service.ts";
 export {
   ACCEPTED_MIME,
@@ -37,3 +40,4 @@ export {
 } from "./service.ts";
 export { inMemoryBlobStore } from "./testing/in-memory-blob-store.ts";
 export { inMemoryCatalogRepository } from "./testing/in-memory-repository.ts";
+export type { StoredDocument, StoredVersion } from "./testing/in-memory-types.ts";

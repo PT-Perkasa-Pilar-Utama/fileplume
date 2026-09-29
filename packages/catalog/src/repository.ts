@@ -4,8 +4,18 @@ import type { DocumentId, Result, TenantId, UserId, VersionId } from "@archiva/s
 import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import { and, eq, sql } from "drizzle-orm";
 import type * as E from "./errors.ts";
+import { queryDocumentDetail } from "./internal/detail-document-query.ts";
+import type { RawDocumentDetail, RawDocumentRow } from "./internal/document-views.ts";
+import {
+  countTenantDocuments,
+  type ListDocumentsFilter,
+  queryListDocuments,
+  type ViewerContext,
+} from "./internal/list-document-query.ts";
 import { isUniqueViolationOn } from "./internal/unique-violation.ts";
 import type { DocumentRecord } from "./service.ts";
+
+export type { ListDocumentsFilter, RawDocumentDetail, RawDocumentRow, ViewerContext };
 
 export type InsertDocumentInput = {
   documentId?: DocumentId;
@@ -35,6 +45,21 @@ export interface CatalogRepository {
     state: DocumentRecord["processingState"],
     reason?: string,
   ): Promise<void>;
+  listDocuments(
+    tenantId: TenantId,
+    filter: ListDocumentsFilter,
+    viewer: ViewerContext,
+    pendingConfirmationDays: number,
+    now?: Date,
+  ): Promise<{ rows: RawDocumentRow[]; total: number }>;
+  findDocumentDetail(
+    tenantId: TenantId,
+    documentId: DocumentId,
+    viewer: ViewerContext,
+    pendingConfirmationDays: number,
+    now?: Date,
+  ): Promise<RawDocumentDetail | { kind: "cross_tenant" } | null>;
+  countTenantDocuments(tenantId: TenantId): Promise<number>;
 }
 
 export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
@@ -204,6 +229,18 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
         .update(schema.documents)
         .set({ processingState: state })
         .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
+    },
+
+    listDocuments(tenantId, filter, viewer, pendingConfirmationDays, now = new Date()) {
+      return queryListDocuments(db, tenantId, filter, viewer, pendingConfirmationDays, now);
+    },
+
+    findDocumentDetail(tenantId, documentId, viewer, pendingConfirmationDays, now = new Date()) {
+      return queryDocumentDetail(db, tenantId, documentId, viewer, pendingConfirmationDays, now);
+    },
+
+    countTenantDocuments(tenantId) {
+      return countTenantDocuments(db, tenantId);
     },
   };
 }

@@ -10,7 +10,7 @@ import {
 import { act, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { type TrayItem, UploadTray } from "./index.ts";
+import { type TrayItem, type UploadBatch, UploadTray } from "./index.ts";
 import { Dropzone } from "./internal/dropzone.tsx";
 
 function createTestQueryClient(): QueryClient {
@@ -216,5 +216,68 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
 
     expect(html).toContain("laporan-25mb.pdf");
     expect(html).toContain("Ukuran file melebihi batas 20 MB");
+  });
+
+  // AC-01.01: In-flight upload list does not carry opacity-50 and is scrollable (F1)
+  test("AC-01.01: in-flight upload list does not carry opacity-50 and remains interactive", async () => {
+    let resolveUpload!: (batch: UploadBatch) => void;
+    const pendingUploader = () =>
+      new Promise<UploadBatch>((resolve) => {
+        resolveUpload = resolve;
+      });
+
+    const { container, cleanup } = await mountWithProviders(
+      <UploadTray uploader={pendingUploader} />,
+    );
+
+    const fileInput = container.querySelector(
+      'input[data-testid="upload-file-input"]',
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["dummy-content"], "dokumen-proses.pdf", { type: "application/pdf" });
+    if (fileInput) {
+      Object.defineProperty(fileInput, "files", {
+        value: [file],
+        writable: true,
+      });
+
+      await act(async () => {
+        fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
+
+    const itemsList = container.querySelector('[data-testid="upload-items-list"]');
+    expect(itemsList).not.toBeNull();
+    expect(itemsList?.closest(".opacity-50")).toBeNull();
+    expect(itemsList?.closest(".pointer-events-none")).toBeNull();
+
+    const dropzoneSection = container.querySelector('section[aria-label="Area Unggah Dokumen"]');
+    expect(dropzoneSection?.classList.contains("opacity-50")).toBe(false);
+    expect(dropzoneSection?.classList.contains("pointer-events-none")).toBe(false);
+
+    await act(async () => {
+      resolveUpload({
+        accepted: 1,
+        rejected: 0,
+        summary: null,
+        results: [
+          {
+            index: 0,
+            filename: "dokumen-proses.pdf",
+            status: "accepted",
+            document: {
+              id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
+              title: "dokumen-proses.pdf",
+              processingState: "queued",
+              processingLabel: "Diproses",
+            },
+          },
+        ],
+      });
+    });
+
+    await cleanup();
   });
 });

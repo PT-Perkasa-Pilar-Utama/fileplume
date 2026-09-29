@@ -27,19 +27,14 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
     <div
       data-testid={`upload-item-${item.id}`}
       className={cn(
-        "relative flex min-h-14 items-center gap-2 rounded-[18px] border bg-white p-2 shadow-2xs transition-colors dark:bg-card",
-        isRejected
-          ? "border-[#ffc9c9] bg-white dark:border-destructive/40 dark:bg-card"
-          : "border-[#e2e8f0] dark:border-border",
+        "relative flex min-h-14 items-center gap-2 rounded-2xl border bg-card p-2 shadow-2xs transition-colors",
+        isRejected ? "border-alert-destructive-border" : "border-border",
       )}
     >
       <FileTypeIcon
         fileType={detectedType}
         size="md"
-        className={cn(
-          isRejected &&
-            "bg-[#fef2f2] text-destructive dark:bg-destructive/15 dark:text-destructive",
-        )}
+        className={cn(isRejected && "bg-alert-destructive-bg text-alert-destructive-text")}
       />
 
       <div className="min-w-0 flex-1 space-y-0.5">
@@ -50,11 +45,8 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
           {onDismiss && !isUploading && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDismiss(item.id);
-              }}
-              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[#62748e] hover:bg-slate-100 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring dark:hover:bg-muted transition-colors -mr-0.5"
+              onClick={() => onDismiss(item.id)}
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors -mr-0.5"
               aria-label={`Hapus ${item.filename}`}
             >
               <X className="size-3.5" />
@@ -65,14 +57,14 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
         {/* Uploading progress state */}
         {isUploading && (
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs text-[#62748e] dark:text-muted-foreground">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{`Mengunggah - ${item.progress}%`}</span>
               <span>
                 {formatBytes(loadedBytes)} / {formatBytes(item.sizeBytes)}
               </span>
             </div>
             <div
-              className="h-1 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-muted"
+              className="h-1 w-full overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-valuenow={item.progress}
               aria-valuemin={0}
@@ -114,7 +106,6 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
                 <Link
                   to="/documents/$id"
                   params={{ id: item.error.existingDocumentId }}
-                  onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
                 >
                   Lihat dokumen

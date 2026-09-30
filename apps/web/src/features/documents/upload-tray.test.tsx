@@ -96,17 +96,16 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
           id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
           title: "laporan.pdf",
           processingState: "queued",
-          processingLabel: "Diproses",
+          processingLabel: "Antre",
         },
       },
     ];
 
     const html = await renderWithProviders(<UploadTray initialItems={items} />);
 
-    // Indikator sukses dan status "Diproses"
     expect(html).toContain("laporan.pdf");
     expect(html).toContain("File diterima untuk diproses");
-    expect(html).toContain("Diproses");
+    expect(html).toContain("Antre");
     expect(html).toContain('data-testid="file-icon-pdf"');
   });
 
@@ -148,7 +147,7 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
         id: `doc-${num}`,
         title: `surat-${num}.docx`,
         processingState: "queued" as const,
-        processingLabel: "Diproses",
+        processingLabel: "Antre",
       },
     }));
 
@@ -218,9 +217,9 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
     expect(html).toContain("Ukuran file melebihi batas 20 MB");
   });
 
-  // AC-01.01: In-flight upload list does not carry opacity-50 and is scrollable (F1)
+  // AC-01.01: the progress indicator stays fully visible while the batch uploads.
   test("AC-01.01: in-flight upload list does not carry opacity-50 and remains interactive", async () => {
-    let resolveUpload!: (batch: UploadBatch) => void;
+    let resolveUpload: ((batch: UploadBatch) => void) | undefined;
     const pendingUploader = () =>
       new Promise<UploadBatch>((resolve) => {
         resolveUpload = resolve;
@@ -230,9 +229,9 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
       <UploadTray uploader={pendingUploader} />,
     );
 
-    const fileInput = container.querySelector(
+    const fileInput = container.querySelector<HTMLInputElement>(
       'input[data-testid="upload-file-input"]',
-    ) as HTMLInputElement | null;
+    );
     expect(fileInput).not.toBeNull();
 
     const file = new File(["dummy-content"], "dokumen-proses.pdf", { type: "application/pdf" });
@@ -258,7 +257,7 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
     expect(dropzoneSection?.classList.contains("pointer-events-none")).toBe(false);
 
     await act(async () => {
-      resolveUpload({
+      resolveUpload?.({
         accepted: 1,
         rejected: 0,
         summary: null,
@@ -271,7 +270,7 @@ describe("UploadTray & Upload Area components (FE-S2-01)", () => {
               id: "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01",
               title: "dokumen-proses.pdf",
               processingState: "queued",
-              processingLabel: "Diproses",
+              processingLabel: "Antre",
             },
           },
         ],

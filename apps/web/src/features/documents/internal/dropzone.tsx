@@ -116,7 +116,7 @@ export function Dropzone({
             <Upload className="size-6 stroke-[1.75]" />
           </div>
 
-          <p className="mb-1 max-w-[220px] text-sm font-normal leading-relaxed text-foreground">
+          <p className="mb-1 max-w-55 text-sm font-normal leading-relaxed text-foreground">
             Klik untuk mengunggah atau seret dan lepas file di sini
           </p>
           <p className="text-xs font-normal text-muted-foreground">(PDF, DOCX, XLSX, TXT)</p>

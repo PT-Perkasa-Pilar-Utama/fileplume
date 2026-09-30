@@ -1,4 +1,4 @@
-import type { DocumentId, TenantId, UserId } from "@archiva/shared";
+import type { DocumentId, TenantId, UserId, VersionId } from "@archiva/shared";
 import type {
   MalwareScanner,
   ScanAuditPort,
@@ -10,6 +10,7 @@ import type {
 export type ExecuteScanStageParams = {
   tenantId: TenantId;
   documentId: DocumentId;
+  versionId: VersionId;
   uploaderId: UserId;
   blobKey: string;
   sizeBytes: number;
@@ -19,9 +20,14 @@ export type ExecuteScanStageParams = {
   catalogRepo: ScanCatalogRepository;
   quota: ScanQuotaPort;
   audit: ScanAuditPort;
+  knownInfectionSignature?: string;
+  alreadyScannedClean?: boolean;
 };
 
-export type ScanStageResult = { status: "clean" } | { status: "infected"; signature: string };
+export type ScanStageResult =
+  | { status: "clean" }
+  | { status: "infected"; signature: string }
+  | { status: "stale" };
 
 /**
  * Stage 1 of the document processing pipeline: malware scanning.
@@ -39,27 +45,34 @@ export type ScanStageResult = { status: "clean" } | { status: "infected"; signat
  * Malware is not a processing state; no failed document row remains.
  */
 export async function executeScanStage(params: ExecuteScanStageParams): Promise<ScanStageResult> {
-  const stream = await params.blobStore.get(params.blobKey);
-  const result = await params.scanner.scan(stream);
-
-  if (!result.infected) {
+  let signature = params.knownInfectionSignature;
+  if (signature === undefined && params.alreadyScannedClean) {
     return { status: "clean" };
   }
 
-  const signature = result.signature ?? "unknown";
+  if (signature === undefined) {
+    const stream = await params.blobStore.get(params.blobKey);
+    const result = await params.scanner.scan(stream);
 
-  // AC-46.02: Delete the blob, delete the document, revert the quota commit.
-  await Promise.allSettled([
-    params.blobStore.delete(params.blobKey),
-    params.catalogRepo.deleteDocument(params.tenantId, params.documentId),
-    params.quota.revertCommit({
-      id: params.documentId,
-      tenantId: params.tenantId,
-      bytes: params.sizeBytes,
-    }),
-  ]);
+    if (!result.infected) {
+      const marked = await params.catalogRepo.markScanComplete(
+        params.tenantId,
+        params.documentId,
+        params.versionId,
+      );
+      return marked ? { status: "clean" } : { status: "stale" };
+    }
 
-  // AC-46.02: Kejadian tercatat di audit log.
+    signature = result.signature ?? "unknown";
+    const marked = await params.catalogRepo.markMalwareDetected(
+      params.tenantId,
+      params.documentId,
+      params.versionId,
+      signature,
+    );
+    if (!marked) return { status: "stale" };
+  }
+
   await params.audit.record({
     tenantId: params.tenantId,
     actorId: params.uploaderId,
@@ -73,6 +86,13 @@ export async function executeScanStage(params: ExecuteScanStageParams): Promise<
       sizeBytes: params.sizeBytes,
     },
   });
+  await params.quota.revertCommittedDocumentQuota({
+    documentId: params.documentId,
+    tenantId: params.tenantId,
+    bytes: params.sizeBytes,
+  });
+  await params.blobStore.delete(params.blobKey);
+  await params.catalogRepo.deleteDocument(params.tenantId, params.documentId);
 
   return { status: "infected", signature };
 }

@@ -1,9 +1,10 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { DocumentId, TenantId } from "@archiva/shared";
-import { asDocumentId, asTenantId, asUserId, asVersionId, hasRoleAtLeast } from "@archiva/shared";
-import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { asDocumentId, asTenantId, asUserId, asVersionId } from "@archiva/shared";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { RawDocumentDetail, RawVersionRow } from "./document-views.ts";
+import { documentVisibilityCondition } from "./document-visibility.ts";
 import type { ViewerContext } from "./list-document-query.ts";
 
 export async function findDocumentTenant(db: Db, documentId: DocumentId): Promise<TenantId | null> {
@@ -29,15 +30,8 @@ export async function queryDocumentDetail(
     isNull(schema.documents.deletedAt),
   ];
 
-  // 05-documents.md 5.4.1: head_of_team and above bypass the window entirely.
-  if (!hasRoleAtLeast(viewer.role, "head_of_team")) {
-    const vis = or(
-      isNotNull(schema.documentClassification.confirmedAt),
-      eq(schema.documents.uploaderId, viewer.userId),
-      sql`${schema.documents.createdAt} + (${pendingConfirmationDays} * interval '1 day') < ${now}`,
-    );
-    if (vis) conditions.push(vis);
-  }
+  const visibility = documentVisibilityCondition(viewer, pendingConfirmationDays, now);
+  if (visibility) conditions.push(visibility);
 
   const [doc] = await db
     .select({

@@ -1,4 +1,4 @@
-import type { DocumentId, TenantId, UserId } from "@archiva/shared";
+import type { DocumentId, TenantId, UserId, VersionId } from "@archiva/shared";
 
 export interface MalwareScanner {
   scan(stream: ReadableStream): Promise<{ infected: boolean; signature?: string }>;
@@ -10,11 +10,26 @@ export interface ScanBlobStore {
 }
 
 export interface ScanCatalogRepository {
+  markScanComplete(
+    tenantId: TenantId,
+    documentId: DocumentId,
+    versionId: VersionId,
+  ): Promise<boolean>;
+  markMalwareDetected(
+    tenantId: TenantId,
+    documentId: DocumentId,
+    versionId: VersionId,
+    signature: string,
+  ): Promise<boolean>;
   deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void>;
 }
 
 export interface ScanQuotaPort {
-  revertCommit(reservation: { id: string; tenantId: TenantId; bytes: number }): Promise<void>;
+  revertCommittedDocumentQuota(reservation: {
+    documentId: DocumentId;
+    tenantId: TenantId;
+    bytes: number;
+  }): Promise<void>;
 }
 
 export interface ScanAuditPort {

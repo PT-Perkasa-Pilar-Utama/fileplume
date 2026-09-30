@@ -39,6 +39,8 @@ export type StoredVersion = {
   mimeType: string;
   sizeBytes: number;
   pageCount: number | null;
+  malwareScannedAt?: Date | null;
+  malwareSignature?: string | null;
   uploadedById: UserId;
   uploadedByName: string;
   createdAt: Date;

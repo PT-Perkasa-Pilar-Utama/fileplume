@@ -1,6 +1,6 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { Result, TenantId, UserId } from "@archiva/shared";
+import type { DocumentId, Result, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, err, ok } from "@archiva/shared";
 import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
 import type * as E from "./errors.ts";
@@ -36,6 +36,11 @@ export interface TenancyRepository {
    * rather than masking its own outcome. AC-01.08, AC-35.04.
    */
   revertCommitReservation(reservation: QuotaReservation): Promise<void>;
+  revertCommittedDocumentQuota(reservation: {
+    documentId: DocumentId;
+    tenantId: TenantId;
+    bytes: number;
+  }): Promise<void>;
   /** Global janitor across tenants, exempt from 8.3. Tenant reads use tryReserve. */
   sweepExpiredReservations(now: Date): Promise<number>;
   usage(tenantId: TenantId): Promise<{ usedBytes: number; quotaBytes: number }>;
@@ -122,6 +127,10 @@ export function createDrizzleTenancyRepository(db: Db): TenancyRepository {
 
     async revertCommitReservation(reservation) {
       await quotaLedger.revertCommitReservation(db, reservation);
+    },
+
+    async revertCommittedDocumentQuota(reservation) {
+      await quotaLedger.revertCommittedDocumentQuota(db, reservation);
     },
 
     async sweepExpiredReservations(now) {

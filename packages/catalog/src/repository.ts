@@ -2,7 +2,7 @@ import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
 import { asDocumentId } from "@archiva/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type * as E from "./errors.ts";
 import { findDocumentTenant, queryDocumentDetail } from "./internal/detail-document-query.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "./internal/document-views.ts";
@@ -46,14 +46,20 @@ export interface CatalogRepository {
     tenantId: TenantId,
     documentId: DocumentId,
   ): Promise<DocumentProcessingRecord | null>;
-  findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null>;
-  deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void>;
-  updateProcessingState(
+  claimQueuedDocument(tenantId: TenantId, documentId: DocumentId): Promise<boolean>;
+  markScanComplete(
     tenantId: TenantId,
     documentId: DocumentId,
-    state: DocumentRecord["processingState"],
-    reason?: string,
-  ): Promise<void>;
+    versionId: VersionId,
+  ): Promise<boolean>;
+  markMalwareDetected(
+    tenantId: TenantId,
+    documentId: DocumentId,
+    versionId: VersionId,
+    signature: string,
+  ): Promise<boolean>;
+  findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null>;
+  deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void>;
   listDocuments(
     tenantId: TenantId,
     filter: ListDocumentsFilter,
@@ -128,6 +134,71 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
       return queryDocumentForProcessing(db, tenantId, documentId);
     },
 
+    async claimQueuedDocument(tenantId, documentId) {
+      const updated = await db
+        .update(schema.documents)
+        .set({ processingState: "processing" })
+        .where(
+          and(
+            eq(schema.documents.id, documentId),
+            eq(schema.documents.tenantId, tenantId),
+            eq(schema.documents.processingState, "queued"),
+            isNull(schema.documents.deletedAt),
+          ),
+        )
+        .returning({ id: schema.documents.id });
+      return updated.length > 0;
+    },
+
+    async markScanComplete(tenantId, documentId, versionId) {
+      const updated = await db
+        .update(schema.documentVersions)
+        .set({ malwareScannedAt: new Date() })
+        .where(
+          and(
+            eq(schema.documentVersions.id, versionId),
+            eq(schema.documentVersions.tenantId, tenantId),
+            eq(schema.documentVersions.documentId, documentId),
+            isNull(schema.documentVersions.malwareSignature),
+            sql`EXISTS (
+              SELECT 1 FROM ${schema.documents}
+              WHERE ${schema.documents.id} = ${documentId}
+                AND ${schema.documents.tenantId} = ${tenantId}
+                AND ${schema.documents.currentVersionId} = ${versionId}
+                AND ${schema.documents.processingState} = 'processing'
+                AND ${schema.documents.deletedAt} IS NULL
+            )`,
+          ),
+        )
+        .returning({ id: schema.documentVersions.id });
+      return updated.length > 0;
+    },
+
+    async markMalwareDetected(tenantId, documentId, versionId, signature) {
+      const updated = await db
+        .update(schema.documentVersions)
+        .set({ malwareSignature: signature })
+        .where(
+          and(
+            eq(schema.documentVersions.id, versionId),
+            eq(schema.documentVersions.tenantId, tenantId),
+            eq(schema.documentVersions.documentId, documentId),
+            isNull(schema.documentVersions.malwareScannedAt),
+            isNull(schema.documentVersions.malwareSignature),
+            sql`EXISTS (
+              SELECT 1 FROM ${schema.documents}
+              WHERE ${schema.documents.id} = ${documentId}
+                AND ${schema.documents.tenantId} = ${tenantId}
+                AND ${schema.documents.currentVersionId} = ${versionId}
+                AND ${schema.documents.processingState} = 'processing'
+                AND ${schema.documents.deletedAt} IS NULL
+            )`,
+          ),
+        )
+        .returning({ id: schema.documentVersions.id });
+      return updated.length > 0;
+    },
+
     async findBlobKey(tenantId, versionId) {
       const [row] = await db
         .select({ blobKey: schema.documentVersions.blobKey })
@@ -160,13 +231,6 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           .delete(schema.documents)
           .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
       });
-    },
-
-    async updateProcessingState(tenantId, documentId, state) {
-      await db
-        .update(schema.documents)
-        .set({ processingState: state })
-        .where(and(eq(schema.documents.id, documentId), eq(schema.documents.tenantId, tenantId)));
     },
 
     listDocuments(tenantId, filter, viewer, pendingConfirmationDays, now = new Date()) {

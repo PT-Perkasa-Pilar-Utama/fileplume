@@ -110,7 +110,7 @@ export function Dropzone({
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           aria-label="Area Unggah Dokumen. Klik atau seret file ke sini"
-          className="flex w-full flex-1 flex-col items-center justify-center py-10 px-4 text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+          className="flex w-full flex-1 flex-col items-center justify-center px-4 text-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
         >
           <div className="mb-3 text-foreground transition-transform group-hover:scale-105">
             <Upload className="size-6 stroke-[1.75]" />

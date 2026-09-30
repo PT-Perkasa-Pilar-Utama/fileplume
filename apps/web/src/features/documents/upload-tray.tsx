@@ -37,7 +37,7 @@ export function UploadTray({
     <div
       data-testid="upload-tray"
       className={cn(
-        "rounded-xl border border-border bg-muted p-6 shadow-xs space-y-4 dark:bg-card",
+        "flex flex-1 flex-col rounded-xl border border-border bg-muted p-6 shadow-xs space-y-4 dark:bg-card",
         className,
       )}
     >

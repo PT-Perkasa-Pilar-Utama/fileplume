@@ -57,6 +57,8 @@ function createWorkerTestHarness(params?: {
     mimeType: "application/pdf",
     sizeBytes: 1024,
     pageCount: 1,
+    malwareScannedAt: null,
+    malwareSignature: null,
     blobKey,
     uploadedById: uploaderId,
     uploadedByName: "Budi Santoso",
@@ -69,9 +71,9 @@ function createWorkerTestHarness(params?: {
     seedFixtures: false,
   });
 
-  const revertedQuotas: Array<{ id: string; tenantId: string; bytes: number }> = [];
+  const revertedQuotas: Array<{ documentId: string; tenantId: string; bytes: number }> = [];
   const quota: ScanQuotaPort = {
-    async revertCommit(reservation) {
+    async revertCommittedDocumentQuota(reservation) {
       revertedQuotas.push(reservation);
     },
   };
@@ -119,7 +121,7 @@ function createWorkerTestHarness(params?: {
 }
 
 describe("processDocument worker job (BE-S2-07)", () => {
-  test("AC-46.01: clean file passes scan and transitions to ready", async () => {
+  test("AC-46.01: clean file clears the scan and remains in processing", async () => {
     const harness = createWorkerTestHarness({ scanner: "clean" });
     await harness.blobStore.put(
       harness.blobKey,
@@ -136,7 +138,7 @@ describe("processDocument worker job (BE-S2-07)", () => {
 
     const updated = await harness.catalogRepo.findDocument(harness.tenantId, harness.docId);
     expect(updated).not.toBeNull();
-    expect(updated?.processingState).toBe("ready");
+    expect(updated?.processingState).toBe("processing");
     expect(harness.revertedQuotas).toHaveLength(0);
     expect(harness.auditEvents).toHaveLength(0);
   });
@@ -163,7 +165,7 @@ describe("processDocument worker job (BE-S2-07)", () => {
 
     // Quota reverted
     expect(harness.revertedQuotas).toEqual([
-      { id: harness.docId, tenantId: harness.tenantId, bytes: 1024 },
+      { documentId: harness.docId, tenantId: harness.tenantId, bytes: 1024 },
     ]);
 
     // Audit event recorded

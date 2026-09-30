@@ -48,6 +48,7 @@ export function inMemoryTenancyRepository(
   const users = new Map((initial.users ?? []).map((u) => [u.id, u.name]));
   const config = new Map<string, StoredConfigRow>();
   const held: (QuotaReservation & { expiresAt: Date })[] = [];
+  const documentQuotaReversals = new Set<string>();
   const key = (t: TenantId, k: ConfigKey) => `${t}:${k}`;
 
   for (const entry of initial.config ?? []) {
@@ -151,6 +152,24 @@ export function inMemoryTenancyRepository(
       } else {
         unscopedUsedBytes -= reservation.bytes;
       }
+    },
+
+    async revertCommittedDocumentQuota(reservation) {
+      const reversalKey = `${reservation.tenantId}:${reservation.documentId}`;
+      if (documentQuotaReversals.has(reversalKey)) return;
+      const tenant = allTenants.find((t) => t.id === reservation.tenantId);
+      const currentUsed = tenant ? tenant.storageUsedBytes : unscopedUsedBytes;
+      if (currentUsed < reservation.bytes) {
+        throw new Error(
+          `revertCommittedDocumentQuota: used bytes ${currentUsed} below ${reservation.bytes}`,
+        );
+      }
+      if (tenant) {
+        tenant.storageUsedBytes -= reservation.bytes;
+      } else {
+        unscopedUsedBytes -= reservation.bytes;
+      }
+      documentQuotaReversals.add(reversalKey);
     },
 
     async sweepExpiredReservations(now) {

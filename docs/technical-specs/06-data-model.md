@@ -95,6 +95,15 @@ There is no free-text parameter name. AC-42.03 and AC-42.04 test type and range 
 | expires_at | timestamptz | no | now() + 15 min | IDX | swept when stale |
 | created_at | timestamptz | no | now() | | |
 
+### QUOTA_REVERSALS
+
+| column | type | nullable | default | key | notes |
+|---|---|---|---|---|---|
+| tenant_id | uuid | no | | PK, FK | composite primary key with document_id |
+| document_id | uuid | no | | PK | stable key; prevents duplicate malware cleanup from reversing quota twice |
+| bytes | bigint | no | | | committed bytes removed for the document |
+| created_at | timestamptz | no | now() | | |
+
 ## 6.4 identity tables
 
 ### USERS (UI label: "Pengguna")
@@ -158,6 +167,8 @@ Example: `{ title: "laporan.pdf", processing_state: "ready", failure_reason: nul
 | mime_type | text | no | | | |
 | size_bytes | bigint | no | | | |
 | page_count | integer | yes | | | known after extraction |
+| malware_scanned_at | timestamptz | yes | | | set after a clean scan; gates tenant visibility |
+| malware_signature | text | yes | | | temporary cleanup marker after detection; never a processing state |
 | blob_key | text | no | | | `t/<tenant>/d/<document>/v/<version>` |
 | uploaded_by | uuid | no | | FK users | |
 | created_at | timestamptz | no | now() | | |
@@ -296,6 +307,8 @@ This table is the AI accuracy metric in AC-12.03. Without `original_value` the o
 | created_at | timestamptz | no | now() | IDX |
 
 `audit_action` in release 1: `document.upload`, `document.download`, `document.download_bulk`, `document.preview`, `document.delete`, `document.version_add`, `category.create`, `category.permission_change`, `config.change`, `ai.override`, `auth.login`, `auth.logout`, `auth.login_failed`, `admin.reset_state`, `malware.detected`, `tenant.create`, `access.denied`, `search.performed`.
+
+`malware.detected` is unique per `(tenant_id, subject_id)` for document subjects. Retries can therefore complete cleanup without duplicating the required audit event.
 
 ### ANALYTICS_ROLLUPS
 

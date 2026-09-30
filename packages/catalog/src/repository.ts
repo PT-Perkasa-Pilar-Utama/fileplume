@@ -1,8 +1,8 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { DocumentId, TenantId } from "@archiva/shared";
+import type { DocumentId, TenantId, VersionId } from "@archiva/shared";
 import { asDocumentId, asVersionId, ok } from "@archiva/shared";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { findDocumentTenant, queryDocumentDetail } from "./internal/detail-document-query.ts";
 import { countTenantDocuments, queryListDocuments } from "./internal/list-document-query.ts";
 import {
@@ -23,6 +23,18 @@ declare module "./internal/repository-types.ts" {
       tenantId: TenantId,
       documentId: DocumentId,
     ): Promise<DocumentProcessingRecord | null>;
+    claimQueuedDocument(tenantId: TenantId, documentId: DocumentId): Promise<boolean>;
+    markScanComplete(
+      tenantId: TenantId,
+      documentId: DocumentId,
+      versionId: VersionId,
+    ): Promise<boolean>;
+    markMalwareDetected(
+      tenantId: TenantId,
+      documentId: DocumentId,
+      versionId: VersionId,
+      signature: string,
+    ): Promise<boolean>;
   }
 }
 
@@ -154,6 +166,71 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
       return queryDocumentForProcessing(db, tenantId, documentId);
     },
 
+    async claimQueuedDocument(tenantId, documentId) {
+      const updated = await db
+        .update(schema.documents)
+        .set({ processingState: "processing" })
+        .where(
+          and(
+            eq(schema.documents.id, documentId),
+            eq(schema.documents.tenantId, tenantId),
+            eq(schema.documents.processingState, "queued"),
+            isNull(schema.documents.deletedAt),
+          ),
+        )
+        .returning({ id: schema.documents.id });
+      return updated.length > 0;
+    },
+
+    async markScanComplete(tenantId, documentId, versionId) {
+      const updated = await db
+        .update(schema.documentVersions)
+        .set({ malwareScannedAt: new Date() })
+        .where(
+          and(
+            eq(schema.documentVersions.id, versionId),
+            eq(schema.documentVersions.tenantId, tenantId),
+            eq(schema.documentVersions.documentId, documentId),
+            isNull(schema.documentVersions.malwareSignature),
+            sql`EXISTS (
+              SELECT 1 FROM ${schema.documents}
+              WHERE ${schema.documents.id} = ${documentId}
+                AND ${schema.documents.tenantId} = ${tenantId}
+                AND ${schema.documents.currentVersionId} = ${versionId}
+                AND ${schema.documents.processingState} = 'processing'
+                AND ${schema.documents.deletedAt} IS NULL
+            )`,
+          ),
+        )
+        .returning({ id: schema.documentVersions.id });
+      return updated.length > 0;
+    },
+
+    async markMalwareDetected(tenantId, documentId, versionId, signature) {
+      const updated = await db
+        .update(schema.documentVersions)
+        .set({ malwareSignature: signature })
+        .where(
+          and(
+            eq(schema.documentVersions.id, versionId),
+            eq(schema.documentVersions.tenantId, tenantId),
+            eq(schema.documentVersions.documentId, documentId),
+            isNull(schema.documentVersions.malwareScannedAt),
+            isNull(schema.documentVersions.malwareSignature),
+            sql`EXISTS (
+              SELECT 1 FROM ${schema.documents}
+              WHERE ${schema.documents.id} = ${documentId}
+                AND ${schema.documents.tenantId} = ${tenantId}
+                AND ${schema.documents.currentVersionId} = ${versionId}
+                AND ${schema.documents.processingState} = 'processing'
+                AND ${schema.documents.deletedAt} IS NULL
+            )`,
+          ),
+        )
+        .returning({ id: schema.documentVersions.id });
+      return updated.length > 0;
+    },
+
     async findBlobKey(tenantId, versionId) {
       const [row] = await db
         .select({ blobKey: schema.documentVersions.blobKey })
@@ -225,7 +302,6 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           );
       });
     },
-
     listDocuments(tenantId, filter, viewer, pendingConfirmationDays, now = new Date()) {
       return queryListDocuments(db, tenantId, filter, viewer, pendingConfirmationDays, now);
     },

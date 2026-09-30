@@ -22,7 +22,7 @@ Everything that happens to a document between the upload response and the moment
 | State during retry | Stays PROCESSING | AC-44.02 forbids a flicker to FAILED and back |
 | Transient vs permanent | Network, timeout, 5xx and rate limit are transient. Malformed input, password protection and unreadable content are permanent and skip straight to FAILED. | Retrying a password-protected PDF three times wastes 9 minutes to reach the same answer |
 | Failure blast radius | FAILED removes derived data only. The document stays listed, previewable and downloadable. | AC-44.03 |
-| Malware outcome | Not a state. Document and blob are deleted and an audit event is written. | AC-46.02 requires the file never be reachable |
+| Malware outcome | Not a state. A detected signature is retained as a private cleanup marker until the blob, quota, audit event and document are purged. | AC-46.02 requires the file never be reachable |
 | Partial OCR | Per page. Some pages readable means READY with partial text. Every page failing means FAILED. | A 50-page scan with 2 bad pages is still worth 48 pages of search |
 | Tag truncation | At write time, top 3 by confidence | AC-05.05. Truncating at read time leaves extra rows to leak through another query |
 | Category on AI failure | Reserved `Uncategorized`, admin review queue | Converges with AC-06.03, so users see one outcome for two causes |

@@ -1,6 +1,6 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { TenantId } from "@archiva/shared";
+import type { DocumentId, TenantId } from "@archiva/shared";
 import { and, eq, gt, gte, lte, sql, sum } from "drizzle-orm";
 import type { QuotaReservation } from "../service.ts";
 import { RESERVATION_TTL_MS } from "./reservation-ttl.ts";
@@ -81,6 +81,37 @@ export async function revertCommitReservation(
     if (!updated) {
       throw new Error(
         `revertCommitReservation: tenant ${reservation.tenantId} missing or used bytes below ${reservation.bytes}`,
+      );
+    }
+  });
+}
+
+export async function revertCommittedDocumentQuota(
+  db: Db,
+  reservation: { documentId: DocumentId; tenantId: TenantId; bytes: number },
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [reversal] = await tx
+      .insert(schema.quotaReversals)
+      .values({
+        documentId: reservation.documentId,
+        tenantId: reservation.tenantId,
+        bytes: reservation.bytes,
+      })
+      .onConflictDoNothing()
+      .returning({ documentId: schema.quotaReversals.documentId });
+    if (!reversal) return;
+
+    const [updated] = await tx
+      .update(tenants)
+      .set({ storageUsedBytes: sql`${tenants.storageUsedBytes} - ${reservation.bytes}` })
+      .where(
+        and(eq(tenants.id, reservation.tenantId), gte(tenants.storageUsedBytes, reservation.bytes)),
+      )
+      .returning({ id: tenants.id });
+    if (!updated) {
+      throw new Error(
+        `revertCommittedDocumentQuota: tenant ${reservation.tenantId} missing or used bytes below ${reservation.bytes}`,
       );
     }
   });

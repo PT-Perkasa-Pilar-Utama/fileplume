@@ -98,6 +98,7 @@ export async function writeDocuments(tx: SeedTx, seed: DocumentsSeed): Promise<v
           pageCount: item.seed.pages?.length ?? null,
           blobKey: `t/${seed.tenantId}/d/${item.documentId}/v/${versionId}`,
           uploadedBy: item.uploaderId,
+          malwareScannedAt: item.seed.state !== "queued" ? item.createdAt : null,
           createdAt: item.createdAt,
         })),
       ),
@@ -108,6 +109,7 @@ export async function writeDocuments(tx: SeedTx, seed: DocumentsSeed): Promise<v
         filename: sql`excluded.filename`,
         sizeBytes: sql`excluded.size_bytes`,
         pageCount: sql`excluded.page_count`,
+        malwareScannedAt: sql`excluded.malware_scanned_at`,
         createdAt: sql`excluded.created_at`,
       },
     });

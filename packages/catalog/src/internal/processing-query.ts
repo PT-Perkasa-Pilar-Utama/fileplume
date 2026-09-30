@@ -11,6 +11,8 @@ export type DocumentProcessingRecord = {
   uploaderId: UserId;
   currentVersionId: VersionId;
   processingState: DocumentRecord["processingState"];
+  malwareScannedAt: Date | null;
+  malwareSignature: string | null;
   filename: string;
   blobKey: string;
   sizeBytes: number;
@@ -28,6 +30,8 @@ export async function queryDocumentForProcessing(
       uploaderId: schema.documents.uploaderId,
       currentVersionId: schema.documents.currentVersionId,
       processingState: schema.documents.processingState,
+      malwareScannedAt: schema.documentVersions.malwareScannedAt,
+      malwareSignature: schema.documentVersions.malwareSignature,
       filename: schema.documentVersions.filename,
       blobKey: schema.documentVersions.blobKey,
       sizeBytes: schema.documentVersions.sizeBytes,
@@ -56,6 +60,8 @@ export async function queryDocumentForProcessing(
     uploaderId: asUserId(row.uploaderId),
     currentVersionId: asVersionId(row.currentVersionId),
     processingState: row.processingState,
+    malwareScannedAt: row.malwareScannedAt,
+    malwareSignature: row.malwareSignature,
     filename: row.filename,
     blobKey: row.blobKey,
     sizeBytes: Number(row.sizeBytes),

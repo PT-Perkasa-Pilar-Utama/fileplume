@@ -41,20 +41,21 @@ export function createProcessDocumentHandler(deps: ProcessDocumentDeps): Process
       return "noop";
     }
 
-    // 12.1 Idempotency: a READY document is a no-op.
-    if (doc.processingState === "ready") {
+    if (doc.processingState === "ready" || doc.processingState === "failed") {
       return "noop";
     }
 
-    // State transition guard: queued -> processing
+    // Claim only a queued row. A stale job cannot move another state forward.
     if (doc.processingState === "queued") {
-      await deps.catalogRepo.updateProcessingState(tenantId, job.documentId, "processing");
+      const claimed = await deps.catalogRepo.claimQueuedDocument(tenantId, job.documentId);
+      if (!claimed) return "noop";
     }
 
     // Stage 1: Malware scan (BE-S2-07, AC-46.01, AC-46.02)
     const scanResult = await executeScanStage({
       tenantId,
       documentId: job.documentId,
+      versionId: doc.currentVersionId,
       uploaderId: doc.uploaderId,
       blobKey: doc.blobKey,
       sizeBytes: doc.sizeBytes,
@@ -64,16 +65,18 @@ export function createProcessDocumentHandler(deps: ProcessDocumentDeps): Process
       catalogRepo: deps.catalogRepo,
       quota: deps.quota,
       audit: deps.audit,
+      ...(doc.malwareSignature !== null
+        ? { knownInfectionSignature: doc.malwareSignature }
+        : { alreadyScannedClean: doc.malwareScannedAt !== null }),
     });
 
     if (scanResult.status === "infected") {
       return "infected";
     }
+    if (scanResult.status === "stale") {
+      return "noop";
+    }
 
-    // AC-46.01: Clean document passes scan stage.
-    // In Sprint 2, scan is the only pipeline stage. When scan clears, mark READY.
-    // In Sprint 3 (BE-S3-01), extract, classify, and index stages will execute before READY.
-    await deps.catalogRepo.updateProcessingState(tenantId, job.documentId, "ready");
     return "clean";
   };
 }

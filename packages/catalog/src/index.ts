@@ -16,7 +16,11 @@ export type {
   QuotaReservationToken,
   SessionPort,
 } from "./ports.ts";
-export { type CatalogRepository, createDrizzleCatalogRepository } from "./repository.ts";
+export {
+  type CatalogRepository,
+  createDrizzleCatalogRepository,
+  type DocumentProcessingRecord,
+} from "./repository.ts";
 export type {
   AddVersionFailure,
   CatalogService,

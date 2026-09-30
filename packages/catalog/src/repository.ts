@@ -1,15 +1,30 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { DocumentId } from "@archiva/shared";
+import type { DocumentId, TenantId } from "@archiva/shared";
 import { asDocumentId, asVersionId, ok } from "@archiva/shared";
 import { and, eq } from "drizzle-orm";
-import { queryDocumentDetail } from "./internal/detail-document-query.ts";
+import { findDocumentTenant, queryDocumentDetail } from "./internal/detail-document-query.ts";
 import { countTenantDocuments, queryListDocuments } from "./internal/list-document-query.ts";
+import {
+  type DocumentProcessingRecord,
+  queryDocumentForProcessing,
+} from "./internal/processing-query.ts";
 import type { CatalogRepository, RollbackVersionInput } from "./internal/repository-types.ts";
 import { toDuplicateContentError } from "./internal/unique-violation.ts";
 import * as versionRepo from "./internal/version-repository.ts";
 
 export type * from "./internal/repository-types.ts";
+export type { DocumentProcessingRecord };
+
+declare module "./internal/repository-types.ts" {
+  interface CatalogRepository {
+    findTenantByDocumentId(documentId: DocumentId): Promise<TenantId | null>;
+    findDocumentForProcessing(
+      tenantId: TenantId,
+      documentId: DocumentId,
+    ): Promise<DocumentProcessingRecord | null>;
+  }
+}
 
 const docMatch = (docId: string, tId: string) =>
   and(eq(schema.documents.id, docId), eq(schema.documents.tenantId, tId));
@@ -93,7 +108,6 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
         );
       }
     },
-
     async findDocument(tenantId, documentId) {
       const [row] = await db
         .select({
@@ -130,6 +144,14 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
         uploaderName: row.uploaderName,
         createdAt: row.createdAt.toISOString(),
       };
+    },
+
+    findTenantByDocumentId(documentId) {
+      return findDocumentTenant(db, documentId);
+    },
+
+    findDocumentForProcessing(tenantId, documentId) {
+      return queryDocumentForProcessing(db, tenantId, documentId);
     },
 
     async findBlobKey(tenantId, versionId) {

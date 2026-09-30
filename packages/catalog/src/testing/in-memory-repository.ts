@@ -6,6 +6,7 @@ import type { ListDocumentsFilter, ViewerContext } from "../internal/list-docume
 import type { Clock } from "../ports.ts";
 import type {
   CatalogRepository,
+  DocumentProcessingRecord,
   DocumentRecord,
   InsertDocumentInput,
   RollbackVersionInput,
@@ -139,6 +140,31 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         uploaderName: doc.uploaderName ?? userNameLookup(doc.uploaderId),
         createdAt:
           doc.createdAt instanceof Date ? doc.createdAt.toISOString() : String(doc.createdAt),
+      };
+    },
+
+    async findTenantByDocumentId(documentId: DocumentId): Promise<TenantId | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      return doc ? doc.tenantId : null;
+    },
+
+    async findDocumentForProcessing(
+      tenantId: TenantId,
+      documentId: DocumentId,
+    ): Promise<DocumentProcessingRecord | null> {
+      const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
+      if (!doc?.currentVersionId) return null;
+      const ver = versions.find((v) => v.id === doc.currentVersionId);
+      if (!ver) return null;
+      return {
+        id: doc.id,
+        tenantId: doc.tenantId,
+        uploaderId: doc.uploaderId,
+        currentVersionId: doc.currentVersionId,
+        processingState: doc.processingState,
+        filename: ver.filename,
+        blobKey: ver.blobKey,
+        sizeBytes: ver.sizeBytes,
       };
     },
 

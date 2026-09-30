@@ -1,11 +1,16 @@
 import {
+  collectionOf,
+  type DocumentView,
   dataOf,
+  documentSchema,
   ERROR_MESSAGES,
   errorSchema,
+  type ListDocumentsQuery,
+  type Meta,
   type UploadBatch,
   uploadBatchSchema,
 } from "@archiva/shared";
-import { API_BASE, ApiError } from "../../lib/api.ts";
+import { API_BASE, ApiError, apiFetch } from "../../lib/api.ts";
 import type { UploadDocumentsOptions } from "./types.ts";
 
 /**
@@ -101,4 +106,66 @@ export async function uploadDocumentsRequest(
 
     xhr.send(formData);
   });
+}
+
+export interface DocumentsResponse {
+  readonly data: DocumentView[];
+  readonly meta: Meta;
+}
+
+export type DocumentQueryParams = Partial<ListDocumentsQuery>;
+
+/**
+ * Builds URL search query string from ListDocumentsQuery params.
+ * Repeated parameters (tags, state) are appended multiple times.
+ */
+export function buildDocumentSearchParams(params?: DocumentQueryParams): string {
+  if (!params) return "";
+  const searchParams = new URLSearchParams();
+
+  if (params.page !== undefined) {
+    searchParams.set("page", String(params.page));
+  }
+  if (params.limit !== undefined) {
+    searchParams.set("limit", String(params.limit));
+  }
+  if (params.sort !== undefined) {
+    searchParams.set("sort", params.sort);
+  }
+  if (params.order !== undefined) {
+    searchParams.set("order", params.order);
+  }
+  if (params.categoryId !== undefined) {
+    searchParams.set("categoryId", params.categoryId);
+  }
+  if (params.uploaderId !== undefined) {
+    searchParams.set("uploaderId", params.uploaderId);
+  }
+  if (params.unconfirmedOnly !== undefined) {
+    searchParams.set("unconfirmedOnly", String(params.unconfirmedOnly));
+  }
+  if (params.tags !== undefined) {
+    const tags = Array.isArray(params.tags) ? params.tags : [params.tags];
+    for (const tag of tags) {
+      searchParams.append("tags", tag);
+    }
+  }
+  if (params.state !== undefined) {
+    const states = Array.isArray(params.state) ? params.state : [params.state];
+    for (const s of states) {
+      searchParams.append("state", s);
+    }
+  }
+
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
+/**
+ * Fetches documents collection from GET /api/v1/documents.
+ * api-specs/05-documents.md 5.4.
+ */
+export async function fetchDocuments(params?: DocumentQueryParams): Promise<DocumentsResponse> {
+  const query = buildDocumentSearchParams(params);
+  return apiFetch(`/documents${query}`, collectionOf(documentSchema));
 }

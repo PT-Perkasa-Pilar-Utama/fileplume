@@ -3,6 +3,14 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Geist";
   src: url("/fonts/geist-latin.woff2") format("woff2");
   font-weight: 100 900;
@@ -70,8 +78,8 @@
   --text-2xs--line-height: 0.875rem;
 
   --font-sans:
-    "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
+    "Plus Jakarta Sans", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 

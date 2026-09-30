@@ -194,6 +194,7 @@ export type TestApp = OpenAPIHono<AppEnv> & {
   catalogRepository: ReturnType<typeof inMemoryCatalogRepository>;
   blobStore: ReturnType<typeof inMemoryBlobStore>;
   identityRepository: ReturnType<typeof inMemoryIdentityRepository>;
+  tenancyRepository: TenancyRepository;
 };
 
 /** A fresh app per call, so limiter windows never leak between tests. */
@@ -207,19 +208,20 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     seeded(TOKENS.superAdmin, "super_admin", null),
     seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
   ];
+  const tenancyRepository =
+    options?.tenancyRepository ??
+    inMemoryTenancyRepository({
+      tenants: [TENANT_A, TENANT_B],
+      users: sessions.map((s) => ({
+        id: s.row.principal.userId,
+        name: s.row.principal.name,
+      })),
+      ...(options?.tenancyQuotaBytes !== undefined
+        ? { quotaBytes: options.tenancyQuotaBytes }
+        : {}),
+    });
   const tenancy = createTenancyService({
-    repository:
-      options?.tenancyRepository ??
-      inMemoryTenancyRepository({
-        tenants: [TENANT_A, TENANT_B],
-        users: sessions.map((s) => ({
-          id: s.row.principal.userId,
-          name: s.row.principal.name,
-        })),
-        ...(options?.tenancyQuotaBytes !== undefined
-          ? { quotaBytes: options.tenancyQuotaBytes }
-          : {}),
-      }),
+    repository: tenancyRepository,
     clock,
   });
   const identityRepository =
@@ -275,6 +277,7 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     catalogRepository,
     blobStore,
     identityRepository,
+    tenancyRepository,
   });
 }
 

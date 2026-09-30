@@ -3,7 +3,11 @@ import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "../internal/document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
-import type { CatalogRepository, InsertDocumentInput } from "../repository.ts";
+import type {
+  CatalogRepository,
+  DocumentProcessingRecord,
+  InsertDocumentInput,
+} from "../repository.ts";
 import type { DocumentRecord } from "../service.ts";
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
@@ -125,6 +129,31 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         id: doc.id,
         title: doc.title,
         processingState: doc.processingState,
+      };
+    },
+
+    async findTenantByDocumentId(documentId: DocumentId): Promise<TenantId | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      return doc ? doc.tenantId : null;
+    },
+
+    async findDocumentForProcessing(
+      tenantId: TenantId,
+      documentId: DocumentId,
+    ): Promise<DocumentProcessingRecord | null> {
+      const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
+      if (!doc?.currentVersionId) return null;
+      const ver = versions.find((v) => v.id === doc.currentVersionId);
+      if (!ver) return null;
+      return {
+        id: doc.id,
+        tenantId: doc.tenantId,
+        uploaderId: doc.uploaderId,
+        currentVersionId: doc.currentVersionId,
+        processingState: doc.processingState,
+        filename: ver.filename,
+        blobKey: ver.blobKey,
+        sizeBytes: ver.sizeBytes,
       };
     },
 

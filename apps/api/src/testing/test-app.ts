@@ -186,6 +186,7 @@ export type TestAppOptions = {
   resetRunner?: ResetRunner;
   tenancyRepository?: TenancyRepository;
   identityRepository?: ReturnType<typeof inMemoryIdentityRepository>;
+  seedDocuments?: boolean;
 };
 
 export type TestApp = OpenAPIHono<AppEnv> & {
@@ -245,7 +246,9 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     clock,
   });
 
-  const catalogRepository = options?.catalogRepository ?? inMemoryCatalogRepository();
+  const catalogRepository =
+    options?.catalogRepository ??
+    inMemoryCatalogRepository({ seedFixtures: options?.seedDocuments ?? false });
   const blobStore = options?.blobStore ?? inMemoryBlobStore();
   const catalog = createCatalogService({
     repository: catalogRepository,

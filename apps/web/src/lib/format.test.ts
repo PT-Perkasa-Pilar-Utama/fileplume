@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { formatBytes, formatDocumentDate, formatStorage } from "./format.ts";
+import {
+  formatBytes,
+  formatDocumentDate,
+  formatDocumentDateTime,
+  formatStorage,
+} from "./format.ts";
 
 describe("formatBytes utility", () => {
   test("formats 0 or negative bytes as 0 B", () => {
@@ -40,12 +45,32 @@ describe("formatStorage utility", () => {
 });
 
 describe("formatDocumentDate utility", () => {
+  // AC-38.01: tanggal unggah diformat dalam tanggal bahasa Indonesia
+  test("AC-38.01: formats ISO date string into Indonesian short date", () => {
+    const formatted = formatDocumentDate("2026-09-01T10:00:00.000Z");
+    expect(formatted).toMatch(/1\s+[A-Za-z.]+\s+2026/);
+  });
+
+  // AC-01.02: menampilkan tanggal unggah hari ini
+  test("AC-01.02: formats today's date properly", () => {
+    const today = new Date().toISOString();
+    const formatted = formatDocumentDate(today);
+    expect(formatted).not.toBe("-");
+    expect(formatted).toContain(String(new Date().getFullYear()));
+  });
+
+  test("returns '-' for invalid date string", () => {
+    expect(formatDocumentDate("invalid-date-string")).toBe("-");
+  });
+});
+
+describe("formatDocumentDateTime utility", () => {
   test("formats ISO UTC date correctly with Indonesian month", () => {
-    expect(formatDocumentDate("2026-03-25T14:30:00Z")).toBe("25 Mar 2026, 14.30 UTC");
-    expect(formatDocumentDate("2026-08-01T09:05:00Z")).toBe("01 Agu 2026, 09.05 UTC");
+    expect(formatDocumentDateTime("2026-03-25T14:30:00Z")).toBe("25 Mar 2026, 14.30 UTC");
+    expect(formatDocumentDateTime("2026-08-01T09:05:00Z")).toBe("01 Agu 2026, 09.05 UTC");
   });
 
   test("returns original string for invalid date", () => {
-    expect(formatDocumentDate("invalid-date")).toBe("invalid-date");
+    expect(formatDocumentDateTime("invalid-date")).toBe("invalid-date");
   });
 });

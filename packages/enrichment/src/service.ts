@@ -26,22 +26,6 @@ export type ExtractionMethod = "native" | "ocr" | "mixed";
 /** technical-specs/06-data-model.md 6.8: document_tags.source. */
 export type TagSource = "ai" | "user";
 
-/** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
-export const STATE_LABEL: Record<ProcessingState, string> = {
-  queued: "Antre",
-  processing: "Diproses",
-  ready: "Siap",
-  failed: "Gagal",
-};
-
-export const FAILURE_MESSAGE: Record<FailureReason, string> = {
-  password_protected: "Dokumen terproteksi password",
-  unreadable_content: "Isi dokumen tidak dapat dibaca",
-  extraction_timeout: "Proses ekstraksi melebihi batas waktu",
-  ai_unavailable: "Layanan AI tidak tersedia",
-  index_failed: "Dokumen gagal diindeks",
-};
-
 /** Network, timeout, 5xx and rate limit retry. Bad input does not. */
 export function isTransient(reason: FailureReason): boolean {
   return (

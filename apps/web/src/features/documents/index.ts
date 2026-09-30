@@ -1,4 +1,8 @@
 export {
+  buildDocumentSearchParams,
+  type DocumentQueryParams,
+  type DocumentsResponse,
+  fetchDocuments,
   parseUploadBatchBody,
   uploadDocumentsRequest,
 } from "./api.ts";
@@ -10,9 +14,21 @@ export {
   triggerBlobDownload,
 } from "./detail-api.ts";
 export {
+  DocumentCard,
+  type DocumentCardProps,
+} from "./document-card.tsx";
+export {
+  DocumentCardGridView,
+  type DocumentCardGridViewProps,
+} from "./document-card-grid.tsx";
+export {
   DocumentDetailView,
   type DocumentDetailViewProps,
 } from "./document-detail-view.tsx";
+export {
+  DocumentEmptyState,
+  type DocumentEmptyStateProps,
+} from "./document-empty-state.tsx";
 export {
   DEFAULT_MAX_FILE_SIZE_MB,
   getAcceptedFileType,
@@ -36,11 +52,12 @@ export type {
 } from "./types.ts";
 export { UploadTray, type UploadTrayProps } from "./upload-tray.tsx";
 export {
-  UploadedDocumentsList,
-  type UploadedDocumentsListProps,
-} from "./uploaded-documents-list.tsx";
-export {
   type UseDocumentDetailOptions,
   type UseDocumentDetailReturn,
   useDocumentDetail,
 } from "./use-document-detail.ts";
+export {
+  DOCUMENTS_QUERY_KEY,
+  type UseDocumentsResult,
+  useDocuments,
+} from "./use-documents.ts";

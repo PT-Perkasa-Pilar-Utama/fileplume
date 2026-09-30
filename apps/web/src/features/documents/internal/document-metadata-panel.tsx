@@ -2,7 +2,7 @@ import type { DocumentDetailView, DocumentVersionView } from "@archiva/shared";
 import type { JSX } from "react";
 import { Badge } from "../../../components/ui/badge.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
-import { formatBytes, formatDocumentDate } from "../../../lib/format.ts";
+import { formatBytes, formatDocumentDateTime } from "../../../lib/format.ts";
 import { VersionPicker } from "./version-picker.tsx";
 
 export interface DocumentMetadataPanelProps {
@@ -105,7 +105,7 @@ export function DocumentMetadataPanel({
               className="text-sm font-medium text-foreground text-right"
               data-testid="metadata-date"
             >
-              {formatDocumentDate(document.createdAt)}
+              {formatDocumentDateTime(document.createdAt)}
             </p>
           </div>
 

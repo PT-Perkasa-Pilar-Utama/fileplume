@@ -1,0 +1,85 @@
+import { type DocumentDetailView, dataOf, documentDetailSchema } from "@archiva/shared";
+import { API_BASE, apiFetch, toApiError } from "../../lib/api.ts";
+
+/**
+ * Extracts filename from Content-Disposition header.
+ * e.g. `attachment; filename="kontrak-kerjasama.pdf"`
+ */
+export function parseContentDispositionFilename(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const regularMatch = /filename="([^"]+)"/i.exec(header) || /filename=([^;\s]+)/i.exec(header);
+  return regularMatch?.[1] ?? null;
+}
+
+/**
+ * Triggers a file download in the browser using a temporary anchor element.
+ */
+export function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * GET /api/v1/documents/:id (api-specs/05-documents.md 5.5).
+ * Retrieves full document detail with metadata and versions.
+ */
+export async function fetchDocumentDetail(id: string): Promise<DocumentDetailView> {
+  const res = await apiFetch(`/documents/${id}`, dataOf(documentDetailSchema));
+  return res.data;
+}
+
+/**
+ * GET /api/v1/documents/:id/preview?versionId=... (api-specs/05-documents.md 5.8).
+ * Streams renderable bytes (PDF) to the client viewer without triggering download.
+ */
+export async function fetchDocumentPreview(
+  id: string,
+  versionId?: string,
+): Promise<{ blob: Blob; url: string }> {
+  const query = versionId ? `?versionId=${encodeURIComponent(versionId)}` : "";
+  const res = await fetch(`${API_BASE}/documents/${id}/preview${query}`, {
+    credentials: "include",
+  });
+
+  if (!res.ok) throw await toApiError(res);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  return { blob, url };
+}
+
+/**
+ * POST /api/v1/documents/:id/download (api-specs/05-documents.md 5.9).
+ * Streams original file to the caller and records audit access.
+ */
+export async function downloadDocumentRequest(
+  id: string,
+  versionId?: string,
+  defaultFilename = "document",
+): Promise<{ blob: Blob; filename: string }> {
+  const res = await fetch(`${API_BASE}/documents/${id}/download`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ versionId }),
+    credentials: "include",
+  });
+
+  if (!res.ok) throw await toApiError(res);
+
+  const disposition = res.headers.get("Content-Disposition");
+  const filename = parseContentDispositionFilename(disposition) ?? defaultFilename;
+  const blob = await res.blob();
+  return { blob, filename };
+}

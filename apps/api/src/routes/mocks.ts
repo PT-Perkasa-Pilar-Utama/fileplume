@@ -83,6 +83,14 @@ export const MOCK_TENANT_ROW: z.infer<typeof tenantListItemSchema> = {
   userCount: 9,
 };
 
+/** Minimal valid single-page PDF (143 bytes) for contract mock streaming. */
+export const MOCK_PDF_BYTES = Uint8Array.from(
+  Buffer.from(
+    "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCA2MTIgNzkyXS9QYXJlbnQgMiAwIFI+PmVuZG9iagp4cmVmCjAgNAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1MiAwMDAwMCBuIAowMDAwMDAwMTAxIDAwMDAwIG4gCnRyYWlsZXI8PC9TaXplIDQvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxNDAKJSVFT0Y=",
+    "base64",
+  ),
+);
+
 export const MOCK_CATEGORY: z.infer<typeof categorySchema> = {
   id: MOCK_CATEGORY_ID,
   name: "Technical Spec",

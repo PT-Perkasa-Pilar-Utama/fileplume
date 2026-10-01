@@ -7,6 +7,13 @@ export {
   uploadDocumentsRequest,
 } from "./api.ts";
 export {
+  downloadDocumentRequest,
+  fetchDocumentDetail,
+  fetchDocumentPreview,
+  parseContentDispositionFilename,
+  triggerBlobDownload,
+} from "./detail-api.ts";
+export {
   DocumentCard,
   type DocumentCardProps,
 } from "./document-card.tsx";
@@ -14,6 +21,10 @@ export {
   DocumentCardGridView,
   type DocumentCardGridViewProps,
 } from "./document-card-grid.tsx";
+export {
+  DocumentDetailView,
+  type DocumentDetailViewProps,
+} from "./document-detail-view.tsx";
 export {
   DocumentEmptyState,
   type DocumentEmptyStateProps,
@@ -41,6 +52,11 @@ export type {
   UploadTransportConstructor,
 } from "./types.ts";
 export { UploadTray, type UploadTrayProps } from "./upload-tray.tsx";
+export {
+  type UseDocumentDetailOptions,
+  type UseDocumentDetailReturn,
+  useDocumentDetail,
+} from "./use-document-detail.ts";
 export {
   DOCUMENTS_QUERY_KEY,
   type UseDocumentsResult,

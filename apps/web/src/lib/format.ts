@@ -34,3 +34,21 @@ export function formatDocumentDate(dateStr: string): string {
     year: "numeric",
   }).format(date);
 }
+
+const DOCUMENT_DATE_TIME_FORMAT = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
+/** Formats an ISO 8601 timestamp string into standard Indonesian date-time format in UTC. */
+export function formatDocumentDateTime(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return DOCUMENT_DATE_TIME_FORMAT.format(date);
+}

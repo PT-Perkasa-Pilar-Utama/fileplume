@@ -131,23 +131,7 @@ export function DocumentsView(): JSX.Element {
   );
 }
 
-// SCAFFOLD: FE-S2-06 implements document detail, metadata inspector, and preview.
-export function DocumentDetailView(): JSX.Element {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Detail Dokumen</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Informasi Dokumen</CardTitle>
-          <CardDescription>Metadata dan pratinjau dokumen</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Detail dokumen sedang dimuat...</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+export { DocumentDetailView } from "../features/documents/document-detail-view.tsx";
 
 // SCAFFOLD: FE-S3-01 implements category management and download permissions.
 export function PermissionCategoryView(): JSX.Element {

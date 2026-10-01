@@ -2,6 +2,7 @@ import { type DocumentDetailView, type DocumentVersionView, ERROR_MESSAGES } fro
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError } from "../../lib/api.ts";
+import { invalidateStorage } from "../storage/api.ts";
 import {
   downloadDocumentRequest,
   fetchDocumentDetail,
@@ -27,7 +28,6 @@ export interface UseDocumentDetailReturn {
   readonly isDownloading: boolean;
   readonly downloadError: string | null;
   readonly isUploadingVersion: boolean;
-  readonly uploadVersionError: string | null;
   readonly selectVersion: (version: DocumentVersionView) => void;
   readonly handleDownload: () => Promise<void>;
   readonly uploadVersion: (file: File) => Promise<DocumentDetailView>;
@@ -43,7 +43,6 @@ export function useDocumentDetail({
   const queryClient = useQueryClient();
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [uploadVersionError, setUploadVersionError] = useState<string | null>(null);
 
   const documentQuery = useQuery({
     queryKey: ["document", documentId],
@@ -117,13 +116,10 @@ export function useDocumentDetail({
       return uploadDocumentVersionRequest(documentId, file);
     },
     onSuccess: (updatedDoc) => {
-      setUploadVersionError(null);
-      // Invalidate detail and list queries (AC-21.01)
       queryClient.setQueryData(["document", documentId], updatedDoc);
-      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      void invalidateStorage(queryClient);
 
-      // Automatically switch to the newly uploaded active version
       const newVersion =
         updatedDoc.versions.find((v) => v.isCurrent) ??
         updatedDoc.versions.find((v) => v.versionNumber === updatedDoc.versionNumber) ??
@@ -132,14 +128,9 @@ export function useDocumentDetail({
         setSelectedVersionId(newVersion.id);
       }
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : ERROR_MESSAGES.INTERNAL_ERROR;
-      setUploadVersionError(msg);
-    },
   });
 
   const uploadVersion = async (file: File): Promise<DocumentDetailView> => {
-    setUploadVersionError(null);
     return uploadVersionMutation.mutateAsync(file);
   };
 
@@ -166,7 +157,6 @@ export function useDocumentDetail({
     isDownloading: downloadMutation.isPending,
     downloadError,
     isUploadingVersion: uploadVersionMutation.isPending,
-    uploadVersionError,
     selectVersion,
     handleDownload,
     uploadVersion,

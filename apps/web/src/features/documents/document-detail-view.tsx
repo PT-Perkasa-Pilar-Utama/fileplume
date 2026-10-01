@@ -38,7 +38,6 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
     previewError,
     isDownloading,
     downloadError,
-    isUploadingVersion,
     selectVersion,
     handleDownload,
     uploadVersion,
@@ -125,12 +124,10 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
         </div>
       </div>
 
-      {/* Upload New Version Dialog (FE-S2-06, AC-21.01, AC-21.03) */}
       <UploadVersionDialog
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
         onUpload={uploadVersion}
-        isUploading={isUploadingVersion}
       />
     </div>
   );

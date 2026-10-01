@@ -14,25 +14,24 @@ import {
 import { ApiError } from "../../../lib/api.ts";
 import { cn } from "../../../lib/cn.ts";
 import { formatBytes } from "../../../lib/format.ts";
-import { getAcceptedFileType, validateFile } from "../file-validation.ts";
+import { DEFAULT_MAX_FILE_SIZE_MB, getAcceptedFileType, validateFile } from "../file-validation.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
 
 export interface UploadVersionDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onUpload: (file: File) => Promise<unknown>;
-  readonly isUploading?: boolean;
+  readonly maxFileSizeMb?: number;
 }
 
 /**
  * Modal dialog for uploading a new document version (FE-S2-06, AC-21.01, AC-21.03).
- * Contains single file picker, save action, and in-place error rendering for identical content.
  */
 export function UploadVersionDialog({
   open,
   onOpenChange,
   onUpload,
-  isUploading = false,
+  maxFileSizeMb = DEFAULT_MAX_FILE_SIZE_MB,
 }: UploadVersionDialogProps): JSX.Element {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,9 +39,10 @@ export function UploadVersionDialog({
   const [localSubmitting, setLocalSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const busy = isUploading || localSubmitting;
+  const busy = localSubmitting;
 
   const handleClose = (nextOpen: boolean): void => {
+    if (!nextOpen && busy) return;
     if (!nextOpen) {
       setSelectedFile(null);
       setErrorMessage(null);
@@ -55,7 +55,7 @@ export function UploadVersionDialog({
   };
 
   const handleSelectFile = (file: File): void => {
-    const check = validateFile(file);
+    const check = validateFile(file, maxFileSizeMb);
     if (!check.valid) {
       setErrorMessage(check.error.message);
       setSelectedFile(null);
@@ -101,7 +101,7 @@ export function UploadVersionDialog({
     e.preventDefault();
     if (!selectedFile || busy) return;
 
-    const check = validateFile(selectedFile);
+    const check = validateFile(selectedFile, maxFileSizeMb);
     if (!check.valid) {
       setErrorMessage(check.error.message);
       return;
@@ -112,17 +112,11 @@ export function UploadVersionDialog({
 
     try {
       await onUpload(selectedFile);
-      // Succeeded: reset and close dialog (AC-21.01)
       setSelectedFile(null);
       setErrorMessage(null);
       onOpenChange(false);
     } catch (err) {
-      // In-place refusal rendering without closing dialog (AC-21.03)
-      if (err instanceof ApiError || err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage(ERROR_MESSAGES.INTERNAL_ERROR);
-      }
+      setErrorMessage(err instanceof ApiError ? err.message : ERROR_MESSAGES.UPLOAD_INTERRUPTED);
     } finally {
       setLocalSubmitting(false);
     }
@@ -152,7 +146,6 @@ export function UploadVersionDialog({
             data-testid="upload-version-file-input"
           />
 
-          {/* In-place error message (AC-21.03) */}
           {errorMessage && (
             <Alert variant="destructive" data-testid="upload-version-error">
               <AlertCircle className="size-4 shrink-0" />
@@ -181,7 +174,7 @@ export function UploadVersionDialog({
                 Klik untuk memilih file revisi atau seret ke sini
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Format: PDF, DOCX, XLSX, TXT (Maks. 20 MB)
+                {`Format: PDF, DOCX, XLSX, TXT (Maks. ${maxFileSizeMb} MB)`}
               </p>
             </button>
           ) : (

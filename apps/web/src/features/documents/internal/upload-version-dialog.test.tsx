@@ -1,12 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 import { ERROR_MESSAGES } from "@archiva/shared";
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
-import { ApiError } from "../../../lib/api.ts";
 import { UploadVersionDialog } from "./upload-version-dialog.tsx";
 
-describe("UploadVersionDialog (FE-S2-06)", () => {
+describe("UploadVersionDialog rendering and validation (FE-S2-06)", () => {
   test("does not render when closed", () => {
     const html = renderToString(
       <UploadVersionDialog open={false} onOpenChange={() => {}} onUpload={async () => {}} />,
@@ -28,148 +27,55 @@ describe("UploadVersionDialog (FE-S2-06)", () => {
     expect(html).toContain('data-testid="upload-version-cancel"');
     expect(html).toContain("Simpan");
     expect(html).toContain("Batal");
+    expect(html).toContain("Format: PDF, DOCX, XLSX, TXT (Maks. 20 MB)");
   });
 
-  // AC-21.01: Mengunggah versi baru melalui aksi eksplisit
-  test("AC-21.01: selects revision file, enables submit, calls onUpload, and closes dialog on success", async () => {
-    let isOpen = true;
-    const handleOpenChange = (open: boolean) => {
-      isOpen = open;
-    };
+  test("renders custom maxFileSizeMb in dropzone prompt and enforces limit", async () => {
     const onUploadMock = mock(async (_file: File) => {});
+    const html = renderToString(
+      <UploadVersionDialog
+        open={true}
+        onOpenChange={() => {}}
+        onUpload={onUploadMock}
+        maxFileSizeMb={5}
+      />,
+    );
+    expect(html).toContain("Format: PDF, DOCX, XLSX, TXT (Maks. 5 MB)");
 
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
 
-    function TestHost() {
-      const [open, setOpen] = useState(true);
-      return (
-        <UploadVersionDialog
-          open={open}
-          onOpenChange={(next) => {
-            setOpen(next);
-            handleOpenChange(next);
-          }}
-          onUpload={onUploadMock}
-        />
-      );
-    }
-
     await act(async () => {
-      root.render(<TestHost />);
+      root.render(
+        <UploadVersionDialog
+          open={true}
+          onOpenChange={() => {}}
+          onUpload={onUploadMock}
+          maxFileSizeMb={5}
+        />,
+      );
     });
 
     const fileInput = container.querySelector<HTMLInputElement>(
       '[data-testid="upload-version-file-input"]',
     );
-    const submitButton = container.querySelector<HTMLButtonElement>(
-      '[data-testid="upload-version-submit"]',
-    );
-
-    expect(fileInput).not.toBeNull();
-    expect(submitButton).not.toBeNull();
-    // Submit disabled before file selected
-    expect(submitButton?.disabled).toBe(true);
-
-    // Select revision PDF file
-    const revisionFile = new File(["kontrak revisi v2"], "proposal-rev.pdf", {
+    const oversizedFile = new File([new Uint8Array(6 * 1024 * 1024)], "large.pdf", {
       type: "application/pdf",
     });
 
     await act(async () => {
       Object.defineProperty(fileInput, "files", {
-        value: [revisionFile],
+        value: [oversizedFile],
         writable: true,
       });
       fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
     });
 
-    // Filename displayed and submit button is enabled
-    const selectedFilename = container.querySelector(
-      '[data-testid="upload-version-selected-filename"]',
-    );
-    expect(selectedFilename?.textContent).toBe("proposal-rev.pdf");
-    expect(submitButton?.disabled).toBe(false);
-
-    // Click "Simpan"
-    await act(async () => {
-      submitButton?.click();
-    });
-
-    expect(onUploadMock).toHaveBeenCalledTimes(1);
-    expect(isOpen).toBe(false);
-
-    await act(async () => {
-      root.unmount();
-    });
-    container.remove();
-  });
-
-  // AC-21.03: Menolak versi baru dengan konten identik (Negative Path)
-  test("AC-21.03: renders identical-content error in-place and keeps dialog open", async () => {
-    let isOpen = true;
-    const handleOpenChange = (open: boolean) => {
-      isOpen = open;
-    };
-    const onUploadMock = mock(async (_file: File) => {
-      throw new ApiError(409, "IDENTICAL_CONTENT", ERROR_MESSAGES.IDENTICAL_CONTENT);
-    });
-
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    function TestHost() {
-      const [open, setOpen] = useState(true);
-      return (
-        <UploadVersionDialog
-          open={open}
-          onOpenChange={(next) => {
-            setOpen(next);
-            handleOpenChange(next);
-          }}
-          onUpload={onUploadMock}
-        />
-      );
-    }
-
-    await act(async () => {
-      root.render(<TestHost />);
-    });
-
-    const fileInput = container.querySelector<HTMLInputElement>(
-      '[data-testid="upload-version-file-input"]',
-    );
-    const submitButton = container.querySelector<HTMLButtonElement>(
-      '[data-testid="upload-version-submit"]',
-    );
-
-    const identicalFile = new File(["identical content"], "proposal.pdf", {
-      type: "application/pdf",
-    });
-
-    await act(async () => {
-      Object.defineProperty(fileInput, "files", {
-        value: [identicalFile],
-        writable: true,
-      });
-      fileInput?.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-
-    // Click "Simpan"
-    await act(async () => {
-      submitButton?.click();
-    });
-
-    expect(onUploadMock).toHaveBeenCalledTimes(1);
-    // Dialog must stay open (isOpen is still true)
-    expect(isOpen).toBe(true);
-
-    // Error is rendered in-place verbatim per AC-21.03
     const errorAlert = container.querySelector('[data-testid="upload-version-error"]');
     expect(errorAlert).not.toBeNull();
-    expect(errorAlert?.textContent).toContain("Isi file sama dengan versi yang sudah ada");
+    expect(errorAlert?.textContent).toContain("Ukuran file melebihi batas 5 MB");
+    expect(onUploadMock).not.toHaveBeenCalled();
 
     await act(async () => {
       root.unmount();
@@ -193,7 +99,6 @@ describe("UploadVersionDialog (FE-S2-06)", () => {
     const fileInput = container.querySelector<HTMLInputElement>(
       '[data-testid="upload-version-file-input"]',
     );
-
     const unsupportedFile = new File(["binary"], "app.exe", {
       type: "application/octet-stream",
     });

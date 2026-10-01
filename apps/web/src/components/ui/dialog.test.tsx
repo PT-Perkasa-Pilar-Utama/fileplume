@@ -93,4 +93,62 @@ describe("Dialog component", () => {
     });
     container.remove();
   });
+
+  test("moves focus into dialog on open and restores trigger focus on close", async () => {
+    function TestWrapper() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <button type="button" data-testid="trigger-btn" onClick={() => setOpen(true)}>
+            Buka
+          </button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent>
+              <DialogTitle>Judul Dialog</DialogTitle>
+              <button type="button" data-testid="inside-btn">
+                Aksi Dalam
+              </button>
+            </DialogContent>
+          </Dialog>
+        </div>
+      );
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestWrapper />);
+    });
+
+    const triggerBtn = container.querySelector<HTMLButtonElement>('[data-testid="trigger-btn"]');
+    triggerBtn?.focus();
+    expect(document.activeElement).toBe(triggerBtn);
+
+    await act(async () => {
+      triggerBtn?.click();
+    });
+
+    const dialogContainer = container.querySelector<HTMLDivElement>(
+      '[data-testid="dialog-container"]',
+    );
+    expect(dialogContainer).not.toBeNull();
+    expect(dialogContainer?.getAttribute("tabindex")).toBe("-1");
+
+    const closeBtn = container.querySelector<HTMLButtonElement>(
+      '[data-testid="dialog-close-button"]',
+    );
+    await act(async () => {
+      closeBtn?.click();
+    });
+
+    expect(container.querySelector('[data-testid="dialog-container"]')).toBeNull();
+    expect(document.activeElement).toBe(triggerBtn);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });

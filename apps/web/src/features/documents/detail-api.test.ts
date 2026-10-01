@@ -1,6 +1,10 @@
 import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
 import { ERROR_MESSAGES } from "@archiva/shared";
-import { fetchDocumentDetail, parseContentDispositionFilename } from "./detail-api.ts";
+import {
+  fetchDocumentDetail,
+  parseContentDispositionFilename,
+  uploadDocumentVersionRequest,
+} from "./detail-api.ts";
 
 describe("detail-api utilities", () => {
   describe("parseContentDispositionFilename", () => {
@@ -128,6 +132,97 @@ describe("detail-api document and versions", () => {
         status: 404,
         code: "NOT_FOUND",
         message: ERROR_MESSAGES.NOT_FOUND,
+      });
+    });
+  });
+
+  describe("uploadDocumentVersionRequest (FE-S2-06)", () => {
+    // AC-21.01: Mengunggah versi baru melalui aksi eksplisit
+    test("AC-21.01: uploads new version and returns updated document detail", async () => {
+      const mockUpdatedDoc = {
+        data: {
+          id: mockDocId,
+          title: "kontrak-kerjasama.pdf",
+          filename: "kontrak-kerjasama.pdf",
+          mimeType: "application/pdf",
+          fileType: "pdf",
+          sizeBytes: 2500000,
+          pageCount: 45,
+          versionNumber: 3,
+          versionCount: 3,
+          processingState: "queued",
+          processingLabel: "Antre",
+          failureReason: null,
+          uploader: {
+            id: "9d1c4a70-7b53-4f0a-8a71-3c9e2d5b6f10",
+            name: "Budi Santoso",
+          },
+          category: null,
+          documentType: null,
+          tags: [],
+          downloadAllowed: true,
+          metadata: null,
+          versions: [
+            {
+              id: "bb22b2c3-4d5e-4f60-8a1b-2c3d4e5f6073",
+              versionNumber: 3,
+              filename: "kontrak-kerjasama-rev2.pdf",
+              sizeBytes: 2500000,
+              pageCount: 45,
+              uploadedBy: {
+                id: "9d1c4a70-7b53-4f0a-8a71-3c9e2d5b6f10",
+                name: "Budi Santoso",
+              },
+              createdAt: "2026-09-15T10:00:00.000Z",
+              isCurrent: true,
+            },
+          ],
+          createdAt: "2026-09-01T09:00:00.000Z",
+        },
+      };
+
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockUpdatedDoc), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      const testFile = new File(["dummy revision"], "kontrak-kerjasama-rev2.pdf", {
+        type: "application/pdf",
+      });
+      const result = await uploadDocumentVersionRequest(mockDocId, testFile);
+
+      expect(result.id).toBe(mockDocId);
+      expect(result.versionNumber).toBe(3);
+      expect(result.versions[0]?.versionNumber).toBe(3);
+    });
+
+    // AC-21.03: Menolak versi baru dengan konten identik (Negative Path)
+    test("AC-21.03: throws ApiError with IDENTICAL_CONTENT and verbatim message on 409", async () => {
+      fetchSpy.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "IDENTICAL_CONTENT",
+              message: ERROR_MESSAGES.IDENTICAL_CONTENT,
+            },
+          }),
+          {
+            status: 409,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
+
+      const testFile = new File(["identical content"], "kontrak-kerjasama.pdf", {
+        type: "application/pdf",
+      });
+
+      await expect(uploadDocumentVersionRequest(mockDocId, testFile)).rejects.toMatchObject({
+        status: 409,
+        code: "IDENTICAL_CONTENT",
+        message: ERROR_MESSAGES.IDENTICAL_CONTENT,
       });
     });
   });

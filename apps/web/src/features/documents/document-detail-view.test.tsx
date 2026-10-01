@@ -13,7 +13,8 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import type { JSX } from "react";
+import { act, type JSX } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { ApiError } from "../../lib/api.ts";
 import { DocumentDetailView as DocumentDetailViewComponent } from "./document-detail-view.tsx";
@@ -230,5 +231,86 @@ describe("DocumentDetailView (FE-S2-04)", () => {
 
     expect(html).toContain('data-testid="document-detail-loading"');
     expect(html).toContain("Memuat detail dokumen...");
+  });
+
+  // AC-21.01: Mengunggah versi baru melalui aksi eksplisit
+  test("AC-21.01: renders 'Unggah Versi Baru' trigger button on document detail page", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(["document", mockDocumentDetail.id], mockDocumentDetail);
+
+    const html = await renderDetailView(
+      <QueryClientProvider client={queryClient}>
+        <DocumentDetailViewComponent documentId={mockDocumentDetail.id} />
+      </QueryClientProvider>,
+    );
+
+    expect(html).toContain('data-testid="upload-new-version-button"');
+    expect(html).toContain("Unggah Versi Baru");
+  });
+
+  // AC-21.01: Mengunggah versi baru melalui aksi eksplisit
+  test("AC-21.01: clicking 'Unggah Versi Baru' opens dialog and canceling closes it", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      },
+    });
+    queryClient.setQueryData(["document", mockDocumentDetail.id], mockDocumentDetail);
+    queryClient.setQueryData(["document-preview", mockDocumentDetail.id, mockVersion2.id], null);
+
+    const rootRoute = createRootRoute({
+      component: () => (
+        <QueryClientProvider client={queryClient}>
+          <DocumentDetailViewComponent documentId={mockDocumentDetail.id} />
+        </QueryClientProvider>
+      ),
+    });
+    const history = createMemoryHistory({
+      initialEntries: [`/documents/${mockDocumentDetail.id}`],
+    });
+    const router = createRouter({ routeTree: rootRoute, history });
+    await router.load();
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<RouterProvider router={router} />);
+    });
+
+    const triggerButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="upload-new-version-button"]',
+    );
+    expect(triggerButton).not.toBeNull();
+    expect(triggerButton?.textContent).toContain("Unggah Versi Baru");
+
+    expect(container.querySelector('[data-testid="dialog-container"]')).toBeNull();
+
+    // Click "Unggah Versi Baru" opens the dialog
+    await act(async () => {
+      triggerButton?.click();
+    });
+
+    expect(container.querySelector('[data-testid="dialog-container"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="upload-version-dropzone"]')).not.toBeNull();
+
+    // Click "Batal" closes the dialog
+    const cancelButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="upload-version-cancel"]',
+    );
+    expect(cancelButton).not.toBeNull();
+    await act(async () => {
+      cancelButton?.click();
+    });
+
+    expect(container.querySelector('[data-testid="dialog-container"]')).toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
   });
 });

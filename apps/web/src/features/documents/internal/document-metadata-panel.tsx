@@ -1,6 +1,8 @@
 import type { DocumentDetailView, DocumentVersionView } from "@archiva/shared";
+import { Upload } from "lucide-react";
 import type { JSX } from "react";
 import { Badge } from "../../../components/ui/badge.tsx";
+import { Button } from "../../../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
 import { formatBytes, formatDocumentDateTime } from "../../../lib/format.ts";
 import { VersionPicker } from "./version-picker.tsx";
@@ -10,6 +12,7 @@ export interface DocumentMetadataPanelProps {
   readonly activeVersion: DocumentVersionView;
   readonly onSelectVersion: (version: DocumentVersionView) => void;
   readonly isVersionSwitching?: boolean;
+  readonly onUploadNewVersion?: () => void;
 }
 
 /**
@@ -21,6 +24,7 @@ export function DocumentMetadataPanel({
   activeVersion,
   onSelectVersion,
   isVersionSwitching,
+  onUploadNewVersion,
 }: DocumentMetadataPanelProps): JSX.Element {
   // AC-04.02: author renders "Tidak diketahui" when extraction found none
   const authorDisplay = document.metadata?.author ?? "Tidak diketahui";
@@ -142,6 +146,22 @@ export function DocumentMetadataPanel({
             </div>
           </div>
         </div>
+
+        {onUploadNewVersion && (
+          <div className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onUploadNewVersion}
+              data-testid="upload-new-version-button"
+              className="w-full justify-center gap-1.5 text-xs font-medium"
+            >
+              <Upload className="size-3.5" />
+              Unggah Versi Baru
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

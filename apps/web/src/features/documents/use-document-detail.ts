@@ -1,5 +1,5 @@
 import { type DocumentDetailView, type DocumentVersionView, ERROR_MESSAGES } from "@archiva/shared";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError } from "../../lib/api.ts";
 import {
@@ -7,6 +7,7 @@ import {
   fetchDocumentDetail,
   fetchDocumentPreview,
   triggerBlobDownload,
+  uploadDocumentVersionRequest,
 } from "./detail-api.ts";
 
 export interface UseDocumentDetailOptions {
@@ -25,8 +26,11 @@ export interface UseDocumentDetailReturn {
   readonly previewError: ApiError | null;
   readonly isDownloading: boolean;
   readonly downloadError: string | null;
+  readonly isUploadingVersion: boolean;
+  readonly uploadVersionError: string | null;
   readonly selectVersion: (version: DocumentVersionView) => void;
   readonly handleDownload: () => Promise<void>;
+  readonly uploadVersion: (file: File) => Promise<DocumentDetailView>;
 }
 
 /**
@@ -36,8 +40,10 @@ export interface UseDocumentDetailReturn {
 export function useDocumentDetail({
   documentId,
 }: UseDocumentDetailOptions): UseDocumentDetailReturn {
+  const queryClient = useQueryClient();
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [uploadVersionError, setUploadVersionError] = useState<string | null>(null);
 
   const documentQuery = useQuery({
     queryKey: ["document", documentId],
@@ -104,6 +110,39 @@ export function useDocumentDetail({
     await downloadMutation.mutateAsync();
   };
 
+  // Upload version mutation (AC-21.01, AC-21.03)
+  const uploadVersionMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!documentId) throw new Error("Document ID is required");
+      return uploadDocumentVersionRequest(documentId, file);
+    },
+    onSuccess: (updatedDoc) => {
+      setUploadVersionError(null);
+      // Invalidate detail and list queries (AC-21.01)
+      queryClient.setQueryData(["document", documentId], updatedDoc);
+      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+
+      // Automatically switch to the newly uploaded active version
+      const newVersion =
+        updatedDoc.versions.find((v) => v.isCurrent) ??
+        updatedDoc.versions.find((v) => v.versionNumber === updatedDoc.versionNumber) ??
+        updatedDoc.versions[0];
+      if (newVersion) {
+        setSelectedVersionId(newVersion.id);
+      }
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : ERROR_MESSAGES.INTERNAL_ERROR;
+      setUploadVersionError(msg);
+    },
+  });
+
+  const uploadVersion = async (file: File): Promise<DocumentDetailView> => {
+    setUploadVersionError(null);
+    return uploadVersionMutation.mutateAsync(file);
+  };
+
   const previewError =
     previewQuery.error instanceof ApiError
       ? previewQuery.error
@@ -126,7 +165,10 @@ export function useDocumentDetail({
     previewError,
     isDownloading: downloadMutation.isPending,
     downloadError,
+    isUploadingVersion: uploadVersionMutation.isPending,
+    uploadVersionError,
     selectVersion,
     handleDownload,
+    uploadVersion,
   };
 }

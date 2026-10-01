@@ -1,7 +1,7 @@
 import { EMPTY_STATE, ERROR_MESSAGES } from "@archiva/shared";
 import { Link, useParams } from "@tanstack/react-router";
 import { AlertCircle, ArrowLeft, ChevronRight, FileX, Loader2 } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useState } from "react";
 import { Alert, AlertDescription } from "../../components/ui/alert.tsx";
 import { buttonVariants } from "../../components/ui/button.tsx";
 import { EmptyState } from "../../components/ui/empty-state.tsx";
@@ -9,6 +9,7 @@ import { ApiError } from "../../lib/api.ts";
 import { DocumentExtractedFieldsPanel } from "./internal/document-extracted-fields-panel.tsx";
 import { DocumentMetadataPanel } from "./internal/document-metadata-panel.tsx";
 import { DocumentPreviewPanel } from "./internal/document-preview-panel.tsx";
+import { UploadVersionDialog } from "./internal/upload-version-dialog.tsx";
 import { useDocumentDetail } from "./use-document-detail.ts";
 
 export interface DocumentDetailViewProps {
@@ -21,6 +22,7 @@ export interface DocumentDetailViewProps {
  * with version picker and download capabilities, aligned with Figma screen 28:3451.
  */
 export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {}): JSX.Element {
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const params = useParams({ strict: false });
   const paramId = "id" in params && typeof params.id === "string" ? params.id : "";
   const effectiveId = documentId ?? paramId;
@@ -36,8 +38,10 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
     previewError,
     isDownloading,
     downloadError,
+    isUploadingVersion,
     selectVersion,
     handleDownload,
+    uploadVersion,
   } = useDocumentDetail({ documentId: effectiveId });
 
   if (isLoading) {
@@ -102,6 +106,7 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
             activeVersion={activeVersion}
             onSelectVersion={selectVersion}
             isVersionSwitching={isLoadingPreview}
+            onUploadNewVersion={() => setIsUploadDialogOpen(true)}
           />
 
           <DocumentExtractedFieldsPanel document={document} />
@@ -119,6 +124,14 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
           />
         </div>
       </div>
+
+      {/* Upload New Version Dialog (FE-S2-06, AC-21.01, AC-21.03) */}
+      <UploadVersionDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        onUpload={uploadVersion}
+        isUploading={isUploadingVersion}
+      />
     </div>
   );
 }

@@ -32,6 +32,7 @@ export type {
   TrayItemDocument,
   TrayItemError,
   TrayItemStatus,
+  UploadBatch,
   UploadDocumentsOptions,
   UploadedDocumentDisplay,
   UploadProgress,

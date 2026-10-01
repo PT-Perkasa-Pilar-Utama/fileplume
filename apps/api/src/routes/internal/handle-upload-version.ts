@@ -1,10 +1,9 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
-import { AppError, asDocumentId, formatErrorMessage, one } from "@archiva/shared";
+import { AppError, asDocumentId, formatErrorMessage, idParams, one } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
 import type { Context } from "hono";
 import type { AppEnv } from "../../middleware/context.ts";
-import { fail } from "../../middleware/errors.ts";
-import { assertDocumentInTenant } from "./assert-document-in-tenant.ts";
+import { fail, validationFailed } from "../../middleware/errors.ts";
 import { collectUploadParts } from "./collect-upload-parts.ts";
 
 /**
@@ -18,11 +17,36 @@ export async function handleUploadVersion(
   const tenant = c.get("tenant");
   if (!tenant) throw new AppError("NOT_FOUND");
   const principal = c.get("principal");
-  const id = c.req.param("id");
-  if (!id) throw new AppError("NOT_FOUND");
-  const documentId = asDocumentId(id);
 
-  await assertDocumentInTenant(c, catalog, id);
+  const parsed = idParams.safeParse({ id: c.req.param("id") });
+  if (!parsed.success) return validationFailed(c, parsed.error);
+  const documentId = asDocumentId(parsed.data.id);
+
+  const pendingConfirmationDays = await tenancy.getConfigValue(
+    tenant.id,
+    "pending_confirmation_days",
+  );
+  const viewer = { userId: principal.userId, role: principal.role };
+  const precheck = await catalog.getDocument(
+    tenant.id,
+    documentId,
+    viewer,
+    pendingConfirmationDays,
+  );
+  if (!precheck.ok) {
+    if (precheck.error.crossTenantAttempt && principal.tenantId !== null) {
+      await c.get("activity").record({
+        tenantId: principal.tenantId,
+        actorId: principal.userId,
+        action: "access.denied",
+        subjectType: "document",
+        subjectId: null,
+        outcome: "denied",
+        metadata: { attemptedId: documentId },
+      });
+    }
+    throw new AppError("NOT_FOUND");
+  }
 
   const maxMb = await tenancy.getConfigValue(tenant.id, "max_file_size_mb");
   const maxFileSizeBytes = maxMb * 1024 * 1024;
@@ -44,13 +68,18 @@ export async function handleUploadVersion(
     return fail(c, "VALIDATION_ERROR", [{ field: "file", issue: "required" }]);
   }
 
-  const result = await catalog.addVersion(documentId, {
-    tenantId: tenant.id,
-    uploaderId: principal.userId,
-    filename: item.filename,
-    stream: item.stream,
-    sizeBytes: item.sizeBytes,
-  });
+  const result = await catalog.addVersion(
+    documentId,
+    {
+      tenantId: tenant.id,
+      uploaderId: principal.userId,
+      filename: item.filename,
+      stream: item.stream,
+      sizeBytes: item.sizeBytes,
+    },
+    viewer,
+    pendingConfirmationDays,
+  );
 
   if (!result.ok) {
     switch (result.error.kind) {
@@ -70,8 +99,6 @@ export async function handleUploadVersion(
         );
       case "QuotaExceeded":
         return fail(c, "QUOTA_EXCEEDED");
-      default:
-        return fail(c, "VALIDATION_ERROR");
     }
   }
 

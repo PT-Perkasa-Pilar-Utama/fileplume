@@ -18,6 +18,7 @@ export type {
 } from "./ports.ts";
 export { type CatalogRepository, createDrizzleCatalogRepository } from "./repository.ts";
 export type {
+  AddVersionFailure,
   CatalogService,
   CatalogServiceDeps,
   DocumentRecord,

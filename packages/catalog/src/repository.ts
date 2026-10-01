@@ -11,8 +11,6 @@ import * as versionRepo from "./internal/version-repository.ts";
 
 export type * from "./internal/repository-types.ts";
 
-const UNKNOWN_USER_NAME = "Unknown User";
-
 const docMatch = (docId: string, tId: string) =>
   and(eq(schema.documents.id, docId), eq(schema.documents.tenantId, tId));
 
@@ -111,7 +109,7 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
           currentMimeType: schema.documentVersions.mimeType,
         })
         .from(schema.documents)
-        .leftJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
+        .innerJoin(schema.users, eq(schema.documents.uploaderId, schema.users.id))
         .leftJoin(
           schema.documentVersions,
           eq(schema.documents.currentVersionId, schema.documentVersions.id),
@@ -129,7 +127,7 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
         currentVersionHash: row.currentVersionHash ?? null,
         currentMimeType: row.currentMimeType ?? null,
         uploaderId: row.uploaderId,
-        uploaderName: row.uploaderName ?? UNKNOWN_USER_NAME,
+        uploaderName: row.uploaderName,
         createdAt: row.createdAt.toISOString(),
       };
     },

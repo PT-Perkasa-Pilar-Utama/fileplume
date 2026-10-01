@@ -4,11 +4,8 @@ import type { DocumentId, DocumentVersionView, Result, TenantId, VersionId } fro
 import { asVersionId, err, ok } from "@archiva/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type * as E from "../errors.ts";
-import { toVersionView } from "./build-document-detail.ts";
 import type { InsertVersionInput } from "./repository-types.ts";
 import { toDuplicateContentError } from "./unique-violation.ts";
-
-const UNKNOWN_USER_NAME = "Unknown User";
 
 const docMatch = (docId: string, tId: string) =>
   and(eq(schema.documents.id, docId), eq(schema.documents.tenantId, tId));
@@ -26,7 +23,10 @@ export async function insertVersionAndUpdateDocument(
   input: InsertVersionInput,
   findByContentHash: (tenantId: string, hash: string) => Promise<DocumentId | null>,
 ): Promise<
-  Result<{ versionId: VersionId; versionNumber: number }, E.IdenticalContent | E.DuplicateContent>
+  Result<
+    { versionId: VersionId; versionNumber: number },
+    E.IdenticalContent | E.DuplicateContent | E.NotFound
+  >
 > {
   try {
     return await db.transaction(async (tx) => {
@@ -38,7 +38,7 @@ export async function insertVersionAndUpdateDocument(
         .from(schema.documents)
         .where(docMatch(input.documentId, tenantId))
         .for("update");
-      if (!doc) throw new Error("Document not found under lock");
+      if (!doc) return err({ kind: "NotFound" as const });
 
       if (doc.currentVersionId) {
         const [cur] = await tx
@@ -78,7 +78,8 @@ export async function insertVersionAndUpdateDocument(
         .set({
           currentVersionId: versionId,
           updatedAt: new Date(),
-          processingState: "queued",
+          processingState: sql`case when ${schema.documents.processingState} in ('ready', 'failed') then 'queued'::processing_state else ${schema.documents.processingState} end`,
+          failureReason: null,
         })
         .where(docMatch(input.documentId, tenantId));
 
@@ -119,9 +120,18 @@ export async function listVersions(
       uploaderName: schema.users.name,
     })
     .from(schema.documentVersions)
-    .leftJoin(schema.users, eq(schema.documentVersions.uploadedBy, schema.users.id))
+    .innerJoin(schema.users, eq(schema.documentVersions.uploadedBy, schema.users.id))
     .where(verMatch(documentId, tenantId))
     .orderBy(desc(schema.documentVersions.versionNumber));
 
-  return rows.map((r) => toVersionView(r, doc.currentVersionId, UNKNOWN_USER_NAME));
+  return rows.map((r) => ({
+    id: asVersionId(r.id),
+    versionNumber: r.versionNumber,
+    filename: r.filename,
+    sizeBytes: r.sizeBytes,
+    pageCount: r.pageCount,
+    uploadedBy: { id: r.uploaderId, name: r.uploaderName },
+    createdAt: r.createdAt.toISOString(),
+    isCurrent: r.id === doc.currentVersionId,
+  }));
 }

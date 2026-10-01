@@ -60,6 +60,14 @@ export type UploadFailure =
   | E.DuplicateContent
   | E.BatchTooLarge;
 
+export type AddVersionFailure =
+  | E.NotFound
+  | E.IdenticalContent
+  | E.DuplicateContent
+  | E.UnsupportedType
+  | E.TooLarge
+  | E.QuotaExceeded;
+
 export type UploadAcceptedResult = {
   index: number;
   filename: string;
@@ -115,7 +123,9 @@ export interface CatalogService {
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
-  ): Promise<Result<DocumentDetailView, E.IdenticalContent | E.NotFound | UploadFailure>>;
+    viewer?: ViewerContext,
+    pendingConfirmationDays?: number,
+  ): Promise<Result<DocumentDetailView, AddVersionFailure>>;
   findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
   listVersions(tenantId: TenantId, documentId: DocumentId): Promise<DocumentVersionView[] | null>;
   listDocuments(input: ListDocumentsInput): Promise<ListDocumentsResult>;
@@ -179,15 +189,21 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
     listVersions(tenantId, documentId) {
       return deps.repository.listVersions(tenantId, documentId);
     },
-    addVersion(documentId, input) {
-      return addVersion(documentId, input, {
-        repository: deps.repository,
-        blobStore: deps.blobStore,
-        quota: deps.quota,
-        queue: deps.queue,
-        audit: deps.audit,
-        clock: deps.clock,
-      });
+    addVersion(documentId, input, viewer, pendingConfirmationDays) {
+      return addVersion(
+        documentId,
+        input,
+        {
+          repository: deps.repository,
+          blobStore: deps.blobStore,
+          quota: deps.quota,
+          queue: deps.queue,
+          audit: deps.audit,
+          clock: deps.clock,
+        },
+        viewer,
+        pendingConfirmationDays,
+      );
     },
     listDocuments(input) {
       return handleListDocuments(deps.repository, input);

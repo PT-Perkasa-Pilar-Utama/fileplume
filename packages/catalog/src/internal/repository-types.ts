@@ -66,7 +66,10 @@ export interface CatalogRepository {
     tenantId: TenantId,
     input: InsertVersionInput,
   ): Promise<
-    Result<{ versionId: VersionId; versionNumber: number }, E.IdenticalContent | E.DuplicateContent>
+    Result<
+      { versionId: VersionId; versionNumber: number },
+      E.IdenticalContent | E.DuplicateContent | E.NotFound
+    >
   >;
   listVersions(tenantId: TenantId, documentId: DocumentId): Promise<DocumentVersionView[] | null>;
   listDocuments(

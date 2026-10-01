@@ -1,13 +1,12 @@
-import type { DocumentDetailView, DocumentId, Result } from "@archiva/shared";
-import { asVersionId, err, ok } from "@archiva/shared";
+import type { DocumentDetailView, DocumentId, Result, VersionId } from "@archiva/shared";
+import { asVersionId, err } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { AuditPort, BlobStore, Clock, JobQueue, QuotaPort } from "../ports.ts";
-import type { UploadFailure, UploadInput } from "../service.ts";
-import { blobKey } from "./blob-key.ts";
-import { buildDocumentDetail } from "./build-document-detail.ts";
+import type { AddVersionFailure, UploadInput, ViewerContext } from "../service.ts";
+import { handleGetDocument } from "./get-document.ts";
+import { prepareBlobUpload } from "./prepare-blob-upload.ts";
+import { reportSettled } from "./report-settled.ts";
 import type { CatalogRepository } from "./repository-types.ts";
-import { sniffType } from "./sniff-type.ts";
-import { readHeader } from "./upload-single-file.ts";
 
 export type AddVersionDeps = {
   repository: CatalogRepository;
@@ -22,80 +21,81 @@ export async function addVersion(
   documentId: DocumentId,
   input: UploadInput,
   deps: AddVersionDeps,
-): Promise<Result<DocumentDetailView, E.IdenticalContent | E.NotFound | UploadFailure>> {
-  const doc = await deps.repository.findDocument(input.tenantId, documentId);
-  if (!doc) {
+  viewer: ViewerContext = { userId: input.uploaderId, role: "member" },
+  pendingConfirmationDays = 7,
+): Promise<Result<DocumentDetailView, AddVersionFailure>> {
+  const precheck = await handleGetDocument(
+    deps.repository,
+    input.tenantId,
+    documentId,
+    viewer,
+    pendingConfirmationDays,
+    deps.clock.now(),
+  );
+  if (!precheck.ok) {
     return err({ kind: "NotFound" });
   }
 
-  const [sniffStream, blobStream] = input.stream.tee();
-  const header = await readHeader(sniffStream);
-  const sniffResult = header.length > 0 ? sniffType(header) : null;
-  if (!sniffResult) {
-    return err({ kind: "UnsupportedType" });
-  }
-
-  const maxLimitMb = await deps.quota.getMaxFileSizeMb(input.tenantId);
-  const maxLimitBytes = maxLimitMb * 1024 * 1024;
-  if (input.sizeBytes > maxLimitBytes) {
-    return err({ kind: "TooLarge", limitMb: maxLimitMb });
-  }
-
-  const resResult = await deps.quota.reserveQuota(input.tenantId, input.sizeBytes);
-  if (!resResult.ok) {
-    return err({ kind: "QuotaExceeded" });
-  }
-  const reservation = resResult.value;
-
   const versionId = asVersionId(crypto.randomUUID());
-  const key = blobKey(input.tenantId, documentId, versionId);
 
-  let blobOutcome: { sizeBytes: number; sha256: string };
+  const preparedRes = await prepareBlobUpload(input.tenantId, documentId, versionId, input, deps);
+  if (!preparedRes.ok) {
+    return preparedRes;
+  }
+  const prepared = preparedRes.value;
+
+  let insertResult: Result<
+    { versionId: VersionId; versionNumber: number },
+    E.IdenticalContent | E.DuplicateContent | E.NotFound
+  >;
   try {
-    blobOutcome = await deps.blobStore.put(key, blobStream);
-  } catch (blobErr) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
-    throw blobErr;
+    insertResult = await deps.repository.insertVersionAndUpdateDocument(input.tenantId, {
+      documentId,
+      versionId,
+      uploaderId: input.uploaderId,
+      contentHash: prepared.sha256,
+      blobKey: prepared.blobKey,
+      filename: input.filename,
+      mimeType: prepared.mimeType,
+      sizeBytes: prepared.sizeBytes,
+    });
+  } catch (insertErr) {
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+      ]),
+      "version compensation failed after insert throw",
+    );
+    throw insertErr;
   }
-
-  // AC-21.03: Refuse identical content against the current version.
-  if (doc.currentVersionHash && doc.currentVersionHash === blobOutcome.sha256) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
-    return err({ kind: "IdenticalContent" });
-  }
-
-  // Check duplicate content elsewhere in the tenant.
-  const existingDocId = await deps.repository.findByContentHash(input.tenantId, blobOutcome.sha256);
-  if (existingDocId) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
-    if (existingDocId === documentId) {
-      return err({ kind: "IdenticalContent" });
-    }
-    return err({ kind: "DuplicateContent", existingDocumentId: existingDocId });
-  }
-
-  const insertResult = await deps.repository.insertVersionAndUpdateDocument(input.tenantId, {
-    documentId,
-    versionId,
-    uploaderId: input.uploaderId,
-    contentHash: blobOutcome.sha256,
-    blobKey: key,
-    filename: input.filename,
-    mimeType: sniffResult.mimeType,
-    sizeBytes: blobOutcome.sizeBytes,
-  });
 
   if (!insertResult.ok) {
-    await deps.quota.releaseQuota(reservation);
-    await deps.blobStore.delete(key);
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+      ]),
+      "version compensation failed after refused insert",
+    );
     return insertResult;
   }
 
-  await deps.quota.commitQuota({ ...reservation, bytes: blobOutcome.sizeBytes });
+  try {
+    await deps.quota.commitQuota({ ...prepared.reservation, bytes: prepared.sizeBytes });
+  } catch (commitErr) {
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+      ]),
+      "version compensation failed after quota commit",
+    );
+    throw commitErr;
+  }
+
   await deps.queue.enqueue(documentId);
+  // SCAFFOLD: removing the previous version's pages from the index (05-documents.md 5.7 step 7) lands in BE-S4-01.
 
   await deps.audit.record({
     tenantId: input.tenantId,
@@ -106,28 +106,18 @@ export async function addVersion(
     outcome: "allowed",
     metadata: {
       filename: input.filename,
-      sizeBytes: blobOutcome.sizeBytes,
-      mimeType: sniffResult.mimeType,
+      sizeBytes: prepared.sizeBytes,
+      mimeType: prepared.mimeType,
       versionNumber: insertResult.value.versionNumber,
     },
   });
 
-  const versions = (await deps.repository.listVersions(input.tenantId, documentId)) ?? [];
-  const updatedDoc = (await deps.repository.findDocument(input.tenantId, documentId)) ?? doc;
-
-  const detail = buildDocumentDetail(
-    {
-      id: updatedDoc.id,
-      title: updatedDoc.title,
-      processingState: updatedDoc.processingState,
-      failureReason: updatedDoc.failureReason ?? null,
-      uploaderId: updatedDoc.uploaderId ?? input.uploaderId,
-      uploaderName: updatedDoc.uploaderName ?? "Unknown User",
-      createdAt: updatedDoc.createdAt ?? deps.clock.now().toISOString(),
-    },
-    versions,
-    sniffResult.mimeType,
+  return handleGetDocument(
+    deps.repository,
+    input.tenantId,
+    documentId,
+    viewer,
+    pendingConfirmationDays,
+    deps.clock.now(),
   );
-
-  return ok(detail);
 }

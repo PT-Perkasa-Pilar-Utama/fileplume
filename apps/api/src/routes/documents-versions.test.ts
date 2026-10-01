@@ -53,7 +53,6 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
     expect(body.data.versionCount).toBe(2);
     expect(body.data.versions).toHaveLength(2);
 
-    // Audit event recorded
     const audit = app.activityRepository.events.find(
       (e) => e.action === "document.version_add" && e.subjectId === docId,
     );
@@ -65,7 +64,6 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
     const app = buildTestApp();
     const docId = await seedDocument(app, "proposal.pdf", "konten v1");
 
-    // Upload v2
     const formV2 = new FormData();
     formV2.append("file", pdfFile("proposal-v2.pdf", "konten v2"));
     await app.request(
@@ -76,7 +74,6 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
       }),
     );
 
-    // Upload v3
     const formV3 = new FormData();
     formV3.append("file", pdfFile("proposal-v3.pdf", "konten v3"));
     await app.request(
@@ -129,7 +126,6 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
       message: "Isi file sama dengan versi yang sudah ada",
     });
 
-    // Verify no new version is created in repository
     expect(app.catalogRepository.versions).toHaveLength(1);
   });
 
@@ -172,7 +168,7 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
   });
 
   test("cross-tenant: attempting to add version to another tenant document returns 404 and writes access.denied", async () => {
-    const app = buildTestApp();
+    const app = buildTestApp(undefined, { seedDocuments: true });
     const formData = new FormData();
     formData.append("file", pdfFile("serangan.pdf", "konten asing"));
 
@@ -234,5 +230,38 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
     expect(res.status).toBe(422);
     const err = await errorOf(res);
     expect(err.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("error: content matching an older version of the same document returns 409 DUPLICATE_CONTENT (F4)", async () => {
+    const app = buildTestApp();
+    const docId = await seedDocument(app, "proposal.pdf", "konten versi satu");
+
+    const formV2 = new FormData();
+    formV2.append("file", pdfFile("proposal-v2.pdf", "konten versi dua"));
+    const resV2 = await app.request(
+      tenantRequest(`/documents/${docId}/versions`, {
+        method: "POST",
+        token: TOKENS.memberA,
+        body: formV2,
+      }),
+    );
+    expect(resV2.status).toBe(201);
+
+    const formV3 = new FormData();
+    formV3.append("file", pdfFile("proposal-v3.pdf", "konten versi satu"));
+    const resV3 = await app.request(
+      tenantRequest(`/documents/${docId}/versions`, {
+        method: "POST",
+        token: TOKENS.memberA,
+        body: formV3,
+      }),
+    );
+
+    expect(resV3.status).toBe(409);
+    const err = await errorOf(resV3);
+    expect(err).toEqual({
+      code: "DUPLICATE_CONTENT",
+      message: "File ini sudah ada di sistem",
+    });
   });
 });

@@ -94,7 +94,6 @@ describe("document versioning error paths (BE-S2-04)", () => {
     });
     if (!initial.ok) throw new Error("Upload failed");
 
-    // Next version exceeds quota limit
     const file = pdfStream("konten versi kedua melebihi sisa kuota yang tersedia");
     const res = await service.addVersion(initial.value.id, {
       tenantId: TENANT_ID,
@@ -114,7 +113,6 @@ describe("document versioning error paths (BE-S2-04)", () => {
     const otherContent = pdfStream("dokumen lain di tenant");
     const targetBase = pdfStream("dokumen target");
 
-    // Create document A with content X
     await service.upload({
       tenantId: TENANT_ID,
       uploaderId: USER_ID,
@@ -123,7 +121,6 @@ describe("document versioning error paths (BE-S2-04)", () => {
       sizeBytes: otherContent.sizeBytes,
     });
 
-    // Create document B with content Y
     const targetDoc = await service.upload({
       tenantId: TENANT_ID,
       uploaderId: USER_ID,
@@ -133,7 +130,6 @@ describe("document versioning error paths (BE-S2-04)", () => {
     });
     if (!targetDoc.ok) throw new Error("Upload failed");
 
-    // Try adding version to document B with content X
     const duplicateFile = pdfStream("dokumen lain di tenant");
     const res = await service.addVersion(targetDoc.value.id, {
       tenantId: TENANT_ID,
@@ -146,5 +142,44 @@ describe("document versioning error paths (BE-S2-04)", () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.error.kind).toBe("DuplicateContent");
+  });
+
+  test("error: content matching an older version of the same document returns DuplicateContent (F4)", async () => {
+    const { service } = createTestHarness();
+    const contentA = pdfStream("konten versi satu A");
+    const doc = await service.upload({
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "dokumen.pdf",
+      stream: contentA.stream,
+      sizeBytes: contentA.sizeBytes,
+    });
+    if (!doc.ok) throw new Error("Upload failed");
+
+    const contentB = pdfStream("konten versi dua B");
+    const v2 = await service.addVersion(doc.value.id, {
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "dokumen-v2.pdf",
+      stream: contentB.stream,
+      sizeBytes: contentB.sizeBytes,
+    });
+    expect(v2.ok).toBe(true);
+
+    const contentAReupload = pdfStream("konten versi satu A");
+    const v3 = await service.addVersion(doc.value.id, {
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "dokumen-v3.pdf",
+      stream: contentAReupload.stream,
+      sizeBytes: contentAReupload.sizeBytes,
+    });
+
+    expect(v3.ok).toBe(false);
+    if (v3.ok) return;
+    expect(v3.error.kind).toBe("DuplicateContent");
+    if (v3.error.kind === "DuplicateContent") {
+      expect(v3.error.existingDocumentId).toBe(doc.value.id);
+    }
   });
 });

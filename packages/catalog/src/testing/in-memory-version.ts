@@ -14,10 +14,13 @@ export async function handleInsertVersion(
   clock: Clock,
   userNameLookup: (userId: string) => string,
 ): Promise<
-  Result<{ versionId: VersionId; versionNumber: number }, E.IdenticalContent | E.DuplicateContent>
+  Result<
+    { versionId: VersionId; versionNumber: number },
+    E.IdenticalContent | E.DuplicateContent | E.NotFound
+  >
 > {
   const doc = documents.find((d) => d.tenantId === tenantId && d.id === input.documentId);
-  if (!doc) throw new Error("Document not found");
+  if (!doc) return err({ kind: "NotFound" as const });
 
   if (doc.currentVersionId) {
     const curVer = versions.find((v) => v.id === doc.currentVersionId);
@@ -28,9 +31,6 @@ export async function handleInsertVersion(
 
   const existingDocId = await findByContentHash(tenantId, input.contentHash);
   if (existingDocId) {
-    if (existingDocId === input.documentId) {
-      return err({ kind: "IdenticalContent" });
-    }
     return err({ kind: "DuplicateContent", existingDocumentId: existingDocId });
   }
 
@@ -60,7 +60,10 @@ export async function handleInsertVersion(
   versions.push(ver);
 
   doc.currentVersionId = versionId;
-  doc.processingState = "queued";
+  if (doc.processingState === "ready" || doc.processingState === "failed") {
+    doc.processingState = "queued";
+  }
+  doc.failureReason = null;
 
   return ok({ versionId, versionNumber });
 }

@@ -123,15 +123,41 @@ export function createDocumentRoutes(
       return c.json(one(result.value), 200);
     })
     .openapi(listVersions, async (c) => {
-      const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, catalog, id);
       const tenant = c.get("tenant");
       if (!tenant) throw new AppError("NOT_FOUND");
-      const versions = await catalog.listVersions(tenant.id, asDocumentId(id));
-      if (!versions) {
+      const principal = c.get("principal");
+      const { id } = c.req.valid("param");
+      const pendingConfirmationDays = await tenancy.getConfigValue(
+        tenant.id,
+        "pending_confirmation_days",
+      );
+
+      const result = await catalog.getDocument(
+        tenant.id,
+        asDocumentId(id),
+        {
+          userId: principal.userId,
+          role: principal.role,
+        },
+        pendingConfirmationDays,
+      );
+
+      if (!result.ok) {
+        if (result.error.crossTenantAttempt && principal.tenantId !== null) {
+          await c.get("activity").record({
+            tenantId: principal.tenantId,
+            actorId: principal.userId,
+            action: "access.denied",
+            subjectType: "document",
+            subjectId: null,
+            outcome: "denied",
+            metadata: { attemptedId: id },
+          });
+        }
         throw new AppError("NOT_FOUND");
       }
-      return c.json(page(versions, { total: versions.length }), 200);
+
+      return c.json(page(result.value.versions, { total: result.value.versions.length }), 200);
     })
     .openapi(previewDocument, async (c) => {
       const { id } = c.req.valid("param");

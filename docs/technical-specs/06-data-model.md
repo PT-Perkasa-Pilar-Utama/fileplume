@@ -320,9 +320,11 @@ stateDiagram-v2
   PROCESSING --> READY : scan, extract, classify, index all succeeded
   PROCESSING --> FAILED : retries exhausted, or unrecoverable input
   PROCESSING --> [*] : malware detected, document and blob deleted
-  FAILED --> QUEUED : manual retry
-  READY --> QUEUED : reindex or reprocess
+  FAILED --> QUEUED : manual retry, or new version uploaded
+  READY --> QUEUED : reindex or reprocess, or new version uploaded
 ```
+
+A new version arriving while a document is in `READY` or `FAILED` resets `processing_state` to `QUEUED` and clears `failure_reason`. If a new version arrives while `PROCESSING`, `processing_state` remains `PROCESSING`.
 
 `failure_reason` enum: `password_protected` renders "Dokumen terproteksi password" (AC-44.04), `unreadable_content` renders "Isi dokumen tidak dapat dibaca" (AC-44.05), `extraction_timeout`, `ai_unavailable`, `index_failed`.
 

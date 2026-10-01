@@ -17,6 +17,7 @@ export async function assertDocumentInTenant(
   const tenant = c.get("tenant");
   const session = c.get("session");
   const doc = tenant ? await catalog.findDocument(tenant.id, asDocumentId(documentId)) : null;
+  // SCAFFOLD: mock fixture fallback until every document route is served from the repository.
   if (!doc && !isDocumentInTenant(documentId, tenant?.id ?? null)) {
     if (session.kind === "authenticated" && session.principal.tenantId !== null) {
       await c.get("activity").record({

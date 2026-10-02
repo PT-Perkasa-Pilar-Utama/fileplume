@@ -1,8 +1,8 @@
-import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
+import type { DocumentId, Result, TenantId } from "@archiva/shared";
 import { asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { Clock } from "../ports.ts";
-import type { InsertVersionInput } from "../repository.ts";
+import type { InsertVersionInput, VersionInsertReceipt } from "../repository.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
 
 export async function handleInsertVersion(
@@ -13,12 +13,7 @@ export async function handleInsertVersion(
   findByContentHash: (tenantId: TenantId, contentHash: string) => Promise<DocumentId | null>,
   clock: Clock,
   userNameLookup: (userId: string) => string,
-): Promise<
-  Result<
-    { versionId: VersionId; versionNumber: number },
-    E.IdenticalContent | E.DuplicateContent | E.NotFound
-  >
-> {
+): Promise<Result<VersionInsertReceipt, E.IdenticalContent | E.DuplicateContent | E.NotFound>> {
   const doc = documents.find((d) => d.tenantId === tenantId && d.id === input.documentId);
   if (!doc) return err({ kind: "NotFound" as const });
 
@@ -41,6 +36,9 @@ export async function handleInsertVersion(
   const versionNumber = maxVer + 1;
   const versionId = input.versionId ?? asVersionId(crypto.randomUUID());
   const nowDate = clock.now();
+  const previousCurrentVersionId = doc.currentVersionId;
+  const previousProcessingState = doc.processingState;
+  const previousFailureReason = doc.failureReason;
 
   const ver: StoredVersion = {
     id: versionId,
@@ -63,5 +61,11 @@ export async function handleInsertVersion(
   doc.processingState = "queued";
   doc.failureReason = null;
 
-  return ok({ versionId, versionNumber });
+  return ok({
+    versionId,
+    versionNumber,
+    previousCurrentVersionId,
+    previousProcessingState,
+    previousFailureReason,
+  });
 }

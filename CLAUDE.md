@@ -101,9 +101,10 @@ Four states. No others. Guarded, so a stale job cannot move a document backwards
 | `processing` | `failed` | Attempts exhausted, or permanent error |
 | `ready` | `queued` | Manual reprocess |
 | `failed` | `queued` | Manual retry |
-| `ready`, `failed`, `processing` | `queued` | New version uploaded. A job leaving `processing` must hold the current version. |
 
 Terminal within a run: `ready`, `failed`. Malware is **not a state**: the document and blob are deleted.
+
+New-version transitions and worker exit guards follow [technical-specs/12-document-processing-pipeline.md](docs/technical-specs/12-document-processing-pipeline.md) 12.1.
 
 Labels are served, never mapped client-side: `Antre`, `Diproses`, `Siap`, `Gagal`.
 

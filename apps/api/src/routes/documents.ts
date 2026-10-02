@@ -28,6 +28,7 @@ import {
 } from "./definitions/documents.ts";
 import { assertDocumentInTenant } from "./internal/assert-document-in-tenant.ts";
 import { collectUploadParts } from "./internal/collect-upload-parts.ts";
+import { handleListVersions } from "./internal/handle-list-versions.ts";
 import { handleUploadVersion } from "./internal/handle-upload-version.ts";
 import {
   listOf,
@@ -123,41 +124,9 @@ export function createDocumentRoutes(
       return c.json(one(result.value), 200);
     })
     .openapi(listVersions, async (c) => {
-      const tenant = c.get("tenant");
-      if (!tenant) throw new AppError("NOT_FOUND");
-      const principal = c.get("principal");
       const { id } = c.req.valid("param");
-      const pendingConfirmationDays = await tenancy.getConfigValue(
-        tenant.id,
-        "pending_confirmation_days",
-      );
-
-      const result = await catalog.getDocument(
-        tenant.id,
-        asDocumentId(id),
-        {
-          userId: principal.userId,
-          role: principal.role,
-        },
-        pendingConfirmationDays,
-      );
-
-      if (!result.ok) {
-        if (result.error.crossTenantAttempt && principal.tenantId !== null) {
-          await c.get("activity").record({
-            tenantId: principal.tenantId,
-            actorId: principal.userId,
-            action: "access.denied",
-            subjectType: "document",
-            subjectId: null,
-            outcome: "denied",
-            metadata: { attemptedId: id },
-          });
-        }
-        throw new AppError("NOT_FOUND");
-      }
-
-      return c.json(page(result.value.versions, { total: result.value.versions.length }), 200);
+      const versions = await handleListVersions(c, catalog, tenancy, id);
+      return c.json(page(versions, { total: versions.length }), 200);
     })
     .openapi(previewDocument, async (c) => {
       const { id } = c.req.valid("param");

@@ -320,12 +320,11 @@ stateDiagram-v2
   PROCESSING --> READY : scan, extract, classify, index all succeeded
   PROCESSING --> FAILED : retries exhausted, or unrecoverable input
   PROCESSING --> [*] : malware detected, document and blob deleted
-  FAILED --> QUEUED : manual retry, or new version uploaded
-  READY --> QUEUED : reindex or reprocess, or new version uploaded
-  PROCESSING --> QUEUED : new version uploaded, the in-flight run is superseded
+  FAILED --> QUEUED : manual retry
+  READY --> QUEUED : reindex or reprocess
 ```
 
-A new version resets `processing_state` to `QUEUED` from any state and clears `failure_reason`. Every transition a job makes out of `PROCESSING` requires `current_version_id` to equal the version that job claimed, so a superseded run can neither retry nor complete the document (BE-S3-01).
+New-version transitions and the worker exit guard follow [12-document-processing-pipeline.md](12-document-processing-pipeline.md) 12.1.
 
 `failure_reason` enum: `password_protected` renders "Dokumen terproteksi password" (AC-44.04), `unreadable_content` renders "Isi dokumen tidak dapat dibaca" (AC-44.05), `extraction_timeout`, `ai_unavailable`, `index_failed`.
 

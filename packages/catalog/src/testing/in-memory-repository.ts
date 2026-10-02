@@ -4,7 +4,12 @@ import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "../internal/document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
 import type { Clock } from "../ports.ts";
-import type { CatalogRepository, DocumentRecord, InsertDocumentInput } from "../repository.ts";
+import type {
+  CatalogRepository,
+  DocumentRecord,
+  InsertDocumentInput,
+  RollbackVersionInput,
+} from "../repository.ts";
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
@@ -213,6 +218,20 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         clock,
         userNameLookup,
       );
+    },
+
+    async rollbackVersionInsert(tenantId, input: RollbackVersionInput) {
+      const doc = documents.find((d) => d.tenantId === tenantId && d.id === input.documentId);
+      if (doc?.currentVersionId === input.versionId) {
+        doc.currentVersionId = input.previousCurrentVersionId;
+        doc.processingState = input.previousProcessingState;
+        doc.failureReason = input.previousFailureReason;
+      }
+      const versionIndex = versions.findIndex(
+        (v) =>
+          v.tenantId === tenantId && v.documentId === input.documentId && v.id === input.versionId,
+      );
+      if (versionIndex !== -1) versions.splice(versionIndex, 1);
     },
   };
 }

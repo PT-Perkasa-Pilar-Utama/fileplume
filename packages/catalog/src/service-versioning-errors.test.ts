@@ -88,7 +88,7 @@ describe("document versioning error paths (BE-S2-04)", () => {
     expect(res.error.kind).toBe("TooLarge");
   });
 
-  test("error: quota exceeded returns QuotaExceeded and releases reservation", async () => {
+  test("error: quota exceeded returns QuotaExceeded", async () => {
     const base = pdfStream("konten dasar");
     const { service } = createTestHarness({
       quotaBytes: base.sizeBytes + 10,
@@ -187,7 +187,7 @@ describe("document versioning error paths (BE-S2-04)", () => {
     if (v3.error.kind === "DuplicateContent") {
       expect(v3.error.existingDocumentId).toBe(doc.value.id);
     }
-    expect(harness.revertedReservations).toHaveLength(1);
+    expect(harness.releasedReservations).toHaveLength(1);
   });
 
   test("error: commitQuota failure during addVersion releases quota and leaves version unchanged (CODING_STANDARD.md 7.3)", async () => {
@@ -222,6 +222,8 @@ describe("document versioning error paths (BE-S2-04)", () => {
         PENDING_DAYS,
       ),
     ).rejects.toThrow("simulated commitQuota failure");
+
+    expect(harness.versionCountsAtQuotaCommit.at(-1)).toBe(2);
 
     const docAfter = await harness.service.findDocument(TENANT_ID, doc.value.id);
     expect(docAfter?.currentVersionId).toBe(initialVersionId);

@@ -1,10 +1,10 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
+import type { DocumentId, Result, TenantId } from "@archiva/shared";
 import { asVersionId, err, ok } from "@archiva/shared";
 import { and, eq, sql } from "drizzle-orm";
 import type * as E from "../errors.ts";
-import type { InsertVersionInput } from "./repository-types.ts";
+import type { InsertVersionInput, VersionInsertReceipt } from "./repository-types.ts";
 import { toDuplicateContentError } from "./unique-violation.ts";
 
 const docMatch = (docId: string, tId: string) =>
@@ -22,18 +22,15 @@ export async function insertVersionAndUpdateDocument(
   tenantId: TenantId,
   input: InsertVersionInput,
   findByContentHash: (tenantId: string, hash: string) => Promise<DocumentId | null>,
-): Promise<
-  Result<
-    { versionId: VersionId; versionNumber: number },
-    E.IdenticalContent | E.DuplicateContent | E.NotFound
-  >
-> {
+): Promise<Result<VersionInsertReceipt, E.IdenticalContent | E.DuplicateContent | E.NotFound>> {
   try {
     return await db.transaction(async (tx) => {
       const [doc] = await tx
         .select({
           id: schema.documents.id,
           currentVersionId: schema.documents.currentVersionId,
+          processingState: schema.documents.processingState,
+          failureReason: schema.documents.failureReason,
         })
         .from(schema.documents)
         .where(docMatch(input.documentId, tenantId))
@@ -83,7 +80,13 @@ export async function insertVersionAndUpdateDocument(
         })
         .where(docMatch(input.documentId, tenantId));
 
-      return ok({ versionId, versionNumber });
+      return ok({
+        versionId,
+        versionNumber,
+        previousCurrentVersionId: doc.currentVersionId ? asVersionId(doc.currentVersionId) : null,
+        previousProcessingState: doc.processingState,
+        previousFailureReason: doc.failureReason,
+      });
     });
   } catch (caughtErr) {
     return await toDuplicateContentError(caughtErr, tenantId, input.contentHash, findByContentHash);

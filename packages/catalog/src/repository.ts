@@ -5,7 +5,7 @@ import { asDocumentId, asVersionId, ok } from "@archiva/shared";
 import { and, eq } from "drizzle-orm";
 import { queryDocumentDetail } from "./internal/detail-document-query.ts";
 import { countTenantDocuments, queryListDocuments } from "./internal/list-document-query.ts";
-import type { CatalogRepository } from "./internal/repository-types.ts";
+import type { CatalogRepository, RollbackVersionInput } from "./internal/repository-types.ts";
 import { toDuplicateContentError } from "./internal/unique-violation.ts";
 import * as versionRepo from "./internal/version-repository.ts";
 
@@ -175,6 +175,33 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
 
     async insertVersionAndUpdateDocument(tenantId, input) {
       return versionRepo.insertVersionAndUpdateDocument(db, tenantId, input, findByContentHash);
+    },
+
+    async rollbackVersionInsert(tenantId, input: RollbackVersionInput) {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(schema.documents)
+          .set({
+            currentVersionId: input.previousCurrentVersionId,
+            processingState: input.previousProcessingState,
+            failureReason: input.previousFailureReason,
+          })
+          .where(
+            and(
+              docMatch(input.documentId, tenantId),
+              eq(schema.documents.currentVersionId, input.versionId),
+            ),
+          );
+        await tx
+          .delete(schema.documentVersions)
+          .where(
+            and(
+              eq(schema.documentVersions.id, input.versionId),
+              eq(schema.documentVersions.documentId, input.documentId),
+              eq(schema.documentVersions.tenantId, tenantId),
+            ),
+          );
+      });
     },
 
     listDocuments(tenantId, filter, viewer, pendingConfirmationDays, now = new Date()) {

@@ -27,26 +27,6 @@ export async function handleUploadVersion(
     "pending_confirmation_days",
   );
   const viewer = { userId: principal.userId, role: principal.role };
-  const precheck = await catalog.getDocument(
-    tenant.id,
-    documentId,
-    viewer,
-    pendingConfirmationDays,
-  );
-  if (!precheck.ok) {
-    if (precheck.error.crossTenantAttempt && principal.tenantId !== null) {
-      await c.get("activity").record({
-        tenantId: principal.tenantId,
-        actorId: principal.userId,
-        action: "access.denied",
-        subjectType: "document",
-        subjectId: null,
-        outcome: "denied",
-        metadata: { attemptedId: documentId },
-      });
-    }
-    throw new AppError("NOT_FOUND");
-  }
 
   const maxMb = await tenancy.getConfigValue(tenant.id, "max_file_size_mb");
   const maxFileSizeBytes = maxMb * 1024 * 1024;
@@ -84,6 +64,17 @@ export async function handleUploadVersion(
   if (!result.ok) {
     switch (result.error.kind) {
       case "NotFound":
+        if (result.error.crossTenantAttempt && principal.tenantId !== null) {
+          await c.get("activity").record({
+            tenantId: principal.tenantId,
+            actorId: principal.userId,
+            action: "access.denied",
+            subjectType: "document",
+            subjectId: null,
+            outcome: "denied",
+            metadata: { attemptedId: documentId },
+          });
+        }
         return fail(c, "NOT_FOUND");
       case "IdenticalContent":
         return fail(c, "IDENTICAL_CONTENT");

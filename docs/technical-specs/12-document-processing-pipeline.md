@@ -27,7 +27,9 @@ Everything that happens to a document between the upload response and the moment
 | Tag truncation | At write time, top 3 by confidence | AC-05.05. Truncating at read time leaves extra rows to leak through another query |
 | Category on AI failure | Reserved `Uncategorized`, admin review queue | Converges with AC-06.03, so users see one outcome for two causes |
 | Ordering between documents | None. Uploads are independent. | Nothing in the business docs requires FIFO across documents |
-| Version processing | Each version processed independently | A new version must not invalidate the old version's extracted text |
+| New-version transition | A new version sets the document to QUEUED from any state and clears `failure_reason`. | BE-S2-04 |
+| Superseded worker guard | A job may leave PROCESSING only while `current_version_id` still matches the version it claimed. | BE-S3-01 |
+| Version processing | Each version is processed independently; a new version does not invalidate old extracted text. | A new version must not invalidate the old version's extracted text. |
 
 ## 12.2 State machine
 
@@ -39,11 +41,13 @@ stateDiagram-v2
   PROCESSING --> READY : all stages succeeded
   PROCESSING --> FAILED : attempts exhausted, or permanent error
   PROCESSING --> [*] : malware detected, document deleted
-  FAILED --> QUEUED : manual retry
-  READY --> QUEUED : reprocess or reindex
+  FAILED --> QUEUED : manual retry or new version
+  READY --> QUEUED : reprocess, reindex, or new version
+  QUEUED --> QUEUED : new version uploaded
+  PROCESSING --> QUEUED : new version supersedes the in-flight run
 ```
 
-Transitions are written with a guard on the current state, so a delayed duplicate job cannot move a READY document backwards.
+Every transition a job makes out of PROCESSING requires `current_version_id` to match the version the job claimed. A superseded run cannot retry or complete the document (BE-S3-01).
 
 ## 12.3 Interface
 

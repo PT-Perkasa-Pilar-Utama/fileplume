@@ -209,4 +209,39 @@ describe("createDrizzleCatalogRepository versioning", () => {
     expect(docAfter?.processingState).toBe("queued");
     expect(docAfter?.failureReason).toBeNull();
   });
+
+  test("quota commit compensation removes inserted version and restores the document", async () => {
+    const repository = createDrizzleCatalogRepository(db);
+    const tenantId = await seedTenant();
+    const uploaderId = await seedUser(tenantId);
+    const documentId = await seedDocument(repository, tenantId, uploaderId);
+    await db
+      .update(schema.documents)
+      .set({ processingState: "failed", failureReason: "extraction_timeout" })
+      .where(eq(schema.documents.id, documentId));
+    const insert = await repository.insertVersionAndUpdateDocument(tenantId, {
+      documentId,
+      uploaderId,
+      filename: "revisi.pdf",
+      contentHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      mimeType: "application/pdf",
+      sizeBytes: 1200,
+      blobKey: `t/${tenantId}/d/${documentId}/v/revisi`,
+    });
+    expect(insert.ok).toBe(true);
+    if (!insert.ok) return;
+    await repository.rollbackVersionInsert(tenantId, { documentId, ...insert.value });
+    const document = await repository.findDocument(tenantId, documentId);
+    expect(document?.processingState).toBe("failed");
+    expect(document?.failureReason).toBe("extraction_timeout");
+    const detail = await repository.findDocumentDetail(
+      tenantId,
+      documentId,
+      { userId: uploaderId, role: "member" },
+      7,
+    );
+    expect(
+      detail && "kind" in detail ? null : detail?.versions.map((version) => version.versionNumber),
+    ).toEqual([1]);
+  });
 });

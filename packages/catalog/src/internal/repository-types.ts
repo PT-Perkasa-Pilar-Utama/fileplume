@@ -1,4 +1,11 @@
-import type { DocumentId, Result, TenantId, UserId, VersionId } from "@archiva/shared";
+import type {
+  DocumentId,
+  FailureReason,
+  Result,
+  TenantId,
+  UserId,
+  VersionId,
+} from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "./document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "./list-document-query.ts";
@@ -40,6 +47,22 @@ export type InsertVersionInput = {
   sizeBytes: number;
 };
 
+export type VersionInsertReceipt = {
+  versionId: VersionId;
+  versionNumber: number;
+  previousCurrentVersionId: VersionId | null;
+  previousProcessingState: DocumentRecord["processingState"];
+  previousFailureReason: FailureReason | null;
+};
+
+export type RollbackVersionInput = {
+  documentId: DocumentId;
+  versionId: VersionId;
+  previousCurrentVersionId: VersionId | null;
+  previousProcessingState: DocumentRecord["processingState"];
+  previousFailureReason: FailureReason | null;
+};
+
 export interface CatalogRepository {
   insertDocumentWithVersion(
     tenantId: TenantId,
@@ -58,12 +81,8 @@ export interface CatalogRepository {
   insertVersionAndUpdateDocument(
     tenantId: TenantId,
     input: InsertVersionInput,
-  ): Promise<
-    Result<
-      { versionId: VersionId; versionNumber: number },
-      E.IdenticalContent | E.DuplicateContent | E.NotFound
-    >
-  >;
+  ): Promise<Result<VersionInsertReceipt, E.IdenticalContent | E.DuplicateContent | E.NotFound>>;
+  rollbackVersionInsert(tenantId: TenantId, input: RollbackVersionInput): Promise<void>;
   listDocuments(
     tenantId: TenantId,
     filter: ListDocumentsFilter,

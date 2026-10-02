@@ -1,6 +1,5 @@
-import type { DocumentDetailView, DocumentId, Result, VersionId } from "@archiva/shared";
+import type { DocumentDetailView, DocumentId, Result } from "@archiva/shared";
 import { asVersionId, err } from "@archiva/shared";
-import type * as E from "../errors.ts";
 import type { AuditPort, BlobStore, Clock, JobQueue, QuotaPort } from "../ports.ts";
 import type { AddVersionFailure, UploadInput, ViewerContext } from "../service.ts";
 import { handleGetDocument } from "./get-document.ts";
@@ -33,7 +32,7 @@ export async function addVersion(
     deps.clock.now(),
   );
   if (!precheck.ok) {
-    return err({ kind: "NotFound" });
+    return err(precheck.error);
   }
 
   const versionId = asVersionId(crypto.randomUUID());
@@ -44,33 +43,16 @@ export async function addVersion(
   }
   const prepared = preparedRes.value;
 
-  const committed = { ...prepared.reservation, bytes: prepared.sizeBytes };
-  try {
-    await deps.quota.commitQuota(committed);
-  } catch (commitErr) {
+  const undoPrepared = async (msg: string): Promise<void> =>
     reportSettled(
       await Promise.allSettled([
         deps.quota.releaseQuota(prepared.reservation),
         deps.blobStore.delete(prepared.blobKey),
       ]),
-      "version compensation failed after quota commit",
-    );
-    throw commitErr;
-  }
-
-  const undo = async (msg: string): Promise<void> =>
-    reportSettled(
-      await Promise.allSettled([
-        deps.quota.revertCommit(committed),
-        deps.blobStore.delete(prepared.blobKey),
-      ]),
       msg,
     );
 
-  let insertResult: Result<
-    { versionId: VersionId; versionNumber: number },
-    E.IdenticalContent | E.DuplicateContent | E.NotFound
-  >;
+  let insertResult: Awaited<ReturnType<CatalogRepository["insertVersionAndUpdateDocument"]>>;
   try {
     insertResult = await deps.repository.insertVersionAndUpdateDocument(input.tenantId, {
       documentId,
@@ -83,13 +65,30 @@ export async function addVersion(
       sizeBytes: prepared.sizeBytes,
     });
   } catch (insertErr) {
-    await undo("version compensation failed after insert throw");
+    await undoPrepared("version compensation failed after insert throw");
     throw insertErr;
   }
 
   if (!insertResult.ok) {
-    await undo("version compensation failed after refused insert");
+    await undoPrepared("version compensation failed after refused insert");
     return insertResult;
+  }
+
+  try {
+    await deps.quota.commitQuota({ ...prepared.reservation, bytes: prepared.sizeBytes });
+  } catch (commitErr) {
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+        deps.repository.rollbackVersionInsert(input.tenantId, {
+          documentId,
+          ...insertResult.value,
+        }),
+      ]),
+      "version compensation failed after quota commit",
+    );
+    throw commitErr;
   }
 
   await deps.queue.enqueue(documentId);

@@ -116,7 +116,7 @@ describe("document versioning (BE-S2-04)", () => {
   });
 
   test("AC-21.03: identical content against the current version is rejected with IdenticalContent", async () => {
-    const { service, repository, revertedReservations } = createTestHarness();
+    const { service, repository, releasedReservations } = createTestHarness();
     const identicalText = "konten proposal tetap sama persis";
     const file1 = pdfStream(identicalText);
     const file2 = pdfStream(identicalText);
@@ -149,7 +149,7 @@ describe("document versioning (BE-S2-04)", () => {
     if (res.ok) return;
     expect(res.error.kind).toBe("IdenticalContent");
     expect(repository.versions).toHaveLength(1);
-    expect(revertedReservations).toHaveLength(1);
+    expect(releasedReservations).toHaveLength(1);
   });
 
   test("AC-21.04: two concurrent version uploads receive consecutive version numbers", async () => {

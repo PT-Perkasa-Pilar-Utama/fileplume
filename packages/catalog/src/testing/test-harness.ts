@@ -84,6 +84,7 @@ export function createTestHarness(options?: {
   const committedReservations: QuotaReservationToken[] = [];
   const releasedReservations: QuotaReservationToken[] = [];
   const revertedReservations: QuotaReservationToken[] = [];
+  const versionCountsAtQuotaCommit: number[] = [];
   const enqueuedJobs: string[] = [];
   const auditEvents: unknown[] = [];
   let usedBytes = 0;
@@ -118,6 +119,7 @@ export function createTestHarness(options?: {
       return ok({ id: crypto.randomUUID(), tenantId, bytes });
     },
     async commitQuota(res) {
+      versionCountsAtQuotaCommit.push(repository.versions.length);
       if (commitQuotaError) {
         throw commitQuotaError;
       }
@@ -176,6 +178,7 @@ export function createTestHarness(options?: {
     committedReservations,
     releasedReservations,
     revertedReservations,
+    versionCountsAtQuotaCommit,
     enqueuedJobs,
     auditEvents,
     session,

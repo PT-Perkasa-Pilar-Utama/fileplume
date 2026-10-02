@@ -4,7 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, type JSX } from "react";
 import { createRoot } from "react-dom/client";
 import * as detailApi from "./detail-api.ts";
-import { type UseDocumentDetailReturn, useDocumentDetail } from "./use-document-detail.ts";
+import {
+  DOCUMENT_QUERY_KEY,
+  type UseDocumentDetailReturn,
+  useDocumentDetail,
+} from "./use-document-detail.ts";
 
 const mockVersion1: DocumentVersionView = {
   id: "version-1-id",
@@ -86,7 +90,7 @@ describe("useDocumentDetail hook (AC-21.02)", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     });
-    queryClient.setQueryData(["document", mockDocument.id], mockDocument);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocument.id], mockDocument);
 
     const container = document.createElement("div");
     document.body.appendChild(container);

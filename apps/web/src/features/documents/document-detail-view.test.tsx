@@ -17,6 +17,7 @@ import type { JSX } from "react";
 import { renderToString } from "react-dom/server";
 import { ApiError } from "../../lib/api.ts";
 import { DocumentDetailView as DocumentDetailViewComponent } from "./document-detail-view.tsx";
+import { DOCUMENT_QUERY_KEY } from "./use-document-detail.ts";
 
 const mockVersion1: DocumentVersionView = {
   id: "version-1-id",
@@ -106,7 +107,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    queryClient.setQueryData(["document", mockDocumentDetail.id], mockDocumentDetail);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocumentDetail.id], mockDocumentDetail);
     queryClient.setQueryData(["document-preview", mockDocumentDetail.id, mockVersion2.id], {
       blob: new Blob(["preview"]),
       url: "blob:preview-v2-url",
@@ -151,7 +152,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    queryClient.setQueryData(["document", mockDocumentDetail.id], mockDocumentDetail);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocumentDetail.id], mockDocumentDetail);
 
     const html = await renderDetailView(
       <QueryClientProvider client={queryClient}>
@@ -173,7 +174,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
       defaultOptions: { queries: { retry: false } },
     });
     const query = queryClient.getQueryCache().build(queryClient, {
-      queryKey: ["document", "not-found-id"],
+      queryKey: [...DOCUMENT_QUERY_KEY, "not-found-id"],
     });
     query.setState({
       data: null,
@@ -197,7 +198,7 @@ describe("DocumentDetailView (FE-S2-04)", () => {
       defaultOptions: { queries: { retry: false } },
     });
     const query = queryClient.getQueryCache().build(queryClient, {
-      queryKey: ["document", "server-error-id"],
+      queryKey: [...DOCUMENT_QUERY_KEY, "server-error-id"],
     });
     query.setState({
       data: null,

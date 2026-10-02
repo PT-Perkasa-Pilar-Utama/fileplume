@@ -5,7 +5,11 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "../../lib/api.ts";
 import * as storageApi from "../storage/api.ts";
-import { type UseDocumentDetailReturn, useDocumentDetail } from "./use-document-detail.ts";
+import {
+  DOCUMENT_QUERY_KEY,
+  type UseDocumentDetailReturn,
+  useDocumentDetail,
+} from "./use-document-detail.ts";
 import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
 
 const mockVersion1: DocumentVersionView = {
@@ -86,7 +90,7 @@ describe("useDocumentDetail uploadVersion (FE-S2-06)", () => {
         queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
       },
     });
-    queryClient.setQueryData(["document", mockDocId], mockInitialDoc);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocId], mockInitialDoc);
     queryClient.setQueryData(["document-preview", mockDocId, mockVersion1.id], {
       blob: new Blob(["preview"]),
       url: "blob:preview-url",
@@ -160,7 +164,7 @@ describe("useDocumentDetail uploadVersion (FE-S2-06)", () => {
         queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
       },
     });
-    queryClient.setQueryData(["document", mockDocId], mockInitialDoc);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocId], mockInitialDoc);
     queryClient.setQueryData(["document-preview", mockDocId, mockVersion1.id], {
       blob: new Blob(["preview"]),
       url: "blob:preview-url",

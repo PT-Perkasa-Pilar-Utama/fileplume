@@ -10,6 +10,7 @@ import {
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { DocumentDetailView as DocumentDetailViewComponent } from "./document-detail-view.tsx";
+import { DOCUMENT_QUERY_KEY } from "./use-document-detail.ts";
 
 const mockVersion1: DocumentVersionView = {
   id: "aa11b2c3-4d5e-4f60-8a1b-2c3d4e5f6071",
@@ -72,7 +73,7 @@ describe("DocumentDetailView upload action (FE-S2-06)", () => {
         queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
       },
     });
-    queryClient.setQueryData(["document", mockDocument.id], mockDocument);
+    queryClient.setQueryData([...DOCUMENT_QUERY_KEY, mockDocument.id], mockDocument);
     queryClient.setQueryData(["document-preview", mockDocument.id, mockVersion2.id], null);
 
     const rootRoute = createRootRoute({

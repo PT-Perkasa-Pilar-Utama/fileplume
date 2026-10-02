@@ -12,6 +12,8 @@ import {
 } from "./detail-api.ts";
 import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
 
+export const DOCUMENT_QUERY_KEY = ["document"] as const;
+
 export interface UseDocumentDetailOptions {
   readonly documentId?: string;
 }
@@ -45,7 +47,7 @@ export function useDocumentDetail({
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const documentQuery = useQuery({
-    queryKey: ["document", documentId],
+    queryKey: [...DOCUMENT_QUERY_KEY, documentId],
     queryFn: () => {
       if (!documentId) throw new Error("Document ID is required");
       return fetchDocumentDetail(documentId);
@@ -115,7 +117,7 @@ export function useDocumentDetail({
       return uploadDocumentVersionRequest(documentId, file);
     },
     onSuccess: (updatedDoc) => {
-      queryClient.setQueryData(["document", documentId], updatedDoc);
+      queryClient.setQueryData([...DOCUMENT_QUERY_KEY, documentId], updatedDoc);
       queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       void invalidateStorage(queryClient);
 

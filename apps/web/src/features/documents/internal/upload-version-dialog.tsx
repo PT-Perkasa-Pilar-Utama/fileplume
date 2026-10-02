@@ -14,7 +14,12 @@ import {
 import { ApiError } from "../../../lib/api.ts";
 import { cn } from "../../../lib/cn.ts";
 import { formatBytes } from "../../../lib/format.ts";
-import { DEFAULT_MAX_FILE_SIZE_MB, getAcceptedFileType, validateFile } from "../file-validation.ts";
+import {
+  ACCEPTED_EXTENSIONS,
+  DEFAULT_MAX_FILE_SIZE_MB,
+  getAcceptedFileType,
+  validateFile,
+} from "../file-validation.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
 
 export interface UploadVersionDialogProps {
@@ -139,7 +144,7 @@ export function UploadVersionDialog({
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf,.docx,.xlsx,.txt"
+            accept={ACCEPTED_EXTENSIONS.join(",")}
             onChange={handleInputChange}
             className="sr-only"
             disabled={busy}

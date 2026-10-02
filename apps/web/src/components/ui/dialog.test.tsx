@@ -151,4 +151,53 @@ describe("Dialog component", () => {
     });
     container.remove();
   });
+
+  test("does not steal focus or re-run effect when onOpenChange callback re-creates on render", async () => {
+    function TestWrapper() {
+      const [open, setOpen] = useState(true);
+      const [count, setCount] = useState(0);
+
+      const handleClose = (val: boolean) => setOpen(val);
+
+      return (
+        <Dialog open={open} onOpenChange={handleClose}>
+          <DialogContent>
+            <DialogTitle>Test</DialogTitle>
+            <button
+              type="button"
+              data-testid="increment-btn"
+              onClick={() => setCount((c) => c + 1)}
+            >
+              Count: {count}
+            </button>
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<TestWrapper />);
+    });
+
+    const incrementBtn = container.querySelector<HTMLButtonElement>(
+      '[data-testid="increment-btn"]',
+    );
+    incrementBtn?.focus();
+    expect(document.activeElement).toBe(incrementBtn);
+
+    await act(async () => {
+      incrementBtn?.click();
+    });
+
+    expect(document.activeElement).toBe(incrementBtn);
+
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });

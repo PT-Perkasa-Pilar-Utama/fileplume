@@ -27,7 +27,6 @@ export interface UseDocumentDetailReturn {
   readonly previewError: ApiError | null;
   readonly isDownloading: boolean;
   readonly downloadError: string | null;
-  readonly isUploadingVersion: boolean;
   readonly selectVersion: (version: DocumentVersionView) => void;
   readonly handleDownload: () => Promise<void>;
   readonly uploadVersion: (file: File) => Promise<DocumentDetailView>;
@@ -109,7 +108,6 @@ export function useDocumentDetail({
     await downloadMutation.mutateAsync();
   };
 
-  // Upload version mutation (AC-21.01, AC-21.03)
   const uploadVersionMutation = useMutation({
     mutationFn: async (file: File) => {
       if (!documentId) throw new Error("Document ID is required");
@@ -156,7 +154,6 @@ export function useDocumentDetail({
     previewError,
     isDownloading: downloadMutation.isPending,
     downloadError,
-    isUploadingVersion: uploadVersionMutation.isPending,
     selectVersion,
     handleDownload,
     uploadVersion,

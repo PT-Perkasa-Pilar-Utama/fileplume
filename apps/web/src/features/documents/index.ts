@@ -53,6 +53,7 @@ export type {
 } from "./types.ts";
 export { UploadTray, type UploadTrayProps } from "./upload-tray.tsx";
 export {
+  DOCUMENT_QUERY_KEY,
   type UseDocumentDetailOptions,
   type UseDocumentDetailReturn,
   useDocumentDetail,

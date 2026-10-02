@@ -1,0 +1,38 @@
+name: reviewer-chan
+
+# Comment "/reviewer-chan" on a pull request, and the Reviewer-chan app posts a tech-lead
+# review. Only the PR author with write access, a tech lead below, or a repo admin can start it.
+# The job itself lives in PT-Perkasa-Pilar-Utama/reviewer-chan. issue_comment runs this file
+# from the default branch, so a PR cannot change it.
+on:
+  issue_comment:
+    types: [created]
+  # To review every new pull request too, remove the # from the next two lines (docs/05-workflow.md).
+  # pull_request_target:
+  #   types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  actions: read
+
+jobs:
+  review:
+    # A cheap filter, so most comments start no job; the shared job checks the exact command.
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/reviewer-chan'))
+    uses: PT-Perkasa-Pilar-Utama/reviewer-chan/.github/workflows/review.yml@0ab3c804f2414ad1cdd834782cf02590285270f3 # v2.5.0
+    with:
+      daily_cap: 10
+      # CHANGEME: the tech leads' GitHub logins, separated by spaces or commas.
+      tech_leads: maspandd
+      # Repo variables (docs/03-token.md). Empty means the job's default.
+      claude_model: ${{ vars.REVIEWER_CHAN_CLAUDE_MODEL }}
+      claude_effort: ${{ vars.REVIEWER_CHAN_CLAUDE_EFFORT }}
+      opencode_model: ${{ vars.REVIEWER_CHAN_OPENCODE_MODEL }}
+      opencode_effort: ${{ vars.REVIEWER_CHAN_OPENCODE_EFFORT }}
+    # A called workflow sees a secret only when it is passed or inherited; the job's
+    # reviewer-chan environment then supplies the value.
+    secrets: inherit

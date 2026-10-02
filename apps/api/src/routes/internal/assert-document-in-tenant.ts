@@ -1,20 +1,24 @@
-import { AppError } from "@archiva/shared";
+import type { CatalogService } from "@archiva/catalog";
+import { AppError, asDocumentId } from "@archiva/shared";
 import type { Context } from "hono";
 import type { AppEnv } from "../../middleware/context.ts";
 import { isDocumentInTenant } from "../mocks.ts";
 
 /**
- * 5.5, 5.9: A denied cross-tenant attempt writes an access.denied audit event
+ * 5.5, 5.9: Asserts documentId belongs to tenantId. On failure, records access.denied
  * against the caller's own tenant with { attemptedId: id } in metadata, and
  * returns 404, never 403 (AC-43.03, AC-43.04).
  */
 export async function assertDocumentInTenant(
   c: Context<AppEnv>,
+  catalog: CatalogService,
   documentId: string,
 ): Promise<void> {
   const tenant = c.get("tenant");
   const session = c.get("session");
-  if (!isDocumentInTenant(documentId, tenant?.id ?? null)) {
+  const doc = tenant ? await catalog.findDocument(tenant.id, asDocumentId(documentId)) : null;
+  // SCAFFOLD: BE-S5-01 removes the mock fallback when it serves the last document route.
+  if (!doc && !isDocumentInTenant(documentId, tenant?.id ?? null)) {
     if (session.kind === "authenticated" && session.principal.tenantId !== null) {
       await c.get("activity").record({
         tenantId: session.principal.tenantId,

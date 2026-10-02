@@ -93,7 +93,7 @@ describe("cross-tenant document isolation (BE-S1-03, BE-S1-05)", () => {
   });
 
   test("cross-tenant versions listing returns 404, sterile body, and writes audit event", async () => {
-    const app = buildTestApp();
+    const app = buildTestApp(undefined, { seedDocuments: true });
 
     const res = await app.request(
       tenantRequest(`/documents/${RAHASIA_B_DOC_ID}/versions`, {

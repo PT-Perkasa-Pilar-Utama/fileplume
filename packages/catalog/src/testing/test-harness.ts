@@ -6,12 +6,14 @@ import type {
   QuotaReservationToken,
   SessionPort,
 } from "../ports.ts";
-import { createCatalogService } from "../service.ts";
+import { createCatalogService, type ViewerContext } from "../service.ts";
 import { inMemoryBlobStore } from "./in-memory-blob-store.ts";
 import { inMemoryCatalogRepository } from "./in-memory-repository.ts";
 
 export const TENANT_ID = asTenantId("11111111-1111-4111-8111-111111111111");
 export const USER_ID = asUserId("22222222-2222-4222-8222-222222222222");
+export const VIEWER: ViewerContext = { userId: USER_ID, role: "member" };
+export const PENDING_DAYS = 7;
 
 /**
  * Mirrors the production ledger. Source of truth:
@@ -75,16 +77,18 @@ export function createTestHarness(options?: {
   sessionValid?: boolean;
   session?: SessionPort;
 }) {
-  const repository = inMemoryCatalogRepository();
-  const blobStore = inMemoryBlobStore();
   let now = new Date("2026-09-14T08:00:00.000Z");
   const clock = { now: () => now };
+  const repository = inMemoryCatalogRepository({ clock });
+  const blobStore = inMemoryBlobStore();
   const committedReservations: QuotaReservationToken[] = [];
   const releasedReservations: QuotaReservationToken[] = [];
   const revertedReservations: QuotaReservationToken[] = [];
+  const versionCountsAtQuotaCommit: number[] = [];
   const enqueuedJobs: string[] = [];
   const auditEvents: unknown[] = [];
   let usedBytes = 0;
+  let commitQuotaError: Error | null = null;
   // Outstanding reservations carry their expiry so a slow batch is modelled
   // the way the Drizzle ledger counts it: an expired reservation stops
   // counting. `tryReserve` filters on `expiresAt > now`.
@@ -115,6 +119,10 @@ export function createTestHarness(options?: {
       return ok({ id: crypto.randomUUID(), tenantId, bytes });
     },
     async commitQuota(res) {
+      versionCountsAtQuotaCommit.push(repository.versions.length);
+      if (commitQuotaError) {
+        throw commitQuotaError;
+      }
       outstanding.delete(res.id);
       if (options?.quotaBytes !== undefined) usedBytes += res.bytes;
       committedReservations.push(res);
@@ -170,6 +178,7 @@ export function createTestHarness(options?: {
     committedReservations,
     releasedReservations,
     revertedReservations,
+    versionCountsAtQuotaCommit,
     enqueuedJobs,
     auditEvents,
     session,
@@ -178,6 +187,9 @@ export function createTestHarness(options?: {
     },
     get usedBytes() {
       return usedBytes;
+    },
+    setCommitQuotaFailure(error: Error | null) {
+      commitQuotaError = error;
     },
   };
 }

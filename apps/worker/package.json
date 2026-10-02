@@ -8,8 +8,12 @@
     "build": "bun build src/index.ts --target=bun --outdir=dist"
   },
   "dependencies": {
+    "@archiva/activity": "workspace:*",
+    "@archiva/catalog": "workspace:*",
     "@archiva/config": "workspace:*",
+    "@archiva/db": "workspace:*",
     "@archiva/enrichment": "workspace:*",
-    "@archiva/shared": "workspace:*"
+    "@archiva/shared": "workspace:*",
+    "@archiva/tenancy": "workspace:*"
   }
 }

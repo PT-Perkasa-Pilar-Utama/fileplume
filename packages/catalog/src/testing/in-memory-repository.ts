@@ -3,7 +3,11 @@ import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "../internal/document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
-import type { CatalogRepository, InsertDocumentInput } from "../repository.ts";
+import type {
+  CatalogRepository,
+  DocumentProcessingRecord,
+  InsertDocumentInput,
+} from "../repository.ts";
 import type { DocumentRecord } from "../service.ts";
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
@@ -97,6 +101,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
         pageCount: null,
+        malwareScannedAt: null,
+        malwareSignature: null,
         uploadedById: input.uploaderId,
         uploadedByName: "Pengguna",
         createdAt: doc.createdAt,
@@ -107,6 +113,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         id: docId,
         title: doc.title,
         processingState: doc.processingState,
+        malwareScannedAt: ver.malwareScannedAt ?? null,
+        malwareSignature: ver.malwareSignature ?? null,
       });
     },
 
@@ -128,9 +136,86 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       };
     },
 
+    async findTenantByDocumentId(documentId: DocumentId): Promise<TenantId | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      return doc ? doc.tenantId : null;
+    },
+
+    async findDocumentForProcessing(
+      tenantId: TenantId,
+      documentId: DocumentId,
+    ): Promise<DocumentProcessingRecord | null> {
+      const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
+      if (!doc?.currentVersionId) return null;
+      const ver = versions.find((v) => v.id === doc.currentVersionId);
+      if (!ver) return null;
+      return {
+        id: doc.id,
+        tenantId: doc.tenantId,
+        uploaderId: doc.uploaderId,
+        currentVersionId: doc.currentVersionId,
+        processingState: doc.processingState,
+        malwareScannedAt: ver.malwareScannedAt ?? null,
+        malwareSignature: ver.malwareSignature ?? null,
+        filename: ver.filename,
+        blobKey: ver.blobKey,
+        sizeBytes: ver.sizeBytes,
+      };
+    },
+
     async findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null> {
       const ver = versions.find((v) => v.tenantId === tenantId && v.id === versionId);
       return ver ? ver.blobKey : null;
+    },
+
+    async claimQueuedDocument(tenantId, documentId) {
+      const doc = documents.find(
+        (d) => d.tenantId === tenantId && d.id === documentId && d.processingState === "queued",
+      );
+      if (!doc) return false;
+      doc.processingState = "processing";
+      return true;
+    },
+
+    async markScanComplete(tenantId, documentId, versionId) {
+      const doc = documents.find(
+        (d) =>
+          d.tenantId === tenantId &&
+          d.id === documentId &&
+          d.currentVersionId === versionId &&
+          d.processingState === "processing",
+      );
+      const ver = versions.find(
+        (v) => v.tenantId === tenantId && v.documentId === documentId && v.id === versionId,
+      );
+      if (!doc || !ver || (ver.malwareSignature !== null && ver.malwareSignature !== undefined)) {
+        return false;
+      }
+      ver.malwareScannedAt = new Date();
+      return true;
+    },
+
+    async markMalwareDetected(tenantId, documentId, versionId, signature) {
+      const doc = documents.find(
+        (d) =>
+          d.tenantId === tenantId &&
+          d.id === documentId &&
+          d.currentVersionId === versionId &&
+          d.processingState === "processing",
+      );
+      const ver = versions.find(
+        (v) => v.tenantId === tenantId && v.documentId === documentId && v.id === versionId,
+      );
+      if (
+        !doc ||
+        !ver ||
+        (ver.malwareScannedAt !== null && ver.malwareScannedAt !== undefined) ||
+        (ver.malwareSignature !== null && ver.malwareSignature !== undefined)
+      ) {
+        return false;
+      }
+      ver.malwareSignature = signature;
+      return true;
     },
 
     async deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void> {
@@ -144,15 +229,6 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       if (docIndex !== -1) {
         documents.splice(docIndex, 1);
       }
-    },
-
-    async updateProcessingState(
-      tenantId: TenantId,
-      documentId: DocumentId,
-      state: DocumentRecord["processingState"],
-    ): Promise<void> {
-      const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
-      if (doc) doc.processingState = state;
     },
 
     async countTenantDocuments(tenantId: TenantId): Promise<number> {

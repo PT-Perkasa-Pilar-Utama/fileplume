@@ -232,7 +232,7 @@ describe("POST and GET /documents/:id/versions (BE-S2-04)", () => {
     expect(err.code).toBe("VALIDATION_ERROR");
   });
 
-  test("error: content matching an older version of the same document returns 409 DUPLICATE_CONTENT (F4)", async () => {
+  test("error: content matching an older version of the same document returns 409 DUPLICATE_CONTENT (06-data-model.md 6.6)", async () => {
     const app = buildTestApp();
     const docId = await seedDocument(app, "proposal.pdf", "konten versi satu");
 

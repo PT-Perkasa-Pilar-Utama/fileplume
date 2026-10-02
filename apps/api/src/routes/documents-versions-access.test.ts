@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { buildTestApp, errorOf, TOKENS, tenantRequest } from "../testing/test-app.ts";
 import { pdfFile } from "./internal/upload-fixtures.ts";
 
-describe("POST and GET /documents/:id/versions validation & access (F2, F13)", () => {
+describe("POST and GET /documents/:id/versions validation & access", () => {
   async function seedDocument(
     app: ReturnType<typeof buildTestApp>,
     filename = "proposal.pdf",
@@ -24,8 +24,7 @@ describe("POST and GET /documents/:id/versions validation & access (F2, F13)", (
     return docId;
   }
 
-  // F2: non-UUID :id returns 422 VALIDATION_ERROR without hitting repository/db
-  test("error: non-UUID :id on POST /documents/:id/versions returns 422 VALIDATION_ERROR (F2)", async () => {
+  test("error: non-UUID :id on POST /documents/:id/versions returns 422 VALIDATION_ERROR", async () => {
     const app = buildTestApp();
     const formData = new FormData();
     formData.append("file", pdfFile("doc.pdf", "konten"));
@@ -43,8 +42,7 @@ describe("POST and GET /documents/:id/versions validation & access (F2, F13)", (
     expect(err.code).toBe("VALIDATION_ERROR");
   });
 
-  // F13: confirmation-window predicate enforces visibility for unconfirmed documents
-  test("confirmation window: second member gets 404 on window-hidden document, head_of_team gets 200/201 (F13)", async () => {
+  test("confirmation window: second member gets 404 on window-hidden document, head_of_team gets 200/201 (05-documents.md 5.4.1)", async () => {
     const app = buildTestApp();
     const docId = await seedDocument(app, "proposal.pdf", "konten rahasia member A");
 

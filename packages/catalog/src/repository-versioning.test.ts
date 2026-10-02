@@ -3,6 +3,7 @@ import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
 import type { DocumentId, TenantId, UserId } from "@archiva/shared";
 import { asTenantId, asUserId } from "@archiva/shared";
+import { eq } from "drizzle-orm";
 import { startTestDatabase } from "./internal/test-database.ts";
 import { createDrizzleCatalogRepository } from "./repository.ts";
 
@@ -108,10 +109,17 @@ describe("createDrizzleCatalogRepository versioning", () => {
     const numbers = [resA.value.versionNumber, resB.value.versionNumber].sort((a, b) => a - b);
     expect(numbers).toEqual([2, 3]);
 
-    const versions = await repository.listVersions(tenantId, documentId);
-    expect(versions).toHaveLength(3);
-    expect(versions?.[0]?.versionNumber).toBe(3);
-    expect(versions?.[0]?.isCurrent).toBe(true);
+    const detail = await repository.findDocumentDetail(
+      tenantId,
+      documentId,
+      { userId: uploaderId, role: "member" },
+      7,
+    );
+    expect(detail).not.toBeNull();
+    if (!detail || "kind" in detail) return;
+    expect(detail.versions).toHaveLength(3);
+    expect(detail.versions[0]?.versionNumber).toBe(3);
+    expect(detail.versions[0]?.isCurrent).toBe(true);
   });
 
   test("AC-21.03: identical content against current version returns IdenticalContent under transaction", async () => {
@@ -166,5 +174,39 @@ describe("createDrizzleCatalogRepository versioning", () => {
     if (res.error.kind === "DuplicateContent") {
       expect(res.error.existingDocumentId).toBe(docA);
     }
+  });
+
+  test("new version resets processing_state to queued and clears failure_reason from processing state (06-data-model.md 6.10.1)", async () => {
+    const repository = createDrizzleCatalogRepository(db);
+    const tenantId = await seedTenant();
+    const uploaderId = await seedUser(tenantId);
+    const documentId = await seedDocument(
+      repository,
+      tenantId,
+      uploaderId,
+      "7777777777777777777777777777777777777777777777777777777777777777",
+    );
+
+    await db
+      .update(schema.documents)
+      .set({ processingState: "processing", failureReason: "extraction_timeout" })
+      .where(eq(schema.documents.id, documentId));
+    const docBefore = await repository.findDocument(tenantId, documentId);
+    expect(docBefore?.processingState).toBe("processing");
+
+    const res = await repository.insertVersionAndUpdateDocument(tenantId, {
+      documentId,
+      uploaderId,
+      filename: "revisi.pdf",
+      contentHash: "8888888888888888888888888888888888888888888888888888888888888888",
+      mimeType: "application/pdf",
+      sizeBytes: 1200,
+      blobKey: `t/${tenantId}/d/${documentId}/v/revisi`,
+    });
+
+    expect(res.ok).toBe(true);
+    const docAfter = await repository.findDocument(tenantId, documentId);
+    expect(docAfter?.processingState).toBe("queued");
+    expect(docAfter?.failureReason).toBeNull();
   });
 });

@@ -60,7 +60,7 @@ export type PrepareBlobUploadDeps = {
 };
 
 /**
- * Shared sequence for sniffing, size checking, quota reservation, and blob streaming (F5).
+ * Shared sequence for sniffing, size checking, quota reservation, and blob streaming.
  */
 export async function prepareBlobUpload(
   tenantId: TenantId,

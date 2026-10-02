@@ -8,7 +8,7 @@ import type { CatalogRepository, DocumentRecord, InsertDocumentInput } from "../
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
-import { handleInsertVersion, handleListVersions } from "./in-memory-version.ts";
+import { handleInsertVersion } from "./in-memory-version.ts";
 
 export type { StoredDocument, StoredVersion };
 
@@ -213,10 +213,6 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         clock,
         userNameLookup,
       );
-    },
-
-    async listVersions(tenantId, documentId) {
-      return handleListVersions(documents, versions, tenantId, documentId, userNameLookup);
     },
   };
 }

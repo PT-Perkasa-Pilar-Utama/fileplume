@@ -322,9 +322,10 @@ stateDiagram-v2
   PROCESSING --> [*] : malware detected, document and blob deleted
   FAILED --> QUEUED : manual retry, or new version uploaded
   READY --> QUEUED : reindex or reprocess, or new version uploaded
+  PROCESSING --> QUEUED : new version uploaded, the in-flight run is superseded
 ```
 
-A new version arriving while a document is in `READY` or `FAILED` resets `processing_state` to `QUEUED` and clears `failure_reason`. If a new version arrives while `PROCESSING`, `processing_state` remains `PROCESSING`.
+A new version resets `processing_state` to `QUEUED` from any state and clears `failure_reason`. Every transition a job makes out of `PROCESSING` requires `current_version_id` to equal the version that job claimed, so a superseded run can neither retry nor complete the document (BE-S3-01).
 
 `failure_reason` enum: `password_protected` renders "Dokumen terproteksi password" (AC-44.04), `unreadable_content` renders "Isi dokumen tidak dapat dibaca" (AC-44.05), `extraction_timeout`, `ai_unavailable`, `index_failed`.
 

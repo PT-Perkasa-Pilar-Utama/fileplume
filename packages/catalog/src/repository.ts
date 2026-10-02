@@ -177,10 +177,6 @@ export function createDrizzleCatalogRepository(db: Db): CatalogRepository {
       return versionRepo.insertVersionAndUpdateDocument(db, tenantId, input, findByContentHash);
     },
 
-    async listVersions(tenantId, documentId) {
-      return versionRepo.listVersions(db, tenantId, documentId);
-    },
-
     listDocuments(tenantId, filter, viewer, pendingConfirmationDays, now = new Date()) {
       return queryListDocuments(db, tenantId, filter, viewer, pendingConfirmationDays, now);
     },

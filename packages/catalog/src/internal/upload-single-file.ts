@@ -7,10 +7,8 @@ import type {
   UploadRejectedResult,
   UploadSingleFileItem,
 } from "../service.ts";
-import { prepareBlobUpload, readHeader } from "./prepare-blob-upload.ts";
+import { prepareBlobUpload } from "./prepare-blob-upload.ts";
 import { reportSettled } from "./report-settled.ts";
-
-export { readHeader };
 
 export type SingleUploadAccepted = UploadAcceptedResult & {
   blobKey: string;

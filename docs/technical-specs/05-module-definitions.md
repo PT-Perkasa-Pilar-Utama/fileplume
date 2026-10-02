@@ -91,7 +91,6 @@ upload(input: { tenantId, uploaderId, filename, stream, sizeBytes })
   : Promise<Result<Document, UnsupportedType | TooLarge | QuotaExceeded
                             | DuplicateContent | BatchTooLarge>>
 addVersion(documentId, input): Promise<Result<DocumentVersion, IdenticalContent | NotFound>>
-listVersions(documentId): Promise<DocumentVersion[]>
 getDocument(tenantId, documentId): Promise<Result<Document, NotFound>>
 openBlob(versionId): Promise<ReadableStream>
 renderPreview(versionId): Promise<Result<PreviewPayload, PreviewUnavailable>>

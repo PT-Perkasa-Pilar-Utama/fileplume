@@ -1,7 +1,6 @@
 import type {
   DocumentDetailView,
   DocumentId,
-  DocumentVersionView,
   ErrorCode,
   Result,
   TenantId,
@@ -123,11 +122,10 @@ export interface CatalogService {
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
-    viewer?: ViewerContext,
-    pendingConfirmationDays?: number,
+    viewer: ViewerContext,
+    pendingConfirmationDays: number,
   ): Promise<Result<DocumentDetailView, AddVersionFailure>>;
   findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
-  listVersions(tenantId: TenantId, documentId: DocumentId): Promise<DocumentVersionView[] | null>;
   listDocuments(input: ListDocumentsInput): Promise<ListDocumentsResult>;
   getDocument(
     tenantId: TenantId,
@@ -185,9 +183,6 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
 
     findDocument(tenantId, documentId) {
       return deps.repository.findDocument(tenantId, documentId);
-    },
-    listVersions(tenantId, documentId) {
-      return deps.repository.listVersions(tenantId, documentId);
     },
     addVersion(documentId, input, viewer, pendingConfirmationDays) {
       return addVersion(

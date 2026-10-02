@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { createTestHarness, pdfStream, TENANT_ID, USER_ID } from "./testing/test-harness.ts";
+import {
+  createTestHarness,
+  PENDING_DAYS,
+  pdfStream,
+  TENANT_ID,
+  USER_ID,
+  VIEWER,
+} from "./testing/test-harness.ts";
 
 describe("document versioning (BE-S2-04)", () => {
   test("AC-21.01: uploading a new version with different content assigns v2 and keeps single document in list", async () => {
@@ -20,13 +27,18 @@ describe("document versioning (BE-S2-04)", () => {
     const documentId = uploadRes.value.id;
     const v2File = pdfStream("proposal versi dua revisi");
 
-    const versionRes = await service.addVersion(documentId, {
-      tenantId: TENANT_ID,
-      uploaderId: USER_ID,
-      filename: "proposal.pdf",
-      stream: v2File.stream,
-      sizeBytes: v2File.sizeBytes,
-    });
+    const versionRes = await service.addVersion(
+      documentId,
+      {
+        tenantId: TENANT_ID,
+        uploaderId: USER_ID,
+        filename: "proposal.pdf",
+        stream: v2File.stream,
+        sizeBytes: v2File.sizeBytes,
+      },
+      VIEWER,
+      PENDING_DAYS,
+    );
 
     expect(versionRes.ok).toBe(true);
     if (!versionRes.ok) return;
@@ -46,7 +58,7 @@ describe("document versioning (BE-S2-04)", () => {
     expect(versionAddAudit).toBeDefined();
   });
 
-  test("AC-21.02: old versions can be accessed newest first via listVersions", async () => {
+  test("AC-21.02: old versions can be accessed newest first", async () => {
     const { service } = createTestHarness();
     const v1 = pdfStream("konten versi 1");
     const v2 = pdfStream("konten versi 2");
@@ -62,26 +74,37 @@ describe("document versioning (BE-S2-04)", () => {
     if (!initial.ok) throw new Error("Upload failed");
     const docId = initial.value.id;
 
-    await service.addVersion(docId, {
-      tenantId: TENANT_ID,
-      uploaderId: USER_ID,
-      filename: "proposal.pdf",
-      stream: v2.stream,
-      sizeBytes: v2.sizeBytes,
-    });
+    await service.addVersion(
+      docId,
+      {
+        tenantId: TENANT_ID,
+        uploaderId: USER_ID,
+        filename: "proposal.pdf",
+        stream: v2.stream,
+        sizeBytes: v2.sizeBytes,
+      },
+      VIEWER,
+      PENDING_DAYS,
+    );
 
-    await service.addVersion(docId, {
-      tenantId: TENANT_ID,
-      uploaderId: USER_ID,
-      filename: "proposal.pdf",
-      stream: v3.stream,
-      sizeBytes: v3.sizeBytes,
-    });
+    await service.addVersion(
+      docId,
+      {
+        tenantId: TENANT_ID,
+        uploaderId: USER_ID,
+        filename: "proposal.pdf",
+        stream: v3.stream,
+        sizeBytes: v3.sizeBytes,
+      },
+      VIEWER,
+      PENDING_DAYS,
+    );
 
-    const versions = await service.listVersions(TENANT_ID, docId);
-    expect(versions).not.toBeNull();
-    if (!versions) return;
+    const detail = await service.getDocument(TENANT_ID, docId, VIEWER, PENDING_DAYS);
+    expect(detail.ok).toBe(true);
+    if (!detail.ok) return;
 
+    const versions = detail.value.versions;
     // AC-21.02: 3 versions returned, newest first (v3, v2, v1).
     expect(versions).toHaveLength(3);
     expect(versions[0]?.versionNumber).toBe(3);
@@ -93,7 +116,7 @@ describe("document versioning (BE-S2-04)", () => {
   });
 
   test("AC-21.03: identical content against the current version is rejected with IdenticalContent", async () => {
-    const { service, repository, releasedReservations } = createTestHarness();
+    const { service, repository, revertedReservations } = createTestHarness();
     const identicalText = "konten proposal tetap sama persis";
     const file1 = pdfStream(identicalText);
     const file2 = pdfStream(identicalText);
@@ -108,20 +131,25 @@ describe("document versioning (BE-S2-04)", () => {
     if (!initial.ok) throw new Error("Upload failed");
     const docId = initial.value.id;
 
-    const res = await service.addVersion(docId, {
-      tenantId: TENANT_ID,
-      uploaderId: USER_ID,
-      filename: "proposal.pdf",
-      stream: file2.stream,
-      sizeBytes: file2.sizeBytes,
-    });
+    const res = await service.addVersion(
+      docId,
+      {
+        tenantId: TENANT_ID,
+        uploaderId: USER_ID,
+        filename: "proposal.pdf",
+        stream: file2.stream,
+        sizeBytes: file2.sizeBytes,
+      },
+      VIEWER,
+      PENDING_DAYS,
+    );
 
     // AC-21.03: Negative path returns IdenticalContent and no new version is created.
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.error.kind).toBe("IdenticalContent");
     expect(repository.versions).toHaveLength(1);
-    expect(releasedReservations).toHaveLength(1);
+    expect(revertedReservations).toHaveLength(1);
   });
 
   test("AC-21.04: two concurrent version uploads receive consecutive version numbers", async () => {
@@ -142,20 +170,30 @@ describe("document versioning (BE-S2-04)", () => {
     const fileB = pdfStream("konten dari user B berbeda juga");
 
     const [resA, resB] = await Promise.all([
-      service.addVersion(docId, {
-        tenantId: TENANT_ID,
-        uploaderId: USER_ID,
-        filename: "proposal.pdf",
-        stream: fileA.stream,
-        sizeBytes: fileA.sizeBytes,
-      }),
-      service.addVersion(docId, {
-        tenantId: TENANT_ID,
-        uploaderId: USER_ID,
-        filename: "proposal.pdf",
-        stream: fileB.stream,
-        sizeBytes: fileB.sizeBytes,
-      }),
+      service.addVersion(
+        docId,
+        {
+          tenantId: TENANT_ID,
+          uploaderId: USER_ID,
+          filename: "proposal.pdf",
+          stream: fileA.stream,
+          sizeBytes: fileA.sizeBytes,
+        },
+        VIEWER,
+        PENDING_DAYS,
+      ),
+      service.addVersion(
+        docId,
+        {
+          tenantId: TENANT_ID,
+          uploaderId: USER_ID,
+          filename: "proposal.pdf",
+          stream: fileB.stream,
+          sizeBytes: fileB.sizeBytes,
+        },
+        VIEWER,
+        PENDING_DAYS,
+      ),
     ]);
 
     expect(resA.ok).toBe(true);
@@ -169,5 +207,43 @@ describe("document versioning (BE-S2-04)", () => {
 
     // Consecutive integers per document with no gap and no duplicate under concurrency.
     expect(versionNumbers).toEqual([1, 2, 3]);
+  });
+
+  test("new version resets processing_state to queued and clears failure_reason from processing state (06-data-model.md 6.10.1)", async () => {
+    const { service, repository } = createTestHarness();
+    const initial = await service.upload({
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "proposal.pdf",
+      stream: pdfStream("konten v1").stream,
+      sizeBytes: 1000,
+    });
+    if (!initial.ok) throw new Error("Upload failed");
+    const docId = initial.value.id;
+
+    const doc = repository.documents.find((d) => d.id === docId);
+    if (!doc) throw new Error("Document not found");
+    doc.processingState = "processing";
+    doc.failureReason = "extraction_timeout";
+    const docBefore = await service.findDocument(TENANT_ID, docId);
+    expect(docBefore?.processingState).toBe("processing");
+
+    const res = await service.addVersion(
+      docId,
+      {
+        tenantId: TENANT_ID,
+        uploaderId: USER_ID,
+        filename: "proposal.pdf",
+        stream: pdfStream("konten v2 baru").stream,
+        sizeBytes: 1200,
+      },
+      VIEWER,
+      PENDING_DAYS,
+    );
+    expect(res.ok).toBe(true);
+
+    const docAfter = await service.findDocument(TENANT_ID, docId);
+    expect(docAfter?.processingState).toBe("queued");
+    expect(docAfter?.failureReason).toBeNull();
   });
 });

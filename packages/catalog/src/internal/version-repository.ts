@@ -1,8 +1,8 @@
 import type { Db } from "@archiva/db";
 import { schema } from "@archiva/db";
-import type { DocumentId, DocumentVersionView, Result, TenantId, VersionId } from "@archiva/shared";
+import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
 import { asVersionId, err, ok } from "@archiva/shared";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type * as E from "../errors.ts";
 import type { InsertVersionInput } from "./repository-types.ts";
 import { toDuplicateContentError } from "./unique-violation.ts";
@@ -78,7 +78,7 @@ export async function insertVersionAndUpdateDocument(
         .set({
           currentVersionId: versionId,
           updatedAt: new Date(),
-          processingState: sql`case when ${schema.documents.processingState} in ('ready', 'failed') then 'queued'::processing_state else ${schema.documents.processingState} end`,
+          processingState: "queued",
           failureReason: null,
         })
         .where(docMatch(input.documentId, tenantId));
@@ -88,50 +88,4 @@ export async function insertVersionAndUpdateDocument(
   } catch (caughtErr) {
     return await toDuplicateContentError(caughtErr, tenantId, input.contentHash, findByContentHash);
   }
-}
-
-/**
- * Lists all versions for a document ordered by versionNumber DESC. AC-21.02.
- */
-export async function listVersions(
-  db: Db,
-  tenantId: TenantId,
-  documentId: DocumentId,
-): Promise<DocumentVersionView[] | null> {
-  const [doc] = await db
-    .select({
-      id: schema.documents.id,
-      currentVersionId: schema.documents.currentVersionId,
-    })
-    .from(schema.documents)
-    .where(docMatch(documentId, tenantId))
-    .limit(1);
-  if (!doc) return null;
-
-  const rows = await db
-    .select({
-      id: schema.documentVersions.id,
-      versionNumber: schema.documentVersions.versionNumber,
-      filename: schema.documentVersions.filename,
-      sizeBytes: schema.documentVersions.sizeBytes,
-      pageCount: schema.documentVersions.pageCount,
-      createdAt: schema.documentVersions.createdAt,
-      uploaderId: schema.documentVersions.uploadedBy,
-      uploaderName: schema.users.name,
-    })
-    .from(schema.documentVersions)
-    .innerJoin(schema.users, eq(schema.documentVersions.uploadedBy, schema.users.id))
-    .where(verMatch(documentId, tenantId))
-    .orderBy(desc(schema.documentVersions.versionNumber));
-
-  return rows.map((r) => ({
-    id: asVersionId(r.id),
-    versionNumber: r.versionNumber,
-    filename: r.filename,
-    sizeBytes: r.sizeBytes,
-    pageCount: r.pageCount,
-    uploadedBy: { id: r.uploaderId, name: r.uploaderName },
-    createdAt: r.createdAt.toISOString(),
-    isCurrent: r.id === doc.currentVersionId,
-  }));
 }

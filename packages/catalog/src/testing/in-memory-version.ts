@@ -1,4 +1,4 @@
-import type { DocumentId, DocumentVersionView, Result, TenantId, VersionId } from "@archiva/shared";
+import type { DocumentId, Result, TenantId, VersionId } from "@archiva/shared";
 import { asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { Clock } from "../ports.ts";
@@ -60,39 +60,8 @@ export async function handleInsertVersion(
   versions.push(ver);
 
   doc.currentVersionId = versionId;
-  if (doc.processingState === "ready" || doc.processingState === "failed") {
-    doc.processingState = "queued";
-  }
+  doc.processingState = "queued";
   doc.failureReason = null;
 
   return ok({ versionId, versionNumber });
-}
-
-export function handleListVersions(
-  documents: StoredDocument[],
-  versions: StoredVersion[],
-  tenantId: TenantId,
-  documentId: DocumentId,
-  userNameLookup: (userId: string) => string,
-): DocumentVersionView[] | null {
-  const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
-  if (!doc) return null;
-
-  const docVersions = versions
-    .filter((v) => v.tenantId === tenantId && v.documentId === documentId)
-    .sort((a, b) => b.versionNumber - a.versionNumber);
-
-  return docVersions.map((v) => ({
-    id: v.id,
-    versionNumber: v.versionNumber,
-    filename: v.filename,
-    sizeBytes: v.sizeBytes,
-    pageCount: v.pageCount ?? null,
-    uploadedBy: {
-      id: v.uploadedById,
-      name: v.uploadedByName ?? userNameLookup(v.uploadedById),
-    },
-    createdAt: v.createdAt instanceof Date ? v.createdAt.toISOString() : String(v.createdAt),
-    isCurrent: v.id === doc.currentVersionId,
-  }));
 }

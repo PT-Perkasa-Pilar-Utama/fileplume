@@ -1,11 +1,4 @@
-import type {
-  DocumentId,
-  DocumentVersionView,
-  Result,
-  TenantId,
-  UserId,
-  VersionId,
-} from "@archiva/shared";
+import type { DocumentId, Result, TenantId, UserId, VersionId } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "./document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "./list-document-query.ts";
@@ -71,7 +64,6 @@ export interface CatalogRepository {
       E.IdenticalContent | E.DuplicateContent | E.NotFound
     >
   >;
-  listVersions(tenantId: TenantId, documentId: DocumentId): Promise<DocumentVersionView[] | null>;
   listDocuments(
     tenantId: TenantId,
     filter: ListDocumentsFilter,

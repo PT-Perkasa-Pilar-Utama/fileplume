@@ -30,9 +30,9 @@ export interface QuotaPort {
   commitQuota(reservation: QuotaReservationToken): Promise<void>;
   releaseQuota(reservation: QuotaReservationToken): Promise<void>;
   /**
-   * Inverse of `commitQuota`, for the batch rollback only. Each reservation
-   * commits as soon as its file lands, so a later session expiry debits
-   * committed bytes back instead of releasing a consumed reservation.
+   * Inverse of `commitQuota`, for the batch rollback or version insert compensation.
+   * Each reservation commits as soon as its file lands, so a later failure or rollback
+   * debits committed bytes back instead of releasing a consumed reservation.
    * At most once per committed reservation. AC-01.08, AC-35.04.
    */
   revertCommit(reservation: QuotaReservationToken): Promise<void>;

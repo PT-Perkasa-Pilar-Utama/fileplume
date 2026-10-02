@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { ApiError } from "../../lib/api.ts";
 import * as storageApi from "../storage/api.ts";
 import { type UseDocumentDetailReturn, useDocumentDetail } from "./use-document-detail.ts";
+import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
 
 const mockVersion1: DocumentVersionView = {
   id: "aa11b2c3-4d5e-4f60-8a1b-2c3d4e5f6071",
@@ -133,7 +134,7 @@ describe("useDocumentDetail uploadVersion (FE-S2-06)", () => {
     expect(hookResult?.document?.versionNumber).toBe(2);
     expect(hookResult?.activeVersion?.id).toBe(mockVersion2.id);
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["documents"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });
     expect(storageSpy).toHaveBeenCalledWith(queryClient);
 
     await act(async () => {

@@ -10,6 +10,7 @@ import {
   triggerBlobDownload,
   uploadDocumentVersionRequest,
 } from "./detail-api.ts";
+import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
 
 export interface UseDocumentDetailOptions {
   readonly documentId?: string;
@@ -115,7 +116,7 @@ export function useDocumentDetail({
     },
     onSuccess: (updatedDoc) => {
       queryClient.setQueryData(["document", documentId], updatedDoc);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       void invalidateStorage(queryClient);
 
       const newVersion =

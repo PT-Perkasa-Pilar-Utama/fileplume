@@ -14,6 +14,7 @@ import { useDocumentDetail } from "./use-document-detail.ts";
 
 export interface DocumentDetailViewProps {
   readonly documentId?: string;
+  readonly maxFileSizeMb?: number;
 }
 
 /**
@@ -21,7 +22,10 @@ export interface DocumentDetailViewProps {
  * Displays metadata region, extracted-fields region, and preview region
  * with version picker and download capabilities, aligned with Figma screen 28:3451.
  */
-export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {}): JSX.Element {
+export function DocumentDetailView({
+  documentId,
+  maxFileSizeMb,
+}: DocumentDetailViewProps = {}): JSX.Element {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const params = useParams({ strict: false });
   const paramId = "id" in params && typeof params.id === "string" ? params.id : "";
@@ -128,6 +132,7 @@ export function DocumentDetailView({ documentId }: DocumentDetailViewProps = {})
         open={isUploadDialogOpen}
         onOpenChange={setIsUploadDialogOpen}
         onUpload={uploadVersion}
+        maxFileSizeMb={maxFileSizeMb}
       />
     </div>
   );

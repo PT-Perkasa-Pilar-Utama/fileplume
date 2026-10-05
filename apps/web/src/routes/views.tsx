@@ -111,7 +111,7 @@ export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Elemen
   );
 }
 
-// SCAFFOLD: FE-S2-06 implements document listing, search, and pagination.
+// SCAFFOLD: FE-S4-05 implements document listing, search, and pagination.
 export function DocumentsView(): JSX.Element {
   return (
     <div className="space-y-4">

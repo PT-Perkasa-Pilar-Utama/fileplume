@@ -9,6 +9,7 @@ import type {
 } from "@archiva/shared";
 import { err, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
+import { addVersion } from "./internal/add-version.ts";
 import { handleGetDocument } from "./internal/get-document.ts";
 import { MAX_BATCH, MAX_BULK_DOWNLOAD } from "./internal/limits.ts";
 import type { ViewerContext } from "./internal/list-document-query.ts";
@@ -19,6 +20,7 @@ import {
 } from "./internal/list-documents.ts";
 import { mapUploadFailure } from "./internal/map-upload-failure.ts";
 import { ACCEPTED_MIME, isAcceptedType } from "./internal/mime-types.ts";
+import type { DocumentRecord } from "./internal/repository-types.ts";
 import { uploadBatch } from "./internal/upload-batch.ts";
 import type {
   AuditPort,
@@ -48,11 +50,7 @@ export type UploadSingleFileItem = {
   sizeBytes: number;
 };
 
-export type DocumentRecord = {
-  id: DocumentId;
-  title: string;
-  processingState: "queued" | "processing" | "ready" | "failed";
-};
+export type { DocumentRecord } from "./internal/repository-types.ts";
 
 export type UploadFailure =
   | E.UnsupportedType
@@ -60,6 +58,14 @@ export type UploadFailure =
   | E.QuotaExceeded
   | E.DuplicateContent
   | E.BatchTooLarge;
+
+export type AddVersionFailure =
+  | E.NotFound
+  | E.IdenticalContent
+  | E.DuplicateContent
+  | E.UnsupportedType
+  | E.TooLarge
+  | E.QuotaExceeded;
 
 export type UploadAcceptedResult = {
   index: number;
@@ -116,12 +122,10 @@ export interface CatalogService {
   addVersion(
     documentId: DocumentId,
     input: UploadInput,
-  ): Promise<
-    Result<
-      { versionId: VersionId; versionNumber: number },
-      E.IdenticalContent | E.NotFound | UploadFailure
-    >
-  >;
+    viewer: ViewerContext,
+    pendingConfirmationDays: number,
+  ): Promise<Result<DocumentDetailView, AddVersionFailure>>;
+  findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null>;
   listDocuments(input: ListDocumentsInput): Promise<ListDocumentsResult>;
   getDocument(
     tenantId: TenantId,
@@ -177,8 +181,24 @@ export function createCatalogService(deps: CatalogServiceDeps): CatalogService {
       return uploadBatch(tenantId, uploaderId, items, deps, sessionToken);
     },
 
-    addVersion() {
-      throw new Error("SCAFFOLD: BE-S2-04");
+    findDocument(tenantId, documentId) {
+      return deps.repository.findDocument(tenantId, documentId);
+    },
+    addVersion(documentId, input, viewer, pendingConfirmationDays) {
+      return addVersion(
+        documentId,
+        input,
+        {
+          repository: deps.repository,
+          blobStore: deps.blobStore,
+          quota: deps.quota,
+          queue: deps.queue,
+          audit: deps.audit,
+          clock: deps.clock,
+        },
+        viewer,
+        pendingConfirmationDays,
+      );
     },
     listDocuments(input) {
       return handleListDocuments(deps.repository, input);

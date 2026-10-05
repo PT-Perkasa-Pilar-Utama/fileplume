@@ -29,19 +29,18 @@ function queryPsql(sql: string): string {
 }
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
 const auditUploadCount = () =>
   Number(
     queryPsql(
       "SELECT count(*) FROM audit_events WHERE action = 'document.upload' AND outcome = 'allowed' AND subject_type = 'document';",
     ),
   );
-
 const setQuota = (bytes: number | string) =>
   queryPsql(`UPDATE tenants SET storage_quota_bytes = ${bytes} WHERE subdomain = 'archiva-demo';`);
-
 const storageUsedBytes = () =>
   queryPsql("SELECT storage_used_bytes FROM tenants WHERE subdomain = 'archiva-demo';");
+const storedCount = (title: string) =>
+  Number(queryPsql(`SELECT count(*) FROM documents WHERE title = '${title}';`));
 
 function cleanupTestDocs(): void {
   queryPsql(
@@ -50,7 +49,6 @@ function cleanupTestDocs(): void {
   queryPsql(`DELETE FROM sessions WHERE token_hash = '${hashToken(EXPIRING_TOKEN)}';`);
 }
 
-/** Issues a fresh, valid session for MEMBER_EMAIL under EXPIRING_TOKEN, replacing any prior row. */
 function issueExpiringSession(): string {
   const tokenHash = hashToken(EXPIRING_TOKEN);
   queryPsql(
@@ -129,6 +127,7 @@ test.describe("Upload end to end (FE-S2-07)", () => {
     const body = await res.json();
     expect(body.data.results[0].error.code).toBe("FILE_TOO_LARGE");
     expect(body.data.results[0].error.message).toBe("Ukuran file melebihi batas 20 MB");
+    expect(storedCount("berkas-25mb.pdf")).toBe(0);
   });
 
   test("AC-01.07: interrupted upload shows verbatim error and stores nothing", async ({ page }) => {
@@ -139,10 +138,7 @@ test.describe("Upload end to end (FE-S2-07)", () => {
     await expect(page.getByText(ERROR_MESSAGES.UPLOAD_INTERRUPTED).first()).toBeVisible();
     await page.unroute("**/api/v1/documents");
 
-    const count = queryPsql(
-      "SELECT count(*) FROM documents WHERE title = 'fixture-reporting-01.pdf';",
-    );
-    expect(Number(count)).toBe(0);
+    expect(storedCount("fixture-reporting-01.pdf")).toBe(0);
     expect(storageUsedBytes()).toBe(usedBefore);
   });
 
@@ -164,6 +160,8 @@ test.describe("Upload end to end (FE-S2-07)", () => {
       },
     });
     expect(res.status()).toBe(401);
+    expect(storedCount("kontrak-kerjasama.pdf")).toBe(0);
+    expect(storedCount("test.txt")).toBe(0);
   });
 
   test("AC-03.01: duplicate content shows error with working link to existing document", async ({
@@ -209,6 +207,7 @@ test.describe("Upload end to end (FE-S2-07)", () => {
         buffer: Buffer.from("Dokumen kapasitas penuh"),
       });
       await expect(page.getByText(ERROR_MESSAGES.QUOTA_EXCEEDED).first()).toBeVisible();
+      expect(storedCount("penuh-test.txt")).toBe(0);
     } finally {
       setQuota(DEFAULT_QUOTA);
     }
@@ -235,8 +234,8 @@ test.describe("Upload end to end (FE-S2-07)", () => {
   });
 
   test("cross-tenant upload is refused with 404", async ({ request }) => {
-    const payload = Buffer.from("cross tenant payload");
-    const res = await postDoc(request, TENANT_B, "cross-tenant.txt", payload);
+    const buf = Buffer.from("cross tenant payload");
+    const res = await postDoc(request, TENANT_B, "cross-tenant.txt", buf);
     expect(res.status()).toBe(404);
     expect(await res.json()).toEqual({
       error: { code: "NOT_FOUND", message: ERROR_MESSAGES.NOT_FOUND },

@@ -194,4 +194,25 @@ describe("ClamAvScanner (BE-S2-07)", () => {
       server.stop();
     }
   });
+
+  test("returns the verdict when clamd answers before a large chunk is sent", async () => {
+    const server = Bun.listen({
+      hostname: "127.0.0.1",
+      port: 0,
+      socket: {
+        data(socket) {
+          socket.write("stream: Eicar-Test-Signature FOUND\0");
+          socket.end();
+        },
+      },
+    });
+    const scanner = new ClamAvScanner({ host: "127.0.0.1", port: server.port, timeoutMs: 5000 });
+
+    try {
+      const result = await scanner.scan(createByteStream(new Uint8Array(2 * 1024 * 1024)));
+      expect(result).toEqual({ infected: true, signature: "Eicar-Test-Signature" });
+    } finally {
+      server.stop();
+    }
+  });
 });

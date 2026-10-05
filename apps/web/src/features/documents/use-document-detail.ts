@@ -1,13 +1,18 @@
 import { type DocumentDetailView, type DocumentVersionView, ERROR_MESSAGES } from "@archiva/shared";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError } from "../../lib/api.ts";
+import { invalidateStorage } from "../storage/api.ts";
 import {
   downloadDocumentRequest,
   fetchDocumentDetail,
   fetchDocumentPreview,
   triggerBlobDownload,
+  uploadDocumentVersionRequest,
 } from "./detail-api.ts";
+import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
+
+export const DOCUMENT_QUERY_KEY = ["document"] as const;
 
 export interface UseDocumentDetailOptions {
   readonly documentId?: string;
@@ -27,6 +32,7 @@ export interface UseDocumentDetailReturn {
   readonly downloadError: string | null;
   readonly selectVersion: (version: DocumentVersionView) => void;
   readonly handleDownload: () => Promise<void>;
+  readonly uploadVersion: (file: File) => Promise<DocumentDetailView>;
 }
 
 /**
@@ -36,11 +42,12 @@ export interface UseDocumentDetailReturn {
 export function useDocumentDetail({
   documentId,
 }: UseDocumentDetailOptions): UseDocumentDetailReturn {
+  const queryClient = useQueryClient();
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const documentQuery = useQuery({
-    queryKey: ["document", documentId],
+    queryKey: [...DOCUMENT_QUERY_KEY, documentId],
     queryFn: () => {
       if (!documentId) throw new Error("Document ID is required");
       return fetchDocumentDetail(documentId);
@@ -104,6 +111,30 @@ export function useDocumentDetail({
     await downloadMutation.mutateAsync();
   };
 
+  const uploadVersionMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!documentId) throw new Error("Document ID is required");
+      return uploadDocumentVersionRequest(documentId, file);
+    },
+    onSuccess: (updatedDoc) => {
+      queryClient.setQueryData([...DOCUMENT_QUERY_KEY, documentId], updatedDoc);
+      queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+      void invalidateStorage(queryClient);
+
+      const newVersion =
+        updatedDoc.versions.find((v) => v.isCurrent) ??
+        updatedDoc.versions.find((v) => v.versionNumber === updatedDoc.versionNumber) ??
+        updatedDoc.versions[0];
+      if (newVersion) {
+        setSelectedVersionId(newVersion.id);
+      }
+    },
+  });
+
+  const uploadVersion = async (file: File): Promise<DocumentDetailView> => {
+    return uploadVersionMutation.mutateAsync(file);
+  };
+
   const previewError =
     previewQuery.error instanceof ApiError
       ? previewQuery.error
@@ -128,5 +159,6 @@ export function useDocumentDetail({
     downloadError,
     selectVersion,
     handleDownload,
+    uploadVersion,
   };
 }

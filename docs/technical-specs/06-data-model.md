@@ -324,6 +324,8 @@ stateDiagram-v2
   READY --> QUEUED : reindex or reprocess
 ```
 
+New-version transitions and the worker exit guard follow [12-document-processing-pipeline.md](12-document-processing-pipeline.md) 12.1.
+
 `failure_reason` enum: `password_protected` renders "Dokumen terproteksi password" (AC-44.04), `unreadable_content` renders "Isi dokumen tidak dapat dibaca" (AC-44.05), `extraction_timeout`, `ai_unavailable`, `index_failed`.
 
 A FAILED document is still previewable where possible, still downloadable, and still listed. Failure removes derived data, never the document (AC-44.03).

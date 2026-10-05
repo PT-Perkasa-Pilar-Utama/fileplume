@@ -1,0 +1,120 @@
+import type { DocumentDetailView, DocumentId, Result } from "@archiva/shared";
+import { asVersionId, err } from "@archiva/shared";
+import type { AuditPort, BlobStore, Clock, JobQueue, QuotaPort } from "../ports.ts";
+import type { AddVersionFailure, UploadInput, ViewerContext } from "../service.ts";
+import { handleGetDocument } from "./get-document.ts";
+import { prepareBlobUpload } from "./prepare-blob-upload.ts";
+import { reportSettled } from "./report-settled.ts";
+import type { CatalogRepository } from "./repository-types.ts";
+
+export type AddVersionDeps = {
+  repository: CatalogRepository;
+  blobStore: BlobStore;
+  quota: QuotaPort;
+  queue: JobQueue;
+  audit: AuditPort;
+  clock: Clock;
+};
+
+export async function addVersion(
+  documentId: DocumentId,
+  input: UploadInput,
+  deps: AddVersionDeps,
+  viewer: ViewerContext,
+  pendingConfirmationDays: number,
+): Promise<Result<DocumentDetailView, AddVersionFailure>> {
+  const precheck = await handleGetDocument(
+    deps.repository,
+    input.tenantId,
+    documentId,
+    viewer,
+    pendingConfirmationDays,
+    deps.clock.now(),
+  );
+  if (!precheck.ok) {
+    return err(precheck.error);
+  }
+
+  const versionId = asVersionId(crypto.randomUUID());
+
+  const preparedRes = await prepareBlobUpload(input.tenantId, documentId, versionId, input, deps);
+  if (!preparedRes.ok) {
+    return preparedRes;
+  }
+  const prepared = preparedRes.value;
+
+  const undoPrepared = async (msg: string): Promise<void> =>
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+      ]),
+      msg,
+    );
+
+  let insertResult: Awaited<ReturnType<CatalogRepository["insertVersionAndUpdateDocument"]>>;
+  try {
+    insertResult = await deps.repository.insertVersionAndUpdateDocument(input.tenantId, {
+      documentId,
+      versionId,
+      uploaderId: input.uploaderId,
+      contentHash: prepared.sha256,
+      blobKey: prepared.blobKey,
+      filename: input.filename,
+      mimeType: prepared.mimeType,
+      sizeBytes: prepared.sizeBytes,
+    });
+  } catch (insertErr) {
+    await undoPrepared("version compensation failed after insert throw");
+    throw insertErr;
+  }
+
+  if (!insertResult.ok) {
+    await undoPrepared("version compensation failed after refused insert");
+    return insertResult;
+  }
+
+  try {
+    await deps.quota.commitQuota({ ...prepared.reservation, bytes: prepared.sizeBytes });
+  } catch (commitErr) {
+    reportSettled(
+      await Promise.allSettled([
+        deps.quota.releaseQuota(prepared.reservation),
+        deps.blobStore.delete(prepared.blobKey),
+        deps.repository.rollbackVersionInsert(input.tenantId, {
+          documentId,
+          ...insertResult.value,
+        }),
+      ]),
+      "version compensation failed after quota commit",
+    );
+    throw commitErr;
+  }
+
+  await deps.queue.enqueue(documentId);
+  // SCAFFOLD: removing the previous version's pages from the index (05-documents.md 5.7 step 7) lands in BE-S4-01.
+
+  await deps.audit.record({
+    tenantId: input.tenantId,
+    actorId: input.uploaderId,
+    action: "document.version_add",
+    subjectType: "document",
+    subjectId: documentId,
+    outcome: "allowed",
+    metadata: {
+      filename: input.filename,
+      sizeBytes: prepared.sizeBytes,
+      mimeType: prepared.mimeType,
+      versionNumber: insertResult.value.versionNumber,
+    },
+  });
+
+  return handleGetDocument(
+    deps.repository,
+    input.tenantId,
+    documentId,
+    viewer,
+    pendingConfirmationDays,
+    deps.clock.now(),
+  );
+}

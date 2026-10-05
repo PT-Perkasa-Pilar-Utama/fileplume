@@ -104,6 +104,8 @@ Four states. No others. Guarded, so a stale job cannot move a document backwards
 
 Terminal within a run: `ready`, `failed`. Malware is **not a state**: the document and blob are deleted.
 
+New-version transitions and worker exit guards follow [technical-specs/12-document-processing-pipeline.md](docs/technical-specs/12-document-processing-pipeline.md) 12.1.
+
 Labels are served, never mapped client-side: `Antre`, `Diproses`, `Siap`, `Gagal`.
 
 ### 5.3 Request order, every route

@@ -83,3 +83,22 @@ export async function downloadDocumentRequest(
   const blob = await res.blob();
   return { blob, filename };
 }
+
+/**
+ * POST /api/v1/documents/:id/versions (api-specs/05-documents.md 5.7).
+ * Adds a new revision to a named document (AC-21.01).
+ * Rejects identical content with 409 IDENTICAL_CONTENT (AC-21.03).
+ */
+export async function uploadDocumentVersionRequest(
+  documentId: string,
+  file: File,
+): Promise<DocumentDetailView> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await apiFetch(`/documents/${documentId}/versions`, dataOf(documentDetailSchema), {
+    method: "POST",
+    body: formData,
+  });
+  return res.data;
+}

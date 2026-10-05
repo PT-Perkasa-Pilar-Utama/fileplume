@@ -1,7 +1,7 @@
 import type { CatalogService, UploadSingleFileItem } from "@archiva/catalog";
 import { MAX_BATCH } from "@archiva/catalog";
 import { SESSION_COOKIE_NAME } from "@archiva/identity";
-import { AppError, asDocumentId, one } from "@archiva/shared";
+import { AppError, asDocumentId, one, page } from "@archiva/shared";
 import type { TenancyService } from "@archiva/tenancy";
 import { getCookie } from "hono/cookie";
 import { fail } from "../middleware/errors.ts";
@@ -28,6 +28,8 @@ import {
 } from "./definitions/documents.ts";
 import { assertDocumentInTenant } from "./internal/assert-document-in-tenant.ts";
 import { collectUploadParts } from "./internal/collect-upload-parts.ts";
+import { handleListVersions } from "./internal/handle-list-versions.ts";
+import { handleUploadVersion } from "./internal/handle-upload-version.ts";
 import {
   listOf,
   MOCK_BULK_TICKET,
@@ -38,7 +40,6 @@ import {
   MOCK_PROCESSING,
   MOCK_RELATED,
   MOCK_REPROCESS,
-  MOCK_VERSION,
 } from "./mocks.ts";
 import { createRouter } from "./router.ts";
 
@@ -124,12 +125,12 @@ export function createDocumentRoutes(
     })
     .openapi(listVersions, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
-      return c.json(listOf(MOCK_VERSION), 200);
+      const versions = await handleListVersions(c, catalog, tenancy, id);
+      return c.json(page(versions, { total: versions.length }), 200);
     })
     .openapi(previewDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.body(MOCK_PDF_BYTES, 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": "inline",
@@ -137,7 +138,7 @@ export function createDocumentRoutes(
     })
     .openapi(downloadDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.body(MOCK_PDF_BYTES, 200, {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="kontrak-kerjasama.pdf"',
@@ -145,32 +146,32 @@ export function createDocumentRoutes(
     })
     .openapi(confirmClassification, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_CLASSIFIED_DOCUMENT), 200);
     })
     .openapi(getProcessingStatus, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_PROCESSING), 200);
     })
     .openapi(correctFields, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
     })
     .openapi(replaceTags, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_DOCUMENT_DETAIL), 200);
     })
     .openapi(reprocessDocument, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json(one(MOCK_REPROCESS), 202);
     })
     .openapi(listRelated, async (c) => {
       const { id } = c.req.valid("param");
-      await assertDocumentInTenant(c, id);
+      await assertDocumentInTenant(c, catalog, id);
       return c.json({ data: [MOCK_RELATED], meta: { total: 1 } }, 200);
     });
 
@@ -223,11 +224,9 @@ export function createDocumentRoutes(
     return c.json(one(result.value), statusCode as 201 | 422);
   });
 
-  router.post("/:id/versions", requireRole("member"), async (c) => {
-    const id = c.req.param("id");
-    await assertDocumentInTenant(c, id);
-    return c.json(one(MOCK_DOCUMENT_DETAIL), 201);
-  });
+  router.post("/:id/versions", requireRole("member"), (c) =>
+    handleUploadVersion(c, catalog, tenancy),
+  );
 
   return router;
 }

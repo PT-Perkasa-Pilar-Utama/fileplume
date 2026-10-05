@@ -3,11 +3,17 @@ import { asDocumentId, asVersionId, err, ok } from "@archiva/shared";
 import type * as E from "../errors.ts";
 import type { RawDocumentDetail, RawDocumentRow } from "../internal/document-views.ts";
 import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
-import type { CatalogRepository, InsertDocumentInput } from "../repository.ts";
-import type { DocumentRecord } from "../service.ts";
+import type { Clock } from "../ports.ts";
+import type {
+  CatalogRepository,
+  DocumentRecord,
+  InsertDocumentInput,
+  RollbackVersionInput,
+} from "../repository.ts";
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
+import { handleInsertVersion } from "./in-memory-version.ts";
 
 export type { StoredDocument, StoredVersion };
 
@@ -15,6 +21,8 @@ export type InMemoryCatalogOptions = {
   documents?: StoredDocument[];
   versions?: StoredVersion[];
   seedFixtures?: boolean;
+  userNameLookup?: (userId: string) => string;
+  clock?: Clock;
 };
 
 export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): CatalogRepository & {
@@ -32,6 +40,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
 
   const documents: StoredDocument[] = initialDocs;
   const versions: StoredVersion[] = initialVers;
+  const userNameLookup = options?.userNameLookup ?? (() => "Test User");
+  const clock = options?.clock ?? { now: () => new Date() };
 
   async function findByContentHash(
     tenantId: TenantId,
@@ -50,7 +60,6 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       tenantId: TenantId,
       input: InsertDocumentInput,
     ): Promise<Result<DocumentRecord, E.DuplicateContent>> {
-      // Synchronous check & write mirrors PostgreSQL UNIQUE (tenant_id, content_hash) constraint
       const existing = versions.find(
         (v) => v.tenantId === tenantId && v.contentHash === input.contentHash,
       );
@@ -63,6 +72,7 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
 
       const docId = input.documentId ?? asDocumentId(crypto.randomUUID());
       const verId = input.versionId ?? asVersionId(crypto.randomUUID());
+      const nowDate = clock.now();
 
       const doc: StoredDocument = {
         id: docId,
@@ -72,8 +82,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         failureReason: null,
         currentVersionId: verId,
         uploaderId: input.uploaderId,
-        uploaderName: "Pengguna",
-        createdAt: new Date(),
+        uploaderName: userNameLookup(input.uploaderId),
+        createdAt: nowDate,
         categoryId: null,
         categoryName: null,
         categoryIsSystem: null,
@@ -98,8 +108,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         sizeBytes: input.sizeBytes,
         pageCount: null,
         uploadedById: input.uploaderId,
-        uploadedByName: "Pengguna",
-        createdAt: doc.createdAt,
+        uploadedByName: userNameLookup(input.uploaderId),
+        createdAt: nowDate,
       };
       versions.push(ver);
 
@@ -107,24 +117,28 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         id: docId,
         title: doc.title,
         processingState: doc.processingState,
+        uploaderId: doc.uploaderId,
+        uploaderName: doc.uploaderName,
+        createdAt: doc.createdAt.toISOString(),
       });
-    },
-
-    async allocateVersionNumber(tenantId: TenantId, documentId: DocumentId): Promise<number> {
-      const docVersions = versions.filter(
-        (v) => v.tenantId === tenantId && v.documentId === documentId,
-      );
-      const maxVer = docVersions.reduce((max, v) => Math.max(max, v.versionNumber), 0);
-      return maxVer + 1;
     },
 
     async findDocument(tenantId: TenantId, documentId: DocumentId): Promise<DocumentRecord | null> {
       const doc = documents.find((d) => d.tenantId === tenantId && d.id === documentId);
       if (!doc) return null;
+      const curVer = versions.find((v) => v.id === doc.currentVersionId);
       return {
         id: doc.id,
         title: doc.title,
         processingState: doc.processingState,
+        failureReason: doc.failureReason ?? null,
+        currentVersionId: doc.currentVersionId,
+        currentVersionHash: curVer?.contentHash ?? null,
+        currentMimeType: curVer?.mimeType ?? null,
+        uploaderId: doc.uploaderId,
+        uploaderName: doc.uploaderName ?? userNameLookup(doc.uploaderId),
+        createdAt:
+          doc.createdAt instanceof Date ? doc.createdAt.toISOString() : String(doc.createdAt),
       };
     },
 
@@ -192,6 +206,32 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       }
 
       return buildRawDocumentDetail(doc, versions, viewer, pendingConfirmationDays, now);
+    },
+
+    async insertVersionAndUpdateDocument(tenantId, input) {
+      return handleInsertVersion(
+        documents,
+        versions,
+        tenantId,
+        input,
+        findByContentHash,
+        clock,
+        userNameLookup,
+      );
+    },
+
+    async rollbackVersionInsert(tenantId, input: RollbackVersionInput) {
+      const doc = documents.find((d) => d.tenantId === tenantId && d.id === input.documentId);
+      if (doc?.currentVersionId === input.versionId) {
+        doc.currentVersionId = input.previousCurrentVersionId;
+        doc.processingState = input.previousProcessingState;
+        doc.failureReason = input.previousFailureReason;
+      }
+      const versionIndex = versions.findIndex(
+        (v) =>
+          v.tenantId === tenantId && v.documentId === input.documentId && v.id === input.versionId,
+      );
+      if (versionIndex !== -1) versions.splice(versionIndex, 1);
     },
   };
 }

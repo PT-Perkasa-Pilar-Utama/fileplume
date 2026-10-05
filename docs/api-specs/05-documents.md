@@ -317,7 +317,7 @@ The predicate applies identically to list, detail, search and related. A documen
 
 **Input.** Path parameter `id`.
 
-**Behavior.** `catalog.listVersions(documentId)`, newest first.
+**Behavior.** The `versions` of `catalog.getDocument`, newest first, so 5.4.1 applies as it does in 5.5.
 
 **Output.** `200 OK`, the `versions` array from 5.5 in a collection envelope.
 

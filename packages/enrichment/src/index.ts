@@ -28,8 +28,5 @@ export {
 } from "./service.ts";
 export type { ExecuteScanStageParams, ScanStageResult } from "./stages/scan.ts";
 export { executeScanStage } from "./stages/scan.ts";
-export { AlwaysCleanScanner, alwaysCleanScanner } from "./testing/always-clean-scanner.ts";
-export {
-  AlwaysInfectedScanner,
-  alwaysInfectedScanner,
-} from "./testing/always-infected-scanner.ts";
+export { AlwaysCleanScanner } from "./testing/always-clean-scanner.ts";
+export { AlwaysInfectedScanner } from "./testing/always-infected-scanner.ts";

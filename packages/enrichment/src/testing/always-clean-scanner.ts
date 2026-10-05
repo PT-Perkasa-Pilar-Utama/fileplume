@@ -9,7 +9,3 @@ export class AlwaysCleanScanner implements MalwareScanner {
     return { infected: false };
   }
 }
-
-export function alwaysCleanScanner(): MalwareScanner {
-  return new AlwaysCleanScanner();
-}

@@ -34,15 +34,7 @@ export type ScanStageResult =
  * technical-specs/12-document-processing-pipeline.md 12.1, 12.4.
  * api-specs/05-documents.md 5.3.
  *
- * Scans uploaded bytes before any parser sees them.
- * On clean (AC-46.01): returns { status: "clean" }.
- * On detection (AC-46.02):
- * - Deletes the blob from storage.
- * - Deletes the document row and its versions from the catalog.
- * - Reverts committed storage quota.
- * - Writes a malware.detected audit event with outcome = "denied".
- * - Returns { status: "infected", signature }.
- * Malware is not a processing state; no failed document row remains.
+ * Outcomes follow AC-46.01 and AC-46.02.
  */
 export async function executeScanStage(params: ExecuteScanStageParams): Promise<ScanStageResult> {
   let signature = params.knownInfectionSignature;

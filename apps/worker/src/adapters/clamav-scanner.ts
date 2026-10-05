@@ -18,9 +18,6 @@ const DEFAULT_TIMEOUT_MS = 60_000;
  * 2. Stream data chunks prefixed with 4-byte big-endian chunk length.
  * 3. Send 4 zero bytes (0x00000000) to terminate the stream.
  * 4. Read response: "stream: OK" (clean) or "stream: <virus> FOUND" (infected).
- *
- * Fail-closed property: Any connection failure, timeout, or unexpected response
- * rejects, ensuring unscanned bytes never pass through the pipeline.
  */
 export class ClamAvScanner implements MalwareScanner {
   private readonly host: string;
@@ -59,8 +56,6 @@ export class ClamAvScanner implements MalwareScanner {
       const timer = setTimeout(() => {
         fail(new Error(`ClamAV scan timed out after ${timeoutMs}ms`));
       }, timeoutMs);
-
-      const timeoutRef = timer;
 
       Bun.connect({
         hostname: host,
@@ -132,7 +127,6 @@ export class ClamAvScanner implements MalwareScanner {
           },
 
           close() {
-            clearTimeout(timeoutRef);
             if (!settled) {
               fail(new Error("ClamAV socket closed before scan completed"));
             }

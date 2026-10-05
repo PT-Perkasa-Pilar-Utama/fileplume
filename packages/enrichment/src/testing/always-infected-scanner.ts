@@ -11,7 +11,3 @@ export class AlwaysInfectedScanner implements MalwareScanner {
     return { infected: true, signature: this.signature };
   }
 }
-
-export function alwaysInfectedScanner(signature?: string): MalwareScanner {
-  return new AlwaysInfectedScanner(signature);
-}

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ERROR_MESSAGES } from "@archiva/shared";
@@ -14,23 +15,54 @@ import { type APIRequestContext, expect, type Page, test } from "@playwright/tes
 const TENANT_A = "http://archiva-demo.localhost:4173";
 const TENANT_B = "http://mitra-rahasia.localhost:4173";
 const MEMBER_SESSION = "__Host-archiva_session=dev-session-member";
+const MEMBER_EMAIL = "anggota@archiva-demo.test";
+const EXPIRING_TOKEN = "expiring-e2e-session-token";
 const DEFAULT_QUOTA = 53687091200;
 const PSQL_ARGS = "compose exec -T postgres psql -U archiva -d archiva -t -A -c".split(" ");
+const TEST_TITLES =
+  "'presentasi-baru.pdf','laporan-keuangan.pdf','laporan-keuangan-salinan.pdf','kontrak-1.pdf','kontrak-2.pdf','kontrak-kerjasama.pdf','batch-file-1.txt','batch-file-2.txt','batch-file-3.txt','penuh-test.txt','fixture-reporting-01.pdf'";
+const TEST_DOC_IDS = `(SELECT id FROM documents WHERE title IN (${TEST_TITLES}))`;
+const TEST_VERSION_IDS = `(SELECT id FROM document_versions WHERE document_id IN ${TEST_DOC_IDS})`;
 
 function queryPsql(sql: string): string {
   return execFileSync("docker", [...PSQL_ARGS, sql], { encoding: "utf-8" }).trim();
 }
 
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
+
+const auditUploadCount = () =>
+  Number(
+    queryPsql(
+      "SELECT count(*) FROM audit_events WHERE action = 'document.upload' AND outcome = 'allowed' AND subject_type = 'document';",
+    ),
+  );
+
 const setQuota = (bytes: number | string) =>
   queryPsql(`UPDATE tenants SET storage_quota_bytes = ${bytes} WHERE subdomain = 'archiva-demo';`);
 
+const storageUsedBytes = () =>
+  queryPsql("SELECT storage_used_bytes FROM tenants WHERE subdomain = 'archiva-demo';");
+
 function cleanupTestDocs(): void {
-  const titles =
-    "'presentasi-baru.pdf','laporan-keuangan.pdf','laporan-keuangan-salinan.pdf','kontrak-1.pdf','kontrak-2.pdf','kontrak-kerjasama.pdf','batch-file-1.txt','batch-file-2.txt','batch-file-3.txt','penuh-test.txt','fixture-reporting-01.pdf'";
   queryPsql(
-    `DO $$ BEGIN UPDATE documents SET current_version_id = NULL WHERE created_at > now() - interval '2 hours' AND title IN (${titles}); DELETE FROM document_versions WHERE document_id NOT IN (SELECT id FROM documents WHERE current_version_id IS NOT NULL); DELETE FROM documents WHERE current_version_id IS NULL; END $$;`,
+    `DO $$ BEGIN UPDATE documents SET current_version_id = NULL WHERE title IN (${TEST_TITLES}); DELETE FROM document_pages WHERE version_id IN ${TEST_VERSION_IDS}; DELETE FROM document_text WHERE version_id IN ${TEST_VERSION_IDS}; DELETE FROM document_tags WHERE document_id IN ${TEST_DOC_IDS}; DELETE FROM document_metadata WHERE document_id IN ${TEST_DOC_IDS}; DELETE FROM document_classification WHERE document_id IN ${TEST_DOC_IDS}; DELETE FROM ai_field_overrides WHERE document_id IN ${TEST_DOC_IDS}; DELETE FROM document_versions WHERE document_id IN ${TEST_DOC_IDS}; DELETE FROM documents WHERE title IN (${TEST_TITLES}); END $$;`,
   );
+  queryPsql(`DELETE FROM sessions WHERE token_hash = '${hashToken(EXPIRING_TOKEN)}';`);
 }
+
+/** Issues a fresh, valid session for MEMBER_EMAIL under EXPIRING_TOKEN, replacing any prior row. */
+function issueExpiringSession(): string {
+  const tokenHash = hashToken(EXPIRING_TOKEN);
+  queryPsql(
+    `INSERT INTO sessions (user_id, token_hash, expires_at) SELECT id, '${tokenHash}', now() + interval '1 hour' FROM users WHERE email = '${MEMBER_EMAIL}' ON CONFLICT (token_hash) DO UPDATE SET expires_at = excluded.expires_at;`,
+  );
+  return tokenHash;
+}
+
+const expireSession = (tokenHash: string) =>
+  queryPsql(
+    `UPDATE sessions SET expires_at = now() - interval '1 minute' WHERE token_hash = '${tokenHash}';`,
+  );
 
 function postDoc(req: APIRequestContext, origin: string, name: string, buffer: Buffer) {
   return req.post(`${origin}/api/v1/documents`, {
@@ -41,11 +73,11 @@ function postDoc(req: APIRequestContext, origin: string, name: string, buffer: B
 
 const inputOf = (page: Page) => page.getByTestId("upload-file-input");
 
-async function authMember(page: Page): Promise<void> {
+async function authMember(page: Page, token = "dev-session-member"): Promise<void> {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Network.setCookie", {
     name: "__Host-archiva_session",
-    value: "dev-session-member",
+    value: token,
     url: `${TENANT_A}/`,
     path: "/",
     secure: true,
@@ -57,12 +89,15 @@ async function authMember(page: Page): Promise<void> {
 test.describe("Upload end to end (FE-S2-07)", () => {
   test.describe.configure({ mode: "serial" });
 
+  let auditCountBefore = 0;
+
   test.beforeAll(() => {
     const oversizePath = path.resolve("fixtures/generated/berkas-25mb.pdf");
     if (!fs.existsSync(oversizePath)) {
       execFileSync("bun", ["run", "scripts/generate_fixtures.ts"], { stdio: "ignore" });
     }
     cleanupTestDocs();
+    auditCountBefore = auditUploadCount();
   });
 
   test.afterAll(() => {
@@ -97,6 +132,7 @@ test.describe("Upload end to end (FE-S2-07)", () => {
   });
 
   test("AC-01.07: interrupted upload shows verbatim error and stores nothing", async ({ page }) => {
+    const usedBefore = storageUsedBytes();
     await authMember(page);
     await page.route("**/api/v1/documents", (route) => route.abort("failed"));
     await inputOf(page).setInputFiles(path.resolve("fixtures/fixture-reporting-01.pdf"));
@@ -107,25 +143,22 @@ test.describe("Upload end to end (FE-S2-07)", () => {
       "SELECT count(*) FROM documents WHERE title = 'fixture-reporting-01.pdf';",
     );
     expect(Number(count)).toBe(0);
+    expect(storageUsedBytes()).toBe(usedBefore);
   });
 
   test("AC-01.08: expired session displays exact error notice and endpoint returns 401", async ({
     page,
     request,
   }) => {
-    await authMember(page);
-    await page.route("**/api/v1/documents", (route) =>
-      route.fulfill({
-        status: 401,
-        json: { error: { code: "SESSION_EXPIRED", message: ERROR_MESSAGES.SESSION_EXPIRED } },
-      }),
-    );
+    const tokenHash = issueExpiringSession();
+    await authMember(page, EXPIRING_TOKEN);
+    expireSession(tokenHash);
+
     await inputOf(page).setInputFiles(path.resolve("fixtures/kontrak-kerjasama.pdf"));
     await expect(page.getByText(ERROR_MESSAGES.SESSION_EXPIRED).first()).toBeVisible();
-    await page.unroute("**/api/v1/documents");
 
     const res = await request.post(`${TENANT_A}/api/v1/documents`, {
-      headers: { cookie: "__Host-archiva_session=invalid-token", origin: TENANT_A },
+      headers: { cookie: `__Host-archiva_session=${EXPIRING_TOKEN}`, origin: TENANT_A },
       multipart: {
         files: { name: "test.txt", mimeType: "text/plain", buffer: Buffer.from("test") },
       },
@@ -184,9 +217,7 @@ test.describe("Upload end to end (FE-S2-07)", () => {
   test("AC-35.04: partial batch displays per-file outcomes and summary banner", async ({
     page,
   }) => {
-    const used = Number(
-      queryPsql("SELECT storage_used_bytes FROM tenants WHERE subdomain = 'archiva-demo';"),
-    );
+    const used = Number(storageUsedBytes());
     setQuota(used + 2048 + 100);
     try {
       await authMember(page);
@@ -204,12 +235,8 @@ test.describe("Upload end to end (FE-S2-07)", () => {
   });
 
   test("cross-tenant upload is refused with 404", async ({ request }) => {
-    const res = await postDoc(
-      request,
-      TENANT_B,
-      "cross-tenant.txt",
-      Buffer.from("cross tenant payload"),
-    );
+    const payload = Buffer.from("cross tenant payload");
+    const res = await postDoc(request, TENANT_B, "cross-tenant.txt", payload);
     expect(res.status()).toBe(404);
     expect(await res.json()).toEqual({
       error: { code: "NOT_FOUND", message: ERROR_MESSAGES.NOT_FOUND },
@@ -217,11 +244,6 @@ test.describe("Upload end to end (FE-S2-07)", () => {
   });
 
   test("audit event exists for document upload action", () => {
-    const count = Number(
-      queryPsql(
-        "SELECT count(*) FROM audit_events WHERE action = 'document.upload' AND outcome = 'allowed' AND subject_type = 'document';",
-      ),
-    );
-    expect(count).toBeGreaterThan(0);
+    expect(auditUploadCount()).toBeGreaterThan(auditCountBefore);
   });
 });

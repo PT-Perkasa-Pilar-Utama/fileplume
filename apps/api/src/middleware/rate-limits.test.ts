@@ -146,6 +146,8 @@ describe("rate limits, api-specs/01-conventions.md 1.10", () => {
     if (!targetDocId) throw new Error("Seed upload failed");
     const targetDoc = app.catalogRepository.documents.find((d) => d.id === targetDocId);
     if (targetDoc) targetDoc.categoryConfirmedAt = new Date();
+    const targetVer = app.catalogRepository.versions.find((v) => v.documentId === targetDocId);
+    if (targetVer) targetVer.malwareScannedAt = new Date();
 
     const uploadDoc = (i: number) => {
       const form = new FormData();

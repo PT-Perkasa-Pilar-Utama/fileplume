@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { buildTestApp, errorOf, TOKENS, tenantRequest } from "../testing/test-app.ts";
+import { asDocumentId } from "@archiva/shared";
+import { buildTestApp, errorOf, TENANT_A, TOKENS, tenantRequest } from "../testing/test-app.ts";
 import { pdfFile } from "./internal/upload-fixtures.ts";
 
 describe("POST and GET /documents/:id/versions validation & access", () => {
@@ -21,6 +22,18 @@ describe("POST and GET /documents/:id/versions validation & access", () => {
     const body = (await res.json()) as { data: { results: Array<{ document?: { id: string } }> } };
     const docId = body.data.results[0]?.document?.id;
     if (!docId) throw new Error("Seed upload failed");
+    const processingDoc = await app.catalogRepository.findDocumentForProcessing(
+      TENANT_A.id,
+      asDocumentId(docId),
+    );
+    if (processingDoc) {
+      await app.catalogRepository.claimQueuedDocument(TENANT_A.id, asDocumentId(docId));
+      await app.catalogRepository.markScanComplete(
+        TENANT_A.id,
+        asDocumentId(docId),
+        processingDoc.currentVersionId,
+      );
+    }
     return docId;
   }
 

@@ -17,6 +17,7 @@ import { createProcessDocumentHandler } from "./process-document.ts";
 function createWorkerTestHarness(params?: {
   docState?: "queued" | "processing" | "ready" | "failed";
   scanner?: "clean" | "infected";
+  signature?: string;
 }) {
   const tenantId = asTenantId("11111111-1111-4111-8111-111111111111");
   const docId = asDocumentId("22222222-2222-4222-8222-222222222222");
@@ -58,7 +59,7 @@ function createWorkerTestHarness(params?: {
     sizeBytes: 1024,
     pageCount: 1,
     malwareScannedAt: null,
-    malwareSignature: null,
+    malwareSignature: params?.signature ?? null,
     blobKey,
     uploadedById: uploaderId,
     uploadedByName: "Budi Santoso",
@@ -188,6 +189,16 @@ describe("processDocument worker job (BE-S2-07)", () => {
     const harness = createWorkerTestHarness({ docState: "ready" });
     const outcome = await harness.handler({ documentId: harness.docId });
     expect(outcome).toBe("noop");
+  });
+
+  test("a retry finishes cleanup when the signature is already stored", async () => {
+    const harness = createWorkerTestHarness({
+      docState: "processing",
+      signature: "Eicar-Test-Signature",
+    });
+    expect(await harness.handler({ documentId: harness.docId })).toBe("infected");
+    expect(harness.auditEvents).toHaveLength(1);
+    expect(harness.revertedQuotas).toHaveLength(1);
   });
 
   test("missing document returns noop", async () => {

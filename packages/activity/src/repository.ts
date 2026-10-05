@@ -16,16 +16,19 @@ export interface ActivityRepository {
 export function createDrizzleActivityRepository(db: Db): ActivityRepository {
   return {
     async append(tenantId, event) {
-      await db.insert(schema.auditEvents).values({
-        tenantId,
-        actorId: event.actorId,
-        action: event.action,
-        subjectType: event.subjectType,
-        subjectId: event.subjectId,
-        outcome: event.outcome,
-        metadata: event.metadata,
-        createdAt: event.createdAt,
-      });
+      await db
+        .insert(schema.auditEvents)
+        .values({
+          tenantId,
+          actorId: event.actorId,
+          action: event.action,
+          subjectType: event.subjectType,
+          subjectId: event.subjectId,
+          outcome: event.outcome,
+          metadata: event.metadata,
+          createdAt: event.createdAt,
+        })
+        .onConflictDoNothing();
     },
     async list() {
       throw new Error("SCAFFOLD: implement in BE-S5-04");

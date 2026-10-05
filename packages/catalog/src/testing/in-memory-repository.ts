@@ -11,6 +11,7 @@ import type {
   RollbackVersionInput,
 } from "../repository.ts";
 import { createDefaultFixtures } from "./in-memory-fixtures.ts";
+import { inMemoryProcessingMethods } from "./in-memory-processing.ts";
 import { buildRawDocumentDetail, filterAndSortDocuments } from "./in-memory-read.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
 import { handleInsertVersion } from "./in-memory-version.ts";
@@ -107,6 +108,8 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
         pageCount: null,
+        malwareScannedAt: null,
+        malwareSignature: null,
         uploadedById: input.uploaderId,
         uploadedByName: userNameLookup(input.uploaderId),
         createdAt: nowDate,
@@ -142,10 +145,17 @@ export function inMemoryCatalogRepository(options?: InMemoryCatalogOptions): Cat
       };
     },
 
+    async findTenantByDocumentId(documentId: DocumentId): Promise<TenantId | null> {
+      const doc = documents.find((d) => d.id === documentId);
+      return doc ? doc.tenantId : null;
+    },
+
     async findBlobKey(tenantId: TenantId, versionId: VersionId): Promise<string | null> {
       const ver = versions.find((v) => v.tenantId === tenantId && v.id === versionId);
       return ver ? ver.blobKey : null;
     },
+
+    ...inMemoryProcessingMethods(documents, versions),
 
     async deleteDocument(tenantId: TenantId, documentId: DocumentId): Promise<void> {
       for (let i = versions.length - 1; i >= 0; i--) {

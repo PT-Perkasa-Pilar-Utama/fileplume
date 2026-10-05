@@ -59,6 +59,8 @@ export const documentVersions = pgTable(
     mimeType: text("mime_type").notNull(),
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
     pageCount: integer("page_count"),
+    malwareScannedAt: timestamp("malware_scanned_at", { withTimezone: true }),
+    malwareSignature: text("malware_signature"),
     blobKey: text("blob_key").notNull(),
     uploadedBy: uuid("uploaded_by")
       .notNull()

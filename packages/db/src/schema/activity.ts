@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   bigserial,
   date,
@@ -8,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { analyticsMetric, auditAction, auditOutcome } from "./enums.ts";
@@ -33,6 +35,9 @@ export const auditEvents = pgTable(
   (t) => [
     index("audit_events_tenant_idx").on(t.tenantId),
     index("audit_events_tenant_created_idx").on(t.tenantId, t.createdAt),
+    uniqueIndex("audit_events_malware_document_key")
+      .on(t.tenantId, t.subjectId)
+      .where(sql`${t.action} = 'malware.detected' AND ${t.subjectType} = 'document'`),
   ],
 );
 

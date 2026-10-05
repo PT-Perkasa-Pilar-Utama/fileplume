@@ -18,6 +18,20 @@ export function inMemoryActivityRepository(
       events.length = 0;
     },
     async append(tenantId: TenantId, event: AuditEvent & { createdAt: Date }): Promise<void> {
+      if (
+        event.action === "malware.detected" &&
+        event.subjectType === "document" &&
+        event.subjectId !== null &&
+        events.some(
+          (existing) =>
+            existing.tenantId === tenantId &&
+            existing.action === event.action &&
+            existing.subjectType === event.subjectType &&
+            existing.subjectId === event.subjectId,
+        )
+      ) {
+        return;
+      }
       events.push({ ...event, tenantId });
     },
     async list(): Promise<{

@@ -55,3 +55,21 @@ export const quotaReservations = pgTable(
     index("quota_reservations_expires_idx").on(t.expiresAt),
   ],
 );
+
+export const quotaReversals = pgTable(
+  "quota_reversals",
+  {
+    documentId: uuid("document_id").notNull(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    bytes: bigint("bytes", { mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      name: "quota_reversals_tenant_document_pk",
+      columns: [t.tenantId, t.documentId],
+    }),
+  ],
+);

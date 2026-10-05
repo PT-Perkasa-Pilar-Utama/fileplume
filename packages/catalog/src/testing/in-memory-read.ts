@@ -1,10 +1,10 @@
 import type { TenantId } from "@archiva/shared";
-import { hasRoleAtLeast } from "@archiva/shared";
 import type {
   RawDocumentDetail,
   RawDocumentRow,
   RawVersionRow,
 } from "../internal/document-views.ts";
+import { isDocumentVisibleInMemory } from "../internal/document-visibility.ts";
 import type { ListDocumentsFilter, ViewerContext } from "../internal/list-document-query.ts";
 import type { StoredDocument, StoredVersion } from "./in-memory-types.ts";
 
@@ -17,8 +17,6 @@ export function filterAndSortDocuments(
   pendingConfirmationDays: number,
   now: Date,
 ): { rows: RawDocumentRow[]; total: number } {
-  const windowMs = pendingConfirmationDays * 86_400_000;
-
   const filtered = documents.filter((d) => {
     if (d.tenantId !== tenantId) return false;
 
@@ -26,11 +24,18 @@ export function filterAndSortDocuments(
     const curVer = versions.find((v) => v.id === d.currentVersionId);
     if (!curVer) return false;
 
-    const isVisible =
-      hasRoleAtLeast(viewer.role, "head_of_team") ||
-      d.categoryConfirmedAt !== null ||
-      d.uploaderId === viewer.userId ||
-      d.createdAt.getTime() + windowMs < now.getTime();
+    const isVisible = isDocumentVisibleInMemory(
+      {
+        uploaderId: d.uploaderId,
+        categoryConfirmedAt: d.categoryConfirmedAt,
+        createdAt: d.createdAt,
+        malwareScannedAt: curVer.malwareScannedAt,
+        malwareSignature: curVer.malwareSignature,
+      },
+      viewer,
+      pendingConfirmationDays,
+      now,
+    );
     if (!isVisible) return false;
 
     if (filter.categoryId && d.categoryId !== filter.categoryId) return false;
@@ -113,20 +118,24 @@ export function buildRawDocumentDetail(
   pendingConfirmationDays: number,
   now: Date,
 ): RawDocumentDetail | null {
-  const windowMs = pendingConfirmationDays * 86_400_000;
-  const isVisible =
-    hasRoleAtLeast(viewer.role, "head_of_team") ||
-    doc.categoryConfirmedAt !== null ||
-    doc.uploaderId === viewer.userId ||
-    doc.createdAt.getTime() + windowMs < now.getTime();
-  if (!isVisible) {
-    return null;
-  }
-
   const curVer = versions.find((v) => v.id === doc.currentVersionId);
   if (!curVer) {
     return null;
   }
+
+  const isVisible = isDocumentVisibleInMemory(
+    {
+      uploaderId: doc.uploaderId,
+      categoryConfirmedAt: doc.categoryConfirmedAt,
+      createdAt: doc.createdAt,
+      malwareScannedAt: curVer.malwareScannedAt,
+      malwareSignature: curVer.malwareSignature,
+    },
+    viewer,
+    pendingConfirmationDays,
+    now,
+  );
+  if (!isVisible) return null;
 
   const docVersions = versions
     .filter((v) => v.documentId === doc.id)

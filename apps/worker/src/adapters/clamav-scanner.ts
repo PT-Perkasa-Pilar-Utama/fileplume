@@ -1,4 +1,5 @@
 import type { MalwareScanner } from "@archiva/enrichment";
+import type { Socket } from "bun";
 
 export type ClamAvScannerOptions = {
   host: string;
@@ -38,11 +39,15 @@ export class ClamAvScanner implements MalwareScanner {
     return await new Promise<{ infected: boolean; signature?: string }>((resolve, reject) => {
       let settled = false;
       let responseText = "";
+      let pending: Uint8Array = new Uint8Array(0);
+      let onDrained: (() => void) | undefined;
 
       const finish = (result: { infected: boolean; signature?: string }): void => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        onDrained?.();
+        onDrained = undefined;
         resolve(result);
       };
 
@@ -50,6 +55,8 @@ export class ClamAvScanner implements MalwareScanner {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
+        onDrained?.();
+        onDrained = undefined;
         reject(err);
       };
 
@@ -57,10 +64,38 @@ export class ClamAvScanner implements MalwareScanner {
         fail(new Error(`ClamAV scan timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
+      const flushPending = (socket: Socket<undefined>): void => {
+        while (pending.byteLength > 0) {
+          const written = socket.write(pending);
+          if (written <= 0) break;
+          pending = pending.subarray(written);
+        }
+        if (pending.byteLength === 0 && onDrained) {
+          const resume = onDrained;
+          onDrained = undefined;
+          resume();
+        }
+      };
+
+      const writeAll = async (socket: Socket<undefined>, bytes: Uint8Array): Promise<void> => {
+        if (settled) return;
+        pending = bytes;
+        flushPending(socket);
+        while (pending.byteLength > 0 && !settled) {
+          await new Promise<void>((resume) => {
+            onDrained = resume;
+          });
+        }
+      };
+
       Bun.connect({
         hostname: host,
         port: port,
         socket: {
+          drain(socket) {
+            flushPending(socket);
+          },
+
           async open(socket) {
             try {
               // Initiate INSTREAM command per clamd protocol spec
@@ -69,6 +104,7 @@ export class ClamAvScanner implements MalwareScanner {
               const reader = stream.getReader();
               try {
                 while (true) {
+                  if (settled) break;
                   const { done, value } = await reader.read();
                   if (done) break;
 
@@ -77,13 +113,15 @@ export class ClamAvScanner implements MalwareScanner {
 
                   const header = new Uint8Array(4);
                   new DataView(header.buffer).setUint32(0, bytes.byteLength, false);
-                  socket.write(header);
-                  socket.write(bytes);
+                  await writeAll(socket, header);
+                  await writeAll(socket, bytes);
                 }
 
-                // 4-byte zero length indicates end of stream
-                const terminator = new Uint8Array(4);
-                socket.write(terminator);
+                if (!settled) {
+                  // 4-byte zero length indicates end of stream
+                  const terminator = new Uint8Array(4);
+                  await writeAll(socket, terminator);
+                }
               } finally {
                 reader.releaseLock();
               }

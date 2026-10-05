@@ -10,6 +10,15 @@ function createStream(content: string): ReadableStream {
   });
 }
 
+function createByteStream(bytes: Uint8Array): ReadableStream {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+}
+
 describe("ClamAvScanner (BE-S2-07)", () => {
   test("AC-46.01: clean stream returns infected: false", async () => {
     let received = Buffer.alloc(0);
@@ -133,6 +142,54 @@ describe("ClamAvScanner (BE-S2-07)", () => {
       await expect(scanner.scan(createStream("hang test"))).rejects.toThrow(
         "ClamAV scan timed out after 100ms",
       );
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("streams chunk larger than socket send buffer without dropping bytes", async () => {
+    // 2 MB chunk exceeds the socket send buffer (~320 KB on loopback)
+    const chunkSize = 2 * 1024 * 1024;
+    const chunkData = new Uint8Array(chunkSize);
+    chunkData.fill(0x5a);
+
+    const receivedChunks: Buffer[] = [];
+    let totalReceived = 0;
+    const expectedTotal = 10 + 4 + chunkSize + 4; // zINSTREAM\0 + length + data + terminator
+
+    const server = Bun.listen({
+      hostname: "127.0.0.1",
+      port: 0,
+      socket: {
+        data(socket, data) {
+          const buf = Buffer.from(data);
+          receivedChunks.push(buf);
+          totalReceived += buf.length;
+
+          if (totalReceived >= expectedTotal) {
+            socket.write("stream: OK\0");
+            socket.end();
+          }
+        },
+      },
+    });
+
+    const scanner = new ClamAvScanner({
+      host: "127.0.0.1",
+      port: server.port,
+      timeoutMs: 5000,
+    });
+
+    try {
+      const result = await scanner.scan(createByteStream(chunkData));
+      expect(result).toEqual({ infected: false });
+
+      const allBytes = Buffer.concat(receivedChunks);
+      expect(allBytes.length).toBe(expectedTotal);
+      expect(allBytes.toString("utf8", 0, 10)).toBe("zINSTREAM\0");
+      expect(allBytes.readUInt32BE(10)).toBe(chunkSize);
+      expect(allBytes.subarray(14, 14 + chunkSize).equals(Buffer.from(chunkData))).toBe(true);
+      expect(allBytes.readUInt32BE(14 + chunkSize)).toBe(0);
     } finally {
       server.stop();
     }

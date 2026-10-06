@@ -26,6 +26,7 @@ export function UploadTray({
     successMessage,
     handleFiles,
     handleDismiss,
+    handleMalwareDetected,
   } = useUploadTray({
     onUploadSettled,
     maxFileSizeMb,
@@ -87,7 +88,12 @@ export function UploadTray({
                     className="max-h-[380px] space-y-2 overflow-y-auto pr-1"
                   >
                     {items.map((item) => (
-                      <UploadFileItem key={item.id} item={item} onDismiss={handleDismiss} />
+                      <UploadFileItem
+                        key={item.id}
+                        item={item}
+                        onDismiss={handleDismiss}
+                        onMalwareDetected={handleMalwareDetected}
+                      />
                     ))}
                   </div>
 

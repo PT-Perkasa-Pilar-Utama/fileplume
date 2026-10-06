@@ -5,6 +5,7 @@ import { ApiError } from "../../../lib/api.ts";
 import { uploadDocumentsRequest } from "../api.ts";
 import { DEFAULT_MAX_FILE_SIZE_MB, validateBatchCount, validateFile } from "../file-validation.ts";
 import type { TrayItem, UploadBatch, UploadProgress } from "../types.ts";
+import { markTrayItemAsMalwareDetected } from "./mark-tray-item-as-malware-detected.ts";
 
 export interface FileToUpload {
   readonly file: File;
@@ -121,6 +122,7 @@ export interface UseUploadTrayReturn {
   readonly successMessage: string | null;
   readonly handleFiles: (files: File[]) => Promise<void>;
   readonly handleDismiss: (id: string) => void;
+  readonly handleMalwareDetected: (id: string) => void;
   readonly clearError: () => void;
 }
 
@@ -218,6 +220,13 @@ export function useUploadTray({
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const handleMalwareDetected = (id: string): void => {
+    setItems((prev) => prev.map((item) => markTrayItemAsMalwareDetected(item, id)));
+    setSuccessMessage(null);
+    void queryClient.invalidateQueries({ queryKey: ["documents"] });
+    void queryClient.invalidateQueries({ queryKey: ["storage"] });
+  };
+
   const clearError = (): void => {
     setBatchError(null);
   };
@@ -230,6 +239,7 @@ export function useUploadTray({
     successMessage,
     handleFiles,
     handleDismiss,
+    handleMalwareDetected,
     clearError,
   };
 }

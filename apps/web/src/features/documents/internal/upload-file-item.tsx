@@ -1,25 +1,64 @@
-import { UPLOAD_MESSAGES } from "@archiva/shared";
+import { ERROR_MESSAGES, UPLOAD_MESSAGES } from "@archiva/shared";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
-import type { JSX } from "react";
+import { type JSX, useEffect } from "react";
 import { Badge } from "../../../components/ui/badge.tsx";
+import { ApiError } from "../../../lib/api.ts";
 import { cn } from "../../../lib/cn.ts";
 import { formatBytes } from "../../../lib/format.ts";
+import { fetchDocumentDetail } from "../detail-api.ts";
 import { getAcceptedFileType } from "../file-validation.ts";
 import type { TrayItem } from "../types.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
 
+const PROCESSING_POLL_INTERVAL_MS = 2_000;
+const PROCESSING_QUERY_RETRY_LIMIT = 3;
+
 export interface UploadFileItemProps {
   readonly item: TrayItem;
   readonly onDismiss?: (id: string) => void;
+  readonly onMalwareDetected?: (id: string) => void;
 }
 
-export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.Element {
+export function UploadFileItem({
+  item,
+  onDismiss,
+  onMalwareDetected,
+}: UploadFileItemProps): JSX.Element {
   const detectedType = getAcceptedFileType(item.file) ?? "unsupported";
-
   const isUploading = item.status === "uploading";
   const isAccepted = item.status === "accepted";
-  const isRejected = item.status === "rejected";
+  const documentId = item.document?.id;
+  const processingQuery = useQuery({
+    queryKey: ["document-processing", documentId],
+    queryFn: () => {
+      if (!documentId) throw new Error("An accepted upload must have a document id");
+      return fetchDocumentDetail(documentId);
+    },
+    enabled: isAccepted && Boolean(documentId),
+    refetchInterval: (query) => {
+      const processingState = query.state.data?.processingState;
+      const notFound =
+        query.state.error instanceof ApiError && query.state.error.code === "NOT_FOUND";
+      if (notFound || processingState === "ready" || processingState === "failed") return false;
+      return PROCESSING_POLL_INTERVAL_MS;
+    },
+    refetchOnWindowFocus: false,
+    retry: (failureCount, error) => {
+      const notFound = error instanceof ApiError && error.code === "NOT_FOUND";
+      return !notFound && failureCount < PROCESSING_QUERY_RETRY_LIMIT;
+    },
+  });
+  const malwareDetected =
+    isAccepted &&
+    processingQuery.error instanceof ApiError &&
+    processingQuery.error.code === "NOT_FOUND";
+  const isRejected = item.status === "rejected" || malwareDetected;
+
+  useEffect(() => {
+    if (malwareDetected) onMalwareDetected?.(item.id);
+  }, [item.id, malwareDetected, onMalwareDetected]);
 
   const loadedBytes = Math.round((item.sizeBytes * item.progress) / 100);
 
@@ -80,7 +119,7 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
         )}
 
         {/* Accepted state */}
-        {isAccepted && (
+        {isAccepted && !malwareDetected && (
           <div className="flex flex-wrap items-center gap-2 pt-0.5">
             <span className="flex items-center gap-1 text-xs font-medium text-success">
               <CheckCircle2 className="size-3.5 shrink-0" />
@@ -99,7 +138,7 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
           <div className="space-y-0.5 pt-0.5">
             <div className="flex items-start gap-1 text-xs font-medium text-destructive">
               <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
-              <span>{item.error?.message}</span>
+              <span>{malwareDetected ? ERROR_MESSAGES.MALWARE_DETECTED : item.error?.message}</span>
             </div>
             {item.error?.existingDocumentId && (
               <div className="pl-4.5">

@@ -14,6 +14,7 @@ import { FileTypeIcon } from "./file-type-icon.tsx";
 
 const PROCESSING_POLL_INTERVAL_MS = 2_000;
 const PROCESSING_QUERY_RETRY_LIMIT = 3;
+const DOCUMENT_PROCESSING_QUERY_KEY = ["document-processing"] as const;
 
 export interface UploadFileItemProps {
   readonly item: TrayItem;
@@ -31,7 +32,7 @@ export function UploadFileItem({
   const isAccepted = item.status === "accepted";
   const documentId = item.document?.id;
   const processingQuery = useQuery({
-    queryKey: ["document-processing", documentId],
+    queryKey: [...DOCUMENT_PROCESSING_QUERY_KEY, documentId],
     queryFn: () => {
       if (!documentId) throw new Error("An accepted upload must have a document id");
       return fetchDocumentDetail(documentId);

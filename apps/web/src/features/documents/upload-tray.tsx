@@ -69,7 +69,7 @@ export function UploadTray({
       )}
 
       {/* Success notification banner (AC-01.01, AC-01.04, AC-03.02) */}
-      {successMessage && (
+      {successMessage && items.some((item) => item.status === "accepted") && (
         <Alert variant="success" data-testid="upload-success-alert">
           <CheckCircle2 className="size-4" />
           <AlertDescription>{successMessage}</AlertDescription>

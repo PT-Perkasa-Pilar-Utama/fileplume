@@ -224,7 +224,6 @@ export function useUploadTray({
 
   const handleMalwareDetected = (id: string): void => {
     setItems((prev) => prev.map((item) => markTrayItemAsMalwareDetected(item, id)));
-    setSuccessMessage(null);
     void queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
     void queryClient.invalidateQueries({ queryKey: STORAGE_QUERY_KEY });
   };

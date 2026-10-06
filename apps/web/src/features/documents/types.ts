@@ -10,13 +10,7 @@ type AcceptedResult = Extract<UploadBatch["results"][number], { status: "accepte
 type RejectedResult = Extract<UploadBatch["results"][number], { status: "rejected" }>;
 
 export type TrayItemDocument = AcceptedResult["document"];
-export type TrayItemError =
-  | RejectedResult["error"]
-  | {
-      readonly code: "MALWARE_DETECTED";
-      readonly message: string;
-      readonly existingDocumentId?: never;
-    };
+export type TrayItemError = RejectedResult["error"];
 
 export interface TrayItem {
   readonly id: string;

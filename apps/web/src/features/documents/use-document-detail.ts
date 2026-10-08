@@ -11,6 +11,7 @@ import {
   uploadDocumentVersionRequest,
 } from "./detail-api.ts";
 import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
+import { useProcessingStatus } from "./use-processing-status.ts";
 
 export const DOCUMENT_QUERY_KEY = ["document"] as const;
 
@@ -37,7 +38,8 @@ export interface UseDocumentDetailReturn {
 
 /**
  * Manages document detail, active version switching, preview loading,
- * and version-specific downloading (AC-38.02, AC-21.02).
+ * version-specific downloading, and processing status polling (AC-38.02, AC-21.02, AC-44.01).
+ * Uses shared useProcessingStatus to avoid polling heavy detail payload (api-specs 07.2).
  */
 export function useDocumentDetail({
   documentId,
@@ -57,10 +59,54 @@ export function useDocumentDetail({
 
   const doc = documentQuery.data;
 
-  const activeVersion = doc?.versions.find(
+  const isPendingProcessing =
+    doc?.processingState === "queued" || doc?.processingState === "processing";
+
+  const processingStatus = useProcessingStatus({
+    documentId,
+    initialState: doc?.processingState,
+    initialLabel: doc?.processingLabel,
+    initialFailureReason: doc?.failureReason,
+    enabled: Boolean(documentId && doc && isPendingProcessing),
+    onStatusChange: (status) => {
+      if (status.state === "ready" || status.state === "failed") {
+        void queryClient.invalidateQueries({
+          queryKey: [...DOCUMENT_QUERY_KEY, documentId],
+        });
+      }
+    },
+  });
+
+  const is404Purged =
+    processingStatus.isError &&
+    processingStatus.error instanceof ApiError &&
+    processingStatus.error.status === 404;
+
+  const isError = Boolean(documentQuery.isError || is404Purged);
+
+  const effectiveError = is404Purged
+    ? processingStatus.error
+    : (documentQuery.error ?? processingStatus.error);
+
+  const effectiveDocument: DocumentDetailView | undefined =
+    is404Purged || !doc
+      ? undefined
+      : {
+          ...doc,
+          processingState: processingStatus.state ?? doc.processingState,
+          processingLabel: processingStatus.label ?? doc.processingLabel,
+          failureReason:
+            processingStatus.failureReason !== undefined
+              ? processingStatus.failureReason
+              : doc.failureReason,
+        };
+
+  const activeVersion = effectiveDocument?.versions.find(
     (v) =>
       v.id ===
-      (selectedVersionId ?? doc.versions.find((item) => item.isCurrent)?.id ?? doc.versions[0]?.id),
+      (selectedVersionId ??
+        effectiveDocument.versions.find((item) => item.isCurrent)?.id ??
+        effectiveDocument.versions[0]?.id),
   );
 
   const activeVersionId = activeVersion?.id ?? selectedVersionId ?? "";
@@ -87,7 +133,7 @@ export function useDocumentDetail({
   const downloadMutation = useMutation({
     mutationFn: async () => {
       if (!documentId || !activeVersion) return;
-      const targetFilename = activeVersion.filename || doc?.title || "document";
+      const targetFilename = activeVersion.filename || effectiveDocument?.title || "document";
       const { blob, filename } = await downloadDocumentRequest(
         documentId,
         activeVersion.id,
@@ -143,15 +189,13 @@ export function useDocumentDetail({
         : null;
 
   return {
-    document: doc,
+    document: effectiveDocument,
     activeVersion,
     activeVersionId,
     isLoading: documentQuery.isLoading,
-    isError: documentQuery.isError,
+    isError,
     error:
-      documentQuery.error instanceof ApiError || documentQuery.error instanceof Error
-        ? documentQuery.error
-        : null,
+      effectiveError instanceof ApiError || effectiveError instanceof Error ? effectiveError : null,
     previewUrl: previewQuery.data?.url ?? null,
     isLoadingPreview: previewQuery.isLoading,
     previewError,

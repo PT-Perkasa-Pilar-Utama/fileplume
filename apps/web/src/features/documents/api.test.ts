@@ -1,6 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import { ApiError } from "../../lib/api.ts";
-import { parseUploadBatchBody } from "./api.ts";
+import { afterAll, afterEach, describe, expect, spyOn, test } from "bun:test";
+import { API_BASE, ApiError } from "../../lib/api.ts";
+import { fetchProcessingStatus, parseUploadBatchBody } from "./api.ts";
 
 describe("document upload batch parsing (FE-S2-01)", () => {
   // AC-01.01: Mengunggah satu file PDF yang valid
@@ -131,6 +131,113 @@ describe("document upload batch parsing (FE-S2-01)", () => {
         expect(err.status).toBe(422);
         expect(err.code).toBe("BATCH_TOO_LARGE");
         expect(err.message).toBe("Maksimal 20 file per unggahan");
+      }
+    }
+  });
+});
+
+describe("fetchProcessingStatus (api-specs/07-enrichment.md 7.2, FE-S3-01)", () => {
+  const fetchSpy = spyOn(globalThis, "fetch");
+
+  afterEach(() => {
+    fetchSpy.mockReset();
+  });
+
+  afterAll(() => {
+    fetchSpy.mockRestore();
+  });
+
+  const mockDocId = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
+
+  // AC-44.01: fetchProcessingStatus calls GET /api/v1/documents/:id/processing and parses status view
+  test("AC-44.01: fetchProcessingStatus retrieves moving processing status", async () => {
+    const mockPayload = {
+      data: {
+        documentId: mockDocId,
+        state: "processing",
+        label: "Diproses",
+        failureReason: null,
+        searchable: false,
+        updatedAt: "2026-09-10T05:20:44.000Z",
+      },
+    };
+
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(mockPayload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await fetchProcessingStatus(mockDocId);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${API_BASE}/documents/${mockDocId}/processing`,
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(result.documentId).toBe(mockDocId);
+    expect(result.state).toBe("processing");
+    expect(result.label).toBe("Diproses");
+    expect(result.failureReason).toBeNull();
+    expect(result.searchable).toBe(false);
+  });
+
+  // AC-44.03, AC-44.04: fetchProcessingStatus parses failed state with failureReason
+  test("AC-44.03: fetchProcessingStatus parses failed state with password_protected reason", async () => {
+    const mockPayload = {
+      data: {
+        documentId: mockDocId,
+        state: "failed",
+        label: "Gagal",
+        failureReason: {
+          code: "password_protected",
+          message: "Dokumen terproteksi password",
+        },
+        searchable: false,
+        updatedAt: "2026-09-10T05:20:44.000Z",
+      },
+    };
+
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(mockPayload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const result = await fetchProcessingStatus(mockDocId);
+
+    expect(result.state).toBe("failed");
+    expect(result.label).toBe("Gagal");
+    expect(result.failureReason?.code).toBe("password_protected");
+    expect(result.failureReason?.message).toBe("Dokumen terproteksi password");
+  });
+
+  // AC-46.02: 404 indicates document purged due to malware or not found
+  test("AC-46.02: fetchProcessingStatus throws ApiError on 404 NOT_FOUND", async () => {
+    const errorPayload = {
+      error: {
+        code: "NOT_FOUND",
+        message: "Dokumen tidak ditemukan",
+      },
+    };
+
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify(errorPayload), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    try {
+      await fetchProcessingStatus(mockDocId);
+      expect().fail("should have thrown ApiError");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError);
+      if (err instanceof ApiError) {
+        expect(err.status).toBe(404);
+        expect(err.code).toBe("NOT_FOUND");
+        expect(err.message).toBe("Dokumen tidak ditemukan");
       }
     }
   });

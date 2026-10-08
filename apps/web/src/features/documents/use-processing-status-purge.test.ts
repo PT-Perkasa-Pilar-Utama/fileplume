@@ -5,6 +5,18 @@ import { createRoot } from "react-dom/client";
 import { DOCUMENTS_QUERY_KEY } from "./use-documents.ts";
 import { useProcessingStatus } from "./use-processing-status.ts";
 
+async function waitForCondition(predicate: () => boolean, timeoutMs = 1_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (!predicate() && Date.now() < deadline) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+
+  return predicate();
+}
+
 describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
 
@@ -64,10 +76,11 @@ describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () =
       );
     });
 
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 60));
-    });
+    const purgeHandled = await waitForCondition(
+      () => hookResult?.isError === true && invalidateSpy.mock.calls.length > 0,
+    );
 
+    expect(purgeHandled).toBe(true);
     expect(hookResult?.isError).toBe(true);
     expect(hookResult?.isPolling).toBe(false);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });

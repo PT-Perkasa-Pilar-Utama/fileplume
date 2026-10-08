@@ -19,13 +19,20 @@ async function waitForCondition(predicate: () => boolean, timeoutMs = 1_000): Pr
 
 describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
+  let root: ReturnType<typeof createRoot> | undefined;
 
   beforeEach(() => {
     fetchSpy = spyOn(globalThis, "fetch");
   });
 
   afterEach(() => {
-    fetchSpy.mockReset();
+    if (root) {
+      act(() => {
+        root?.unmount();
+      });
+      root = undefined;
+    }
+    fetchSpy.mockRestore();
   });
 
   const mockDocId = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
@@ -64,10 +71,10 @@ describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () =
     }
 
     const container = document.createElement("div");
-    const root = createRoot(container);
+    root = createRoot(container);
 
     await act(async () => {
-      root.render(
+      root?.render(
         React.createElement(
           QueryClientProvider,
           { client: queryClient },
@@ -84,17 +91,17 @@ describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () =
     expect(hookResult?.isError).toBe(true);
     expect(hookResult?.isPolling).toBe(false);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: DOCUMENTS_QUERY_KEY });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const processingStatusCalls = () =>
+      fetchSpy.mock.calls.filter(
+        (call: unknown[]) => String(call[0]) === `/api/v1/documents/${mockDocId}/processing`,
+      );
+    expect(processingStatusCalls()).toHaveLength(1);
 
     // Wait past refetchIntervalMs again to prove polling timer has completely stopped
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 60));
     });
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      root.unmount();
-    });
+    expect(processingStatusCalls()).toHaveLength(1);
   });
 });

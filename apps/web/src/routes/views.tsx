@@ -45,6 +45,7 @@ export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Elemen
         sizeBytes: item.sizeBytes,
         processingState: item.document.processingState,
         processingLabel: item.document.processingLabel,
+        failureReason: item.document.failureReason ?? null,
         uploaderName,
         createdAt: uploadedAt,
       });

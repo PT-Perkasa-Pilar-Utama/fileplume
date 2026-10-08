@@ -7,6 +7,7 @@ import { cn } from "../../lib/cn.ts";
 import { formatBytes, formatDocumentDate } from "../../lib/format.ts";
 import { FileTypeIcon } from "./internal/file-type-icon.tsx";
 import type { UploadedDocumentDisplay } from "./types.ts";
+import { useProcessingStatus } from "./use-processing-status.ts";
 
 export type DocumentCardItem = DocumentView | UploadedDocumentDisplay;
 
@@ -40,11 +41,30 @@ function getProcessingBadgeVariant(
  * Clicking navigates to /documents/$id.
  */
 export function DocumentCard({ document, className }: DocumentCardProps): JSX.Element {
+  const isPending =
+    document.processingState === "queued" || document.processingState === "processing";
+  const { state, label, failureReason } = useProcessingStatus({
+    documentId: document.id,
+    initialState: document.processingState,
+    initialLabel: document.processingLabel,
+    initialFailureReason: "failureReason" in document ? document.failureReason : null,
+    enabled: isPending,
+  });
+
+  const currentState = state ?? document.processingState;
+  const currentLabel = label ?? document.processingLabel;
+  const currentFailureReason =
+    failureReason !== undefined
+      ? failureReason
+      : "failureReason" in document
+        ? document.failureReason
+        : null;
+
   const uploaderName = "uploader" in document ? document.uploader.name : document.uploaderName;
   const formattedDate = formatDocumentDate(document.createdAt);
   const sizeFormatted =
     typeof document.sizeBytes === "number" ? formatBytes(document.sizeBytes) : null;
-  const badgeVariant = getProcessingBadgeVariant(document.processingState);
+  const badgeVariant = getProcessingBadgeVariant(currentState);
 
   return (
     <Card
@@ -68,10 +88,10 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
             data-testid={`document-status-${document.id}`}
             className={cn(
               "shrink-0 font-medium",
-              document.processingState === "processing" && "animate-pulse border-primary/40",
+              currentState === "processing" && "animate-pulse border-primary/40",
             )}
           >
-            {document.processingLabel}
+            {currentLabel}
           </Badge>
         </div>
 
@@ -83,6 +103,15 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
           >
             {document.title}
           </h4>
+
+          {currentState === "failed" && currentFailureReason?.message && (
+            <p
+              data-testid={`document-failure-reason-${document.id}`}
+              className="text-xs text-destructive font-normal line-clamp-2"
+            >
+              {currentFailureReason.message}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
             {sizeFormatted ? <span>{sizeFormatted}</span> : null}

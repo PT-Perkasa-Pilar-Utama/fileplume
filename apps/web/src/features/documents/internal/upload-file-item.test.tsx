@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { FailureReasonView } from "@archiva/shared";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -97,5 +98,58 @@ describe("UploadFileItem component (FE-S2-01)", () => {
     expect(html).toContain('role="progressbar"');
     expect(html).toContain('aria-valuenow="27"');
     expect(html).toContain('style="width:27%"');
+  });
+
+  // AC-44.01: Status pemrosesan tampil pada item unggahan
+  test("AC-44.01: renders processing status label verbatim on accepted item", async () => {
+    const item: TrayItem = {
+      id: "test-antre",
+      file: new File(["data"], "dokumen-antre.pdf"),
+      filename: "dokumen-antre.pdf",
+      sizeBytes: 15 * 1024,
+      progress: 100,
+      status: "accepted",
+      document: {
+        id: "doc-antre-id",
+        title: "dokumen-antre.pdf",
+        processingState: "queued",
+        processingLabel: "Antre",
+      },
+    };
+
+    const html = await renderWithDetailRoute(<UploadFileItem item={item} />);
+
+    expect(html).toContain("Antre");
+    expect(html).toContain('data-testid="upload-item-status-test-antre"');
+  });
+
+  // AC-44.03, AC-44.04: Kegagalan pemrosesan ditampilkan dengan status Gagal dan pesan alasan
+  test("AC-44.03: renders Gagal status and failure reason on accepted item when processing fails", async () => {
+    const failureReason: FailureReasonView = {
+      code: "password_protected",
+      message: "Dokumen terproteksi password",
+    };
+
+    const item: TrayItem = {
+      id: "test-failed",
+      file: new File(["data"], "dokumen-rahasia.pdf"),
+      filename: "dokumen-rahasia.pdf",
+      sizeBytes: 25 * 1024,
+      progress: 100,
+      status: "accepted",
+      document: {
+        id: "doc-failed-id",
+        title: "dokumen-rahasia.pdf",
+        processingState: "failed",
+        processingLabel: "Gagal",
+        failureReason,
+      },
+    };
+
+    const html = await renderWithDetailRoute(<UploadFileItem item={item} />);
+
+    expect(html).toContain("Gagal");
+    expect(html).toContain("Dokumen terproteksi password");
+    expect(html).toContain('data-testid="upload-item-failure-reason-test-failed"');
   });
 });

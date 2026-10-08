@@ -7,6 +7,8 @@ import {
   errorSchema,
   type ListDocumentsQuery,
   type Meta,
+  type ProcessingStatusView,
+  processingStatusSchema,
   type UploadBatch,
   uploadBatchSchema,
 } from "@archiva/shared";
@@ -168,4 +170,13 @@ export function buildDocumentSearchParams(params?: DocumentQueryParams): string 
 export async function fetchDocuments(params?: DocumentQueryParams): Promise<DocumentsResponse> {
   const query = buildDocumentSearchParams(params);
   return apiFetch(`/documents${query}`, collectionOf(documentSchema));
+}
+
+/**
+ * GET /api/v1/documents/:id/processing
+ * Polls document processing status (api-specs/07-enrichment.md 7.2).
+ */
+export async function fetchProcessingStatus(id: string): Promise<ProcessingStatusView> {
+  const res = await apiFetch(`/documents/${id}/processing`, dataOf(processingStatusSchema));
+  return res.data;
 }

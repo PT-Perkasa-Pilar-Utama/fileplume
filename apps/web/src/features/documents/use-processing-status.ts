@@ -41,14 +41,6 @@ export function isProcessingNotFoundError(error: unknown): boolean {
   if (error instanceof ApiError && error.status === 404) {
     return true;
   }
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    (error as { status: unknown }).status === 404
-  ) {
-    return true;
-  }
   return false;
 }
 
@@ -107,9 +99,6 @@ export function useProcessingStatus({
           (enabled !== undefined ? enabled : isPending),
       ),
       refetchInterval: (q) => {
-        if (isProcessingNotFoundError(q.state.error)) {
-          return false;
-        }
         const currentState = q.state.data?.state ?? initialState;
         return computeProcessingRefetchInterval(currentState, refetchIntervalMs, q.state.error);
       },

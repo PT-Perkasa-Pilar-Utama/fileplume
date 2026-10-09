@@ -35,6 +35,24 @@ export interface UseProcessingStatusReturn {
 }
 
 /**
+ * Checks whether an error indicates the document was not found (e.g. 404 from malware purge).
+ */
+export function isProcessingNotFoundError(error: unknown): boolean {
+  if (error instanceof ApiError && error.status === 404) {
+    return true;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status: unknown }).status === 404
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Computes refetch interval for processing status.
  * Polling occurs every 2000 ms while moving (queued | processing);
  * stops (false) on terminal states (ready | failed) or when error is 404 (malware purged).
@@ -45,7 +63,7 @@ export function computeProcessingRefetchInterval(
   refetchIntervalMs: number = DEFAULT_PROCESSING_POLL_INTERVAL_MS,
   error?: unknown,
 ): number | false {
-  if (error instanceof ApiError && error.status === 404) {
+  if (isProcessingNotFoundError(error)) {
     return false;
   }
   if (state === "queued" || state === "processing") {
@@ -72,10 +90,6 @@ export function useProcessingStatus({
   const client = contextClient ?? FALLBACK_QUERY_CLIENT;
 
   const isPending = initialState === "queued" || initialState === "processing";
-  const isEnabled = Boolean(
-    contextClient && documentId && (enabled !== undefined ? enabled : isPending),
-  );
-
   const lastNotifiedStateRef = useRef<string | null>(initialState ?? null);
   const hasInvalidatedOn404Ref = useRef<boolean>(false);
 
@@ -86,20 +100,22 @@ export function useProcessingStatus({
         if (!documentId) throw new Error("Document ID is required");
         return fetchProcessingStatus(documentId);
       },
-      enabled: isEnabled,
+      enabled: Boolean(
+        contextClient &&
+          documentId &&
+          !hasInvalidatedOn404Ref.current &&
+          (enabled !== undefined ? enabled : isPending),
+      ),
       refetchInterval: (q) => {
-        if (q.state.error instanceof ApiError && q.state.error.status === 404) {
+        if (isProcessingNotFoundError(q.state.error)) {
           return false;
         }
         const currentState = q.state.data?.state ?? initialState;
         return computeProcessingRefetchInterval(currentState, refetchIntervalMs, q.state.error);
       },
-      retry: (_failureCount, error) => {
-        if (error instanceof ApiError && error.status === 404) {
-          return false;
-        }
-        return false;
-      },
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
     },
     client,
   );
@@ -117,13 +133,22 @@ export function useProcessingStatus({
   }, [query.data, onStatusChange, client]);
 
   useEffect(() => {
-    if (query.error instanceof ApiError && query.error.status === 404) {
+    if (isProcessingNotFoundError(query.error)) {
       if (!hasInvalidatedOn404Ref.current) {
         hasInvalidatedOn404Ref.current = true;
         void client.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
       }
     }
   }, [query.error, client]);
+
+  const isPurged = isProcessingNotFoundError(query.error);
+  const isEnabled = Boolean(
+    contextClient &&
+      documentId &&
+      !isPurged &&
+      !hasInvalidatedOn404Ref.current &&
+      (enabled !== undefined ? enabled : isPending),
+  );
 
   const state = query.data?.state ?? initialState;
   const label = query.data?.label ?? initialLabel;

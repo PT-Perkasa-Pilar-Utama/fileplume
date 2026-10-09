@@ -35,21 +35,31 @@ describe("useProcessingStatus malware purge handling (AC-46.02, spec 7.2)", () =
     fetchSpy.mockRestore();
   });
 
-  const mockDocId = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e01";
+  const mockDocId = "0f8c1a1e-4d2b-4c31-9f0e-2a6b7c8d9e99";
 
   // AC-46.02 & spec 7.2: 404 response (malware purged) stops polling and invalidates documents list
   test("AC-46.02: 404 response invalidates documents query and stops polling", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          error: { code: "NOT_FOUND", message: "Dokumen tidak ditemukan" },
-        }),
+    fetchSpy.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url === `/api/v1/documents/${mockDocId}/processing`) {
+        return new Response(
+          JSON.stringify({
+            error: { code: "NOT_FOUND", message: "Dokumen tidak ditemukan" },
+          }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      return new Response(
+        JSON.stringify({ data: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } }),
         {
-          status: 404,
+          status: 200,
           headers: { "Content-Type": "application/json" },
         },
-      ),
-    );
+      );
+    });
 
     const queryClient = new QueryClient({
       defaultOptions: {

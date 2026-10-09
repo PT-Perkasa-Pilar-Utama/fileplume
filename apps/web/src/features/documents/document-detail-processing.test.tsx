@@ -95,9 +95,11 @@ describe("DocumentDetailView processing failure presentation (AC-44.03, AC-44.04
     expect(html).toContain("Gagal");
     expect(html).toContain("Waktu ekstraksi dokumen habis");
     expect(html).toContain('data-testid="metadata-failure-reason"');
-    // AC-44.03: Dokumen tetap dapat diunduh (tombol download tetap ada dan tidak disabled)
+    // AC-44.03: the failed document remains downloadable.
     expect(html).toContain('data-testid="download-button"');
-    expect(html).not.toMatch(/data-testid="download-button"[^>]*disabled/);
+    expect(html).not.toMatch(
+      /<button\b[^>]*\sdisabled(?=\s|=|>)(?:="")?[^>]*\sdata-testid="download-button"/,
+    );
   });
 
   // AC-44.04: Dokumen PDF terproteksi password
@@ -115,7 +117,9 @@ describe("DocumentDetailView processing failure presentation (AC-44.03, AC-44.04
     expect(html).toContain("Gagal");
     expect(html).toContain("Dokumen terproteksi password");
     expect(html).toContain('data-testid="download-button"');
-    expect(html).not.toMatch(/data-testid="download-button"[^>]*disabled/);
+    expect(html).not.toMatch(
+      /<button\b[^>]*\sdisabled(?=\s|=|>)(?:="")?[^>]*\sdata-testid="download-button"/,
+    );
   });
 
   // AC-44.05: Dokumen rusak atau kosong
@@ -133,7 +137,7 @@ describe("DocumentDetailView processing failure presentation (AC-44.03, AC-44.04
     expect(html).toContain("Gagal");
     expect(html).toContain("Isi dokumen tidak dapat dibaca");
     expect(html).toContain('data-testid="metadata-failure-reason"');
-    // UI tidak menampilkan halaman error 500
+    // AC-44.05: unreadable documents do not trigger the error page.
     expect(html).not.toContain('data-testid="document-detail-error"');
   });
 });

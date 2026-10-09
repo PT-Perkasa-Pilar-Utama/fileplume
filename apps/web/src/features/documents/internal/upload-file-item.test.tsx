@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -11,9 +12,17 @@ import { renderToString } from "react-dom/server";
 import type { TrayItem } from "../types.ts";
 import { UploadFileItem } from "./upload-file-item.tsx";
 
-async function renderWithDetailRoute(ui: JSX.Element): Promise<string> {
+function createQueryClient(): QueryClient {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+async function createDetailRouter(ui: JSX.Element, queryClient: QueryClient) {
   const rootRoute = createRootRoute({
-    component: () => <div>{ui}</div>,
+    component: () => (
+      <QueryClientProvider client={queryClient}>
+        <div>{ui}</div>
+      </QueryClientProvider>
+    ),
   });
 
   const documentDetailRoute = createRoute({
@@ -26,7 +35,11 @@ async function renderWithDetailRoute(ui: JSX.Element): Promise<string> {
   const history = createMemoryHistory({ initialEntries: ["/"] });
   const router = createRouter({ routeTree: rootRoute, history });
   await router.load();
+  return router;
+}
 
+async function renderWithDetailRoute(ui: JSX.Element): Promise<string> {
+  const router = await createDetailRouter(ui, createQueryClient());
   return renderToString(<RouterProvider router={router} />);
 }
 

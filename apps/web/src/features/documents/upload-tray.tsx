@@ -26,6 +26,7 @@ export function UploadTray({
     successMessage,
     handleFiles,
     handleDismiss,
+    handleMalwareDetected,
   } = useUploadTray({
     onUploadSettled,
     maxFileSizeMb,
@@ -68,7 +69,7 @@ export function UploadTray({
       )}
 
       {/* Success notification banner (AC-01.01, AC-01.04, AC-03.02) */}
-      {successMessage && (
+      {successMessage && items.some((item) => item.status === "accepted") && (
         <Alert variant="success" data-testid="upload-success-alert">
           <CheckCircle2 className="size-4" />
           <AlertDescription>{successMessage}</AlertDescription>
@@ -87,7 +88,12 @@ export function UploadTray({
                     className="max-h-[380px] space-y-2 overflow-y-auto pr-1"
                   >
                     {items.map((item) => (
-                      <UploadFileItem key={item.id} item={item} onDismiss={handleDismiss} />
+                      <UploadFileItem
+                        key={item.id}
+                        item={item}
+                        onDismiss={handleDismiss}
+                        onMalwareDetected={handleMalwareDetected}
+                      />
                     ))}
                   </div>
 

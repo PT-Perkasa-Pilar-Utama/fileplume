@@ -7,6 +7,7 @@ import { cn } from "../../../lib/cn.ts";
 import { formatBytes } from "../../../lib/format.ts";
 import { getAcceptedFileType } from "../file-validation.ts";
 import type { TrayItem } from "../types.ts";
+import { useProcessingStatus } from "../use-processing-status.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
 
 export interface UploadFileItemProps {
@@ -20,6 +21,26 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
   const isUploading = item.status === "uploading";
   const isAccepted = item.status === "accepted";
   const isRejected = item.status === "rejected";
+
+  const {
+    state: processingState,
+    label: processingLabel,
+    failureReason,
+  } = useProcessingStatus({
+    documentId: item.document?.id,
+    initialState: item.document?.processingState,
+    initialLabel: item.document?.processingLabel,
+    initialFailureReason: item.document?.failureReason,
+    enabled:
+      isAccepted &&
+      Boolean(item.document) &&
+      (item.document?.processingState === "queued" ||
+        item.document?.processingState === "processing"),
+  });
+
+  const currentProcessingState = processingState ?? item.document?.processingState;
+  const currentProcessingLabel = processingLabel ?? item.document?.processingLabel;
+  const currentFailureReason = failureReason ?? item.document?.failureReason;
 
   const loadedBytes = Math.round((item.sizeBytes * item.progress) / 100);
 
@@ -81,15 +102,40 @@ export function UploadFileItem({ item, onDismiss }: UploadFileItemProps): JSX.El
 
         {/* Accepted state */}
         {isAccepted && (
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <span className="flex items-center gap-1 text-xs font-medium text-success">
-              <CheckCircle2 className="size-3.5 shrink-0" />
-              {UPLOAD_MESSAGES.FILE_ACCEPTED}
-            </span>
-            {item.document && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-2xs font-normal">
-                {item.document.processingLabel}
-              </Badge>
+          <div className="space-y-1 pt-0.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-xs font-medium text-success">
+                <CheckCircle2 className="size-3.5 shrink-0" />
+                {UPLOAD_MESSAGES.FILE_ACCEPTED}
+              </span>
+              {item.document && currentProcessingLabel && (
+                <Badge
+                  variant={
+                    currentProcessingState === "ready"
+                      ? "success"
+                      : currentProcessingState === "failed"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                  data-testid={`upload-item-status-${item.id}`}
+                  className={cn(
+                    "h-5 px-1.5 text-2xs font-normal",
+                    currentProcessingState === "processing" && "animate-pulse border-primary/40",
+                  )}
+                >
+                  {currentProcessingLabel}
+                </Badge>
+              )}
+            </div>
+
+            {currentProcessingState === "failed" && currentFailureReason?.message && (
+              <div
+                data-testid={`upload-item-failure-reason-${item.id}`}
+                className="flex items-start gap-1 text-xs font-normal text-destructive"
+              >
+                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                <span>{currentFailureReason.message}</span>
+              </div>
             )}
           </div>
         )}

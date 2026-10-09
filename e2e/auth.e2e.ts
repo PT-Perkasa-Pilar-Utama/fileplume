@@ -124,7 +124,18 @@ test.describe("Authentication end to end (FE-S1-05)", () => {
     });
 
     // 3. Click any menu item in interface (e.g. "Document" per MENU_CONFIG in sidebar.tsx)
-    await page.getByRole("link", { name: "Document" }).click();
+    // If background polling (e.g. processing status on document cards) already detected 401
+    // and initiated redirect to /login, the page may have already transitioned away from dashboard.
+    if (!page.url().includes("/login")) {
+      const docLink = page.getByRole("link", { name: "Document" });
+      try {
+        if (await docLink.isVisible()) {
+          await docLink.click({ timeout: 2_000 });
+        }
+      } catch {
+        // Redirection to /login was already in progress
+      }
+    }
 
     // 4. Verify redirected to login page with exact Indonesian session expiry notice
     await expect(page).toHaveURL(/.*\/login.*expired=true.*/);

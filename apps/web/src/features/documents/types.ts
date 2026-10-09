@@ -1,4 +1,4 @@
-import type { UploadBatch } from "@archiva/shared";
+import type { FailureReasonView, UploadBatch } from "@archiva/shared";
 
 export type { UploadBatch };
 
@@ -9,7 +9,9 @@ export type AcceptedFileType = "pdf" | "docx" | "xlsx" | "txt";
 type AcceptedResult = Extract<UploadBatch["results"][number], { status: "accepted" }>;
 type RejectedResult = Extract<UploadBatch["results"][number], { status: "rejected" }>;
 
-export type TrayItemDocument = AcceptedResult["document"];
+export type TrayItemDocument = AcceptedResult["document"] & {
+  failureReason?: FailureReasonView | null;
+};
 export type TrayItemError = RejectedResult["error"];
 
 export interface TrayItem {
@@ -59,6 +61,7 @@ export interface UploadedDocumentDisplay {
   readonly sizeBytes: number;
   readonly processingState: TrayItemDocument["processingState"];
   readonly processingLabel: string;
+  readonly failureReason?: FailureReasonView | null;
   readonly uploaderName?: string;
   readonly createdAt: string;
 }

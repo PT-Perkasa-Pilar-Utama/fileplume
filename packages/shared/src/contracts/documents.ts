@@ -14,6 +14,7 @@ export const processingStateSchema = z.enum(PROCESSING_STATES);
 export const failureReasonSchema = z
   .object({ code: z.enum(FAILURE_REASONS), message: z.string() })
   .meta({ id: "FailureReason" });
+export type FailureReasonView = z.infer<typeof failureReasonSchema>;
 
 /** `isSuggestion` is `confirmed_at IS NULL`. api-specs/06-categories.md 6.7. */
 export const documentCategoryRefSchema = z

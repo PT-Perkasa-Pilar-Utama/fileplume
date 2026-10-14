@@ -15,12 +15,18 @@ export function handleAuthError(error: unknown): void {
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     queryCache: new QueryCache({
-      onError: (error) => {
+      onError: (error, query) => {
+        if (query.meta?.skipAuthRedirect) {
+          return;
+        }
         handleAuthError(error);
       },
     }),
     mutationCache: new MutationCache({
-      onError: (error) => {
+      onError: (error, _variables, _context, mutation) => {
+        if (mutation.meta?.skipAuthRedirect) {
+          return;
+        }
         handleAuthError(error);
       },
     }),

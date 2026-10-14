@@ -24,4 +24,14 @@ describe("computeProcessingRefetchInterval (api-specs/07-enrichment.md 7.2)", ()
     expect(computeProcessingRefetchInterval("processing", 2000, notFoundError)).toBe(false);
     expect(computeProcessingRefetchInterval("queued", 2000, notFoundError)).toBe(false);
   });
+
+  test("returns false on 401 ApiError to stop polling on session expiry (AC-40.04)", () => {
+    const authError = new ApiError(
+      401,
+      "UNAUTHENTICATED",
+      "Sesi Anda telah berakhir. Silakan login kembali",
+    );
+    expect(computeProcessingRefetchInterval("processing", 2000, authError)).toBe(false);
+    expect(computeProcessingRefetchInterval("queued", 2000, authError)).toBe(false);
+  });
 });

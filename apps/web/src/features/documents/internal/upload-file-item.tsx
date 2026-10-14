@@ -38,18 +38,25 @@ export function UploadFileItem({
       if (!documentId) throw new Error("An accepted upload must have a document id");
       return fetchDocumentDetail(documentId);
     },
+    meta: {
+      skipAuthRedirect: true,
+    },
     enabled: isAccepted && Boolean(documentId),
     refetchInterval: (query) => {
       const processingState = query.state.data?.processingState;
       const notFound =
         query.state.error instanceof ApiError && query.state.error.code === "NOT_FOUND";
-      if (notFound || processingState === "ready" || processingState === "failed") return false;
+      const isAuthError = query.state.error instanceof ApiError && query.state.error.status === 401;
+      if (notFound || isAuthError || processingState === "ready" || processingState === "failed") {
+        return false;
+      }
       return PROCESSING_POLL_INTERVAL_MS;
     },
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       const notFound = error instanceof ApiError && error.code === "NOT_FOUND";
-      return !notFound && failureCount < PROCESSING_QUERY_RETRY_LIMIT;
+      const isAuthError = error instanceof ApiError && error.status === 401;
+      return !notFound && !isAuthError && failureCount < PROCESSING_QUERY_RETRY_LIMIT;
     },
   });
   const malwareDetected =

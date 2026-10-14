@@ -45,9 +45,20 @@ export function isProcessingNotFoundError(error: unknown): boolean {
 }
 
 /**
+ * Checks whether an error indicates unauthenticated / session expired (401).
+ */
+export function isProcessingAuthError(error: unknown): boolean {
+  if (error instanceof ApiError && error.status === 401) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Computes refetch interval for processing status.
  * Polling occurs every 2000 ms while moving (queued | processing);
- * stops (false) on terminal states (ready | failed) or when error is 404 (malware purged).
+ * stops (false) on terminal states (ready | failed), when error is 404 (malware purged),
+ * or when error is 401 (session expired).
  * api-specs/07-enrichment.md 7.2.
  */
 export function computeProcessingRefetchInterval(
@@ -55,7 +66,7 @@ export function computeProcessingRefetchInterval(
   refetchIntervalMs: number = DEFAULT_PROCESSING_POLL_INTERVAL_MS,
   error?: unknown,
 ): number | false {
-  if (isProcessingNotFoundError(error)) {
+  if (isProcessingNotFoundError(error) || isProcessingAuthError(error)) {
     return false;
   }
   if (state === "queued" || state === "processing") {
@@ -91,6 +102,9 @@ export function useProcessingStatus({
       queryFn: async (): Promise<ProcessingStatusView> => {
         if (!documentId) throw new Error("Document ID is required");
         return fetchProcessingStatus(documentId);
+      },
+      meta: {
+        skipAuthRedirect: true,
       },
       enabled: Boolean(
         contextClient &&
@@ -131,10 +145,12 @@ export function useProcessingStatus({
   }, [query.error, client]);
 
   const isPurged = isProcessingNotFoundError(query.error);
+  const isAuthError = isProcessingAuthError(query.error);
   const isEnabled = Boolean(
     contextClient &&
       documentId &&
       !isPurged &&
+      !isAuthError &&
       !hasInvalidatedOn404Ref.current &&
       (enabled !== undefined ? enabled : isPending),
   );

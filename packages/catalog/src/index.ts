@@ -5,6 +5,10 @@ export {
   blobKey,
   InvalidBlobKeyPrefixError,
 } from "./internal/blob-key.ts";
+export {
+  createDrizzleProcessingRepository,
+  type ProcessingRepository,
+} from "./internal/processing/repository.ts";
 export { sniffType } from "./internal/sniff-type.ts";
 export type {
   AuditPort,
@@ -44,5 +48,6 @@ export {
   MAX_BULK_DOWNLOAD,
 } from "./service.ts";
 export { inMemoryBlobStore } from "./testing/in-memory-blob-store.ts";
+export { inMemoryProcessingRepository } from "./testing/in-memory-processing-repository.ts";
 export { inMemoryCatalogRepository } from "./testing/in-memory-repository.ts";
 export type { StoredDocument, StoredVersion } from "./testing/in-memory-types.ts";

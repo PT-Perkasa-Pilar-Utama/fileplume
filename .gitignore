@@ -16,3 +16,4 @@ fixtures/generated/
 *.tsbuildinfo
 .claude/
 graphify-out/
+.history_task

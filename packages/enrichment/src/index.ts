@@ -1,8 +1,15 @@
 export type * as EnrichmentErrors from "./errors.ts";
+export type { TextExtractionFailure } from "./errors.ts";
 export type {
   AiProvider,
+  ExtractBlobStore,
+  ExtractedDocument,
+  ExtractedText,
+  ExtractionRepository,
   JobQueue,
   MalwareScanner,
+  OcrProvider,
+  PdfPageRenderer,
   ScanAuditPort,
   ScanBlobStore,
   ScanCatalogRepository,
@@ -26,6 +33,8 @@ export {
   STAGES,
   truncateTags,
 } from "./service.ts";
+export type { ExtractStageError, ExtractStageParams } from "./stages/extract.ts";
+export { executeExtractStage } from "./stages/extract.ts";
 export type { ExecuteScanStageParams, ScanStageResult } from "./stages/scan.ts";
 export { executeScanStage } from "./stages/scan.ts";
 export { AlwaysCleanScanner } from "./testing/always-clean-scanner.ts";

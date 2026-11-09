@@ -10,7 +10,15 @@
   "dependencies": {
     "@archiva/catalog": "workspace:*",
     "@archiva/config": "workspace:*",
+    "@archiva/db": "workspace:*",
     "@archiva/enrichment": "workspace:*",
-    "@archiva/shared": "workspace:*"
+    "@archiva/shared": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "exceljs": "4.4.0",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "4.10.38"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.1.0"
   }
 }

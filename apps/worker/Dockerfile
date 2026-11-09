@@ -8,6 +8,11 @@ COPY packages/ packages/
 RUN bun install --frozen-lockfile --production
 
 FROM base AS runtime
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-ind \
+    && rm -rf /var/lib/apt/lists/* \
+    && pdftoppm -v 2>&1 | head -n 1 \
+    && tesseract --list-langs 2>&1 | grep -E '^eng$|^ind$'
 COPY --from=deps /app /app
 USER bun
 CMD ["bun", "run", "apps/worker/src/index.ts"]

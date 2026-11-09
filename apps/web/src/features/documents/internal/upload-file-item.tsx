@@ -10,11 +10,12 @@ import { formatBytes } from "../../../lib/format.ts";
 import { fetchDocumentDetail } from "../detail-api.ts";
 import { getAcceptedFileType } from "../file-validation.ts";
 import type { TrayItem } from "../types.ts";
+import { useProcessingStatus } from "../use-processing-status.ts";
 import { FileTypeIcon } from "./file-type-icon.tsx";
 
 const PROCESSING_POLL_INTERVAL_MS = 2_000;
 const PROCESSING_QUERY_RETRY_LIMIT = 3;
-const DOCUMENT_PROCESSING_QUERY_KEY = ["document-processing"] as const;
+const UPLOAD_ITEM_DETAIL_QUERY_KEY = ["upload-item-detail"] as const;
 
 export interface UploadFileItemProps {
   readonly item: TrayItem;
@@ -32,23 +33,30 @@ export function UploadFileItem({
   const isAccepted = item.status === "accepted";
   const documentId = item.document?.id;
   const processingQuery = useQuery({
-    queryKey: [...DOCUMENT_PROCESSING_QUERY_KEY, documentId],
+    queryKey: [...UPLOAD_ITEM_DETAIL_QUERY_KEY, documentId],
     queryFn: () => {
       if (!documentId) throw new Error("An accepted upload must have a document id");
       return fetchDocumentDetail(documentId);
+    },
+    meta: {
+      skipAuthRedirect: true,
     },
     enabled: isAccepted && Boolean(documentId),
     refetchInterval: (query) => {
       const processingState = query.state.data?.processingState;
       const notFound =
         query.state.error instanceof ApiError && query.state.error.code === "NOT_FOUND";
-      if (notFound || processingState === "ready" || processingState === "failed") return false;
+      const isAuthError = query.state.error instanceof ApiError && query.state.error.status === 401;
+      if (notFound || isAuthError || processingState === "ready" || processingState === "failed") {
+        return false;
+      }
       return PROCESSING_POLL_INTERVAL_MS;
     },
     refetchOnWindowFocus: false,
     retry: (failureCount, error) => {
       const notFound = error instanceof ApiError && error.code === "NOT_FOUND";
-      return !notFound && failureCount < PROCESSING_QUERY_RETRY_LIMIT;
+      const isAuthError = error instanceof ApiError && error.status === 401;
+      return !notFound && !isAuthError && failureCount < PROCESSING_QUERY_RETRY_LIMIT;
     },
   });
   const malwareDetected =
@@ -60,6 +68,26 @@ export function UploadFileItem({
   useEffect(() => {
     if (malwareDetected) onMalwareDetected?.(item.id);
   }, [item.id, malwareDetected, onMalwareDetected]);
+
+  const {
+    state: processingState,
+    label: processingLabel,
+    failureReason,
+  } = useProcessingStatus({
+    documentId: item.document?.id,
+    initialState: item.document?.processingState,
+    initialLabel: item.document?.processingLabel,
+    initialFailureReason: item.document?.failureReason,
+    enabled:
+      isAccepted &&
+      Boolean(item.document) &&
+      (item.document?.processingState === "queued" ||
+        item.document?.processingState === "processing"),
+  });
+
+  const currentProcessingState = processingState ?? item.document?.processingState;
+  const currentProcessingLabel = processingLabel ?? item.document?.processingLabel;
+  const currentFailureReason = failureReason ?? item.document?.failureReason;
 
   const loadedBytes = Math.round((item.sizeBytes * item.progress) / 100);
 
@@ -121,15 +149,40 @@ export function UploadFileItem({
 
         {/* Accepted state */}
         {isAccepted && !malwareDetected && (
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
-            <span className="flex items-center gap-1 text-xs font-medium text-success">
-              <CheckCircle2 className="size-3.5 shrink-0" />
-              {UPLOAD_MESSAGES.FILE_ACCEPTED}
-            </span>
-            {item.document && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-2xs font-normal">
-                {item.document.processingLabel}
-              </Badge>
+          <div className="space-y-1 pt-0.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-xs font-medium text-success">
+                <CheckCircle2 className="size-3.5 shrink-0" />
+                {UPLOAD_MESSAGES.FILE_ACCEPTED}
+              </span>
+              {item.document && currentProcessingLabel && (
+                <Badge
+                  variant={
+                    currentProcessingState === "ready"
+                      ? "success"
+                      : currentProcessingState === "failed"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                  data-testid={`upload-item-status-${item.id}`}
+                  className={cn(
+                    "h-5 px-1.5 text-2xs font-normal",
+                    currentProcessingState === "processing" && "animate-pulse border-primary/40",
+                  )}
+                >
+                  {currentProcessingLabel}
+                </Badge>
+              )}
+            </div>
+
+            {currentProcessingState === "failed" && currentFailureReason?.message && (
+              <div
+                data-testid={`upload-item-failure-reason-${item.id}`}
+                className="flex items-start gap-1 text-xs font-normal text-destructive"
+              >
+                <AlertCircle className="size-3.5 shrink-0 mt-0.5" />
+                <span>{currentFailureReason.message}</span>
+              </div>
             )}
           </div>
         )}

@@ -3,6 +3,7 @@ export {
   type DocumentQueryParams,
   type DocumentsResponse,
   fetchDocuments,
+  fetchProcessingStatus,
   parseUploadBatchBody,
   uploadDocumentsRequest,
 } from "./api.ts";
@@ -63,3 +64,10 @@ export {
   type UseDocumentsResult,
   useDocuments,
 } from "./use-documents.ts";
+export {
+  computeProcessingRefetchInterval,
+  PROCESSING_STATUS_QUERY_KEY,
+  type UseProcessingStatusOptions,
+  type UseProcessingStatusReturn,
+  useProcessingStatus,
+} from "./use-processing-status.ts";

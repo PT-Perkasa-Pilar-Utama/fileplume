@@ -139,10 +139,27 @@ export function DocumentMetadataPanel({
             <span className="text-sm font-normal text-muted-foreground shrink-0">
               Status Pemrosesan
             </span>
-            <div>
-              <Badge variant="secondary" data-testid="metadata-status">
+            <div className="flex flex-col items-end gap-1">
+              <Badge
+                variant={
+                  document.processingState === "failed"
+                    ? "destructive"
+                    : document.processingState === "ready"
+                      ? "success"
+                      : "secondary"
+                }
+                data-testid="metadata-status"
+              >
                 {document.processingLabel}
               </Badge>
+              {document.processingState === "failed" && document.failureReason?.message && (
+                <span
+                  data-testid="metadata-failure-reason"
+                  className="text-xs text-destructive text-right max-w-[200px]"
+                >
+                  {document.failureReason.message}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -48,4 +48,21 @@ describe("query-client", () => {
       expect(retry(2, err500)).toBe(false);
     }
   });
+
+  test("queryCache onError ignores 401 when skipAuthRedirect is set on query meta", () => {
+    const client = createQueryClient();
+    const queryCache = client.getQueryCache();
+    const err401 = new ApiError(401, "UNAUTHENTICATED", "Expired");
+
+    const query = queryCache.build<unknown, unknown, unknown, readonly unknown[]>(client, {
+      queryKey: ["test-skip"],
+      queryFn: () => Promise.reject(err401),
+      meta: { skipAuthRedirect: true },
+    });
+
+    queryCache.config.onError?.(err401, query);
+
+    const state = useAuthStore.getState();
+    expect(state.sessionExpiredMessage).toBeNull();
+  });
 });

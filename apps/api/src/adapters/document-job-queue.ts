@@ -3,6 +3,7 @@ import {
   DOCUMENT_QUEUE,
   documentJobOptions,
   PROCESS_DOCUMENT_JOB,
+  requeueFinishedJob,
   valkeyConnection,
 } from "@archiva/enrichment";
 import { Queue } from "bullmq";
@@ -24,14 +25,12 @@ export function createDocumentJobQueue(
   return {
     async enqueue(documentId) {
       await queue.waitUntilReady();
-      await queue.add(
-        PROCESS_DOCUMENT_JOB,
-        { documentId },
-        {
-          ...documentJobOptions(documentId),
-          deduplication: { id: documentId, replace: true, keepLastIfActive: true },
-        },
-      );
+      const existing = await queue.getJob(documentId);
+      if (existing) {
+        await requeueFinishedJob(existing);
+        return;
+      }
+      await queue.add(PROCESS_DOCUMENT_JOB, { documentId }, documentJobOptions(documentId));
     },
     close: () => queue.close(),
   };

@@ -16,8 +16,8 @@ export interface PipelineStatePort {
 }
 
 export interface DerivedDataPort {
-  /** Remove version-scoped search output idempotently before guarded failure is recorded. */
-  remove(run: ProcessingRun): Promise<void>;
+  /** Atomically remove this run's derived data only while its version remains current. */
+  removeIfCurrent(run: ProcessingRun): Promise<boolean>;
 }
 
 export type PipelineDeps = {
@@ -39,8 +39,11 @@ export function createPipeline(
       const result = await stage(run);
       if (result.ok) continue;
       if (!(await deps.state.isCurrentRun(tenantId, documentId, versionId))) return "stale";
-      if (result.error.retryable && attempt < maxAttempts) return "retry";
-      await deps.derivedData.remove(run);
+      const permanent =
+        result.error.reason === "password_protected" ||
+        result.error.reason === "unreadable_content";
+      if (!permanent && result.error.retryable && attempt < maxAttempts) return "retry";
+      if (!(await deps.derivedData.removeIfCurrent(run))) return "stale";
       const finished = await deps.state.finishVersion(tenantId, documentId, versionId, {
         state: "failed",
         reason: result.error.reason,

@@ -74,6 +74,29 @@ test("AC-44.02: real BullMQ retries with increasing delays while preserving proc
   }
 }, 40_000);
 
+test("consumer startup immediately enqueues queued documents without jobs", async () => {
+  const h = await processorHarness();
+  const prefix = `test-${crypto.randomUUID()}`;
+  const errors: Error[] = [];
+  const queue = new Queue(DOCUMENT_QUEUE, { connection: valkeyConnection(url), prefix });
+  const consumer = createDocumentConsumer({
+    url,
+    prefix,
+    concurrency: 1,
+    processing: h.deps.processing,
+    process: async () => "noop",
+    reportError: (error) => errors.push(error),
+  });
+  try {
+    await until(async () => Boolean(await queue.getJob(h.documentId)));
+    expect(errors).toEqual([]);
+  } finally {
+    await consumer.close();
+    await queue.obliterate({ force: true });
+    await queue.close();
+  }
+}, 40_000);
+
 test("recovery advances beyond a full batch of existing delayed jobs", async () => {
   const h = await processorHarness();
   const prefix = `test-${crypto.randomUUID()}`;
@@ -175,7 +198,7 @@ test("recovery replaces a retained completed job when a newer version is queued"
     await until(async () => h.doc.processingState === "ready");
     await until(async () => (await (await queue.getJob(h.documentId))?.getState()) === "completed");
     h.doc.processingState = "queued";
-    await consumer.recover();
+    await Promise.all([consumer.recover(), consumer.recover()]);
     await until(async () => h.doc.processingState === "ready");
     expect(h.calls.filter((call) => call === "index")).toHaveLength(2);
     expect(errors).toEqual([]);

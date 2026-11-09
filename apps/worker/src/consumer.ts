@@ -3,6 +3,7 @@ import {
   DOCUMENT_QUEUE,
   documentJobOptions,
   PROCESS_DOCUMENT_JOB,
+  requeueFinishedJob,
   valkeyConnection,
 } from "@archiva/enrichment";
 import type { DocumentId } from "@archiva/shared";
@@ -33,7 +34,10 @@ export function createDocumentConsumer(deps: {
     async (job) => {
       const parsed = idParams.safeParse({ id: job.data?.documentId });
       if (!parsed.success) throw new UnrecoverableError("Invalid document processing job");
-      const progress = job.progress;
+      // A terminal retry resets attemptsMade, so stale progress from the previous
+      // run is ignored rather than cleared. Clearing it first would race a worker
+      // that picks the requeued job up between the two commands.
+      const progress = job.attemptsMade > 0 ? job.progress : undefined;
       const version =
         typeof progress === "object" && "claimedVersionId" in progress
           ? idParams.safeParse({ id: progress.claimedVersionId })
@@ -56,17 +60,8 @@ export function createDocumentConsumer(deps: {
   async function enqueueRecoverableDocument(documentId: DocumentId): Promise<void> {
     const job = await queue.getJob(documentId);
     if (job) {
-      const state = await job.getState();
-      if (state !== "completed" && state !== "failed") return;
-      try {
-        await job.remove();
-      } catch (error: unknown) {
-        const current = await queue.getJob(documentId);
-        const currentState = await current?.getState();
-        if (currentState === "waiting" || currentState === "delayed" || currentState === "active")
-          return;
-        throw error;
-      }
+      await requeueFinishedJob(job);
+      return;
     }
     await queue.add(PROCESS_DOCUMENT_JOB, { documentId }, documentJobOptions(documentId));
   }
@@ -92,10 +87,11 @@ export function createDocumentConsumer(deps: {
       recovering = false;
     }
   }
+  const reportRecoveryError = (error: unknown): void =>
+    deps.reportError(error instanceof Error ? error : new Error("Queue recovery failed"));
+  void recover().catch(reportRecoveryError);
   const timer = setInterval(() => {
-    void recover().catch((error: unknown) =>
-      deps.reportError(error instanceof Error ? error : new Error("Queue recovery failed")),
-    );
+    void recover().catch(reportRecoveryError);
   }, RECOVERY_INTERVAL_MS);
   return {
     recover,

@@ -7,6 +7,8 @@ export {
   PROCESSING_BACKOFF_MS,
   valkeyConnection,
 } from "./internal/queue-options.ts";
+export type { FinishedJob } from "./internal/requeue-finished.ts";
+export { requeueFinishedJob } from "./internal/requeue-finished.ts";
 export type {
   DerivedDataPort,
   PipelineDeps,

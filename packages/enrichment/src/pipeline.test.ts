@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { inMemoryCatalogRepository, inMemoryProcessingRepository } from "@archiva/catalog";
-import { asTenantId, asUserId, err, ok } from "@archiva/shared";
+import { asTenantId, asUserId, asVersionId, err, ok } from "@archiva/shared";
 import { createPipeline, type PipelineStage, type StageFailure } from "./pipeline.ts";
 
 async function harness() {
@@ -33,8 +33,11 @@ async function harness() {
     classify: stage("classify"),
     index: stage("index"),
     derivedData: {
-      async remove() {
+      async removeIfCurrent(run: { versionId: string }) {
+        // The guard is evaluated at effect time, as a real adapter must.
+        if (doc.currentVersionId !== run.versionId) return false;
         calls.push("cleanup");
+        return true;
       },
     },
   };
@@ -82,6 +85,15 @@ describe("document pipeline", () => {
     expect(h.doc.failureReason).toBe("password_protected");
   });
 
+  test("permanent extraction failures do not retry when marked retryable", async () => {
+    for (const reason of ["password_protected", "unreadable_content"] as const) {
+      const h = await harness();
+      h.deps.extract = async () => err({ reason, retryable: true });
+      expect(await createPipeline(h.deps)(h.run, 1, 3)).toBe("failed");
+      expect(h.doc.failureReason).toBe(reason);
+    }
+  });
+
   test("late delivery after ready invokes no stages", async () => {
     const h = await harness();
     h.doc.processingState = "ready";
@@ -114,7 +126,6 @@ describe("document pipeline", () => {
   test("supersession during failure cleanup cannot fail the replacement run", async () => {
     const h = await harness();
     h.deps.extract = async () => err({ reason: "unreadable_content", retryable: false });
-    const cleanup = h.deps.derivedData.remove;
     let release: () => void = () => {};
     let entered: () => void = () => {};
     const started = new Promise<void>((resolve) => {
@@ -123,24 +134,26 @@ describe("document pipeline", () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    h.deps.derivedData.remove = async () => {
+    const cleanup = h.deps.derivedData.removeIfCurrent;
+    h.deps.derivedData.removeIfCurrent = async (run) => {
       entered();
       await gate;
-      await cleanup();
+      return cleanup(run);
     };
     const result = createPipeline(h.deps)(h.run, 3, 3);
     await started;
+    h.doc.currentVersionId = asVersionId(crypto.randomUUID());
     h.doc.processingState = "queued";
     release();
     expect(await result).toBe("stale");
-    expect(h.calls).toContain("cleanup");
+    expect(h.calls).not.toContain("cleanup");
     expect(h.doc.processingState).toBe("queued");
   });
 
   test("cleanup failure cannot produce a falsely recorded terminal state", async () => {
     const h = await harness();
     h.deps.extract = async () => err({ reason: "unreadable_content", retryable: false });
-    h.deps.derivedData.remove = async () => {
+    h.deps.derivedData.removeIfCurrent = async () => {
       throw new Error("Cleanup unavailable");
     };
     await expect(createPipeline(h.deps)(h.run, 1, 3)).rejects.toThrow("Cleanup unavailable");

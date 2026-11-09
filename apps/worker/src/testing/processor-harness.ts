@@ -3,7 +3,7 @@ import {
   inMemoryCatalogRepository,
   inMemoryProcessingRepository,
 } from "@archiva/catalog";
-import { AlwaysCleanScanner, type PipelineStage } from "@archiva/enrichment";
+import { AlwaysCleanScanner, type PipelineStage, type ProcessingRun } from "@archiva/enrichment";
 import { asTenantId, asUserId, ok } from "@archiva/shared";
 import { createDocumentProcessor } from "../jobs/document-processor.ts";
 
@@ -50,8 +50,10 @@ export async function processorHarness() {
       },
     },
     derivedData: {
-      async remove() {
+      async removeIfCurrent(run: ProcessingRun) {
+        if (catalogRepo.documents[0]?.currentVersionId !== run.versionId) return false;
         calls.push("cleanup");
+        return true;
       },
     },
   };

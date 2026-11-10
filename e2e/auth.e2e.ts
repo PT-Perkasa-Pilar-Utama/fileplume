@@ -105,10 +105,22 @@ test.describe("Authentication end to end (FE-S1-05)", () => {
     await page.waitForLoadState("networkidle");
     await page.locator("#email").fill(VALID_EMAIL);
     await page.locator("#password").fill(VALID_PASSWORD);
+    const categoriesResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/categories" &&
+        response.request().method() === "GET",
+    );
+    const storageResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/storage" &&
+        response.request().method() === "GET",
+    );
     await page.getByRole("button", { name: "Login" }).click();
 
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId(/^category-confirmation-/).first()).toBeVisible();
+    expect((await categoriesResponse).status()).toBe(200);
+    expect((await storageResponse).status()).toBe(200);
 
     // 2. Simulate session expiry / revocation on the server by invalidating the cookie token.
     // The session cookie is `__Host-` prefixed, so it must stay host-only:
@@ -125,7 +137,13 @@ test.describe("Authentication end to end (FE-S1-05)", () => {
     });
 
     // 3. Click any menu item in interface (e.g. "Document" per MENU_CONFIG in sidebar.tsx)
+    const sessionResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/auth/me" &&
+        response.request().method() === "GET",
+    );
     await page.getByRole("link", { name: "Document" }).click();
+    expect((await sessionResponse).status()).toBe(401);
 
     // 4. Verify redirected to login page with exact Indonesian session expiry notice
     await expect(page).toHaveURL(/.*\/login.*expired=true.*/);

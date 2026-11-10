@@ -69,12 +69,20 @@ test("AC-45.01 and AC-45.02: inactive permission, audit and case-insensitive uni
   const duplicate = await repo.createCategory(tenantId, "reporting", actor);
   expect(duplicate).toEqual({ ok: false, error: { kind: "DuplicateName" } });
   expect(await db.select().from(schema.categoryPermissions)).toHaveLength(1);
-  expect(
-    await db
-      .select()
-      .from(schema.auditEvents)
-      .where(eq(schema.auditEvents.subjectId, first.value.id)),
-  ).toHaveLength(1);
+  const createdEvents = await db
+    .select()
+    .from(schema.auditEvents)
+    .where(eq(schema.auditEvents.subjectId, first.value.id));
+  expect(createdEvents).toHaveLength(1);
+  expect(createdEvents[0]).toMatchObject({
+    tenantId,
+    actorId: actor,
+    action: "category.create",
+    subjectType: "category",
+    subjectId: first.value.id,
+    outcome: "allowed",
+    metadata: null,
+  });
   const system = await db
     .insert(schema.categories)
     .values({ tenantId, name: "Uncategorized", isSystem: true, createdBy: actor })
@@ -82,6 +90,29 @@ test("AC-45.01 and AC-45.02: inactive permission, audit and case-insensitive uni
   if (!system[0]) throw new Error("missing system category");
   const immutable = await repo.renameCategory(tenantId, asCategoryId(system[0].id), "Other", actor);
   expect(immutable).toEqual({ ok: false, error: { kind: "SystemCategoryImmutable" } });
+  const renamed = await repo.renameCategory(
+    tenantId,
+    asCategoryId(first.value.id),
+    "Reports",
+    actor,
+  );
+  expect(renamed.ok).toBe(true);
+  const events = await db
+    .select()
+    .from(schema.auditEvents)
+    .where(eq(schema.auditEvents.subjectId, first.value.id));
+  expect(events).toHaveLength(2);
+  expect(events).toContainEqual(
+    expect.objectContaining({
+      tenantId,
+      actorId: actor,
+      action: "category.create",
+      subjectType: "category",
+      subjectId: first.value.id,
+      outcome: "allowed",
+      metadata: { action: "rename", previousName: "Reporting", name: "Reports" },
+    }),
+  );
 });
 
 test("category search treats SQL wildcard characters as literal substrings", async () => {

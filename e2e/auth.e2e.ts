@@ -108,6 +108,7 @@ test.describe("Authentication end to end (FE-S1-05)", () => {
     await page.getByRole("button", { name: "Login" }).click();
 
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     // 2. Simulate session expiry / revocation on the server by invalidating the cookie token.
     // The session cookie is `__Host-` prefixed, so it must stay host-only:

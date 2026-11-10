@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
+import {
+  appendTransactionalAudit,
+  createActivityService,
+  createDrizzleActivityRepository,
+} from "@archiva/activity";
 import { createCatalogService, inMemoryBlobStore } from "@archiva/catalog";
 import {
   createClassificationService,
@@ -126,7 +130,7 @@ test("real HTTP category endpoints enforce tenant scope and permissions", async 
     activity,
     catalog,
     classification: createClassificationService({
-      repository: createDrizzleClassificationRepository(db),
+      repository: createDrizzleClassificationRepository(db, appendTransactionalAudit),
       clock,
     }),
     rateLimitStores: () => new MemoryStore<AppEnv>(),

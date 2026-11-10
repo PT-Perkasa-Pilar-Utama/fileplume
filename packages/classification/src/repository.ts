@@ -37,8 +37,7 @@ export interface ClassificationRepository {
   isDownloadActive(tenantId: TenantId, categoryId: CategoryId): Promise<boolean>;
 }
 
-const { categories, categoryPermissions, documentClassification, documents, users, auditEvents } =
-  schema;
+const { categories, categoryPermissions, documentClassification, documents, users } = schema;
 const creator = alias(users, "creator");
 const updater = alias(users, "updater");
 const documentCount = sql<number>`(select count(*)::int from ${documentClassification} inner join ${documents} on ${documents.id} = ${documentClassification.documentId} and ${documents.tenantId} = ${documentClassification.tenantId} where ${documentClassification.tenantId} = ${categories.tenantId} and ${documentClassification.categoryId} = ${categories.id} and ${documents.deletedAt} is null)`;
@@ -99,7 +98,23 @@ function toView(row: CategoryRow): CategoryView {
   };
 }
 
-export function createDrizzleClassificationRepository(db: Db): ClassificationRepository {
+export type CategoryAuditWriter = (
+  tx: Pick<Db, "insert">,
+  event: {
+    tenantId: TenantId;
+    actorId: UserId;
+    action: "category.create";
+    subjectType: "category";
+    subjectId: string;
+    outcome: "allowed";
+    metadata?: Record<string, unknown>;
+  },
+) => Promise<void>;
+
+export function createDrizzleClassificationRepository(
+  db: Db,
+  audit: CategoryAuditWriter,
+): ClassificationRepository {
   async function getView(tenantId: TenantId, id: CategoryId): Promise<CategoryView | null> {
     const [row] = await categoryQuery(db, tenantId).where(
       and(eq(categories.tenantId, tenantId), eq(categories.id, id)),
@@ -118,7 +133,7 @@ export function createDrizzleClassificationRepository(db: Db): ClassificationRep
           await tx
             .insert(categoryPermissions)
             .values({ tenantId, categoryId: row.id, downloadActive: false, updatedBy: actor });
-          await tx.insert(auditEvents).values({
+          await audit(tx, {
             tenantId,
             actorId: actor,
             action: "category.create",
@@ -150,7 +165,7 @@ export function createDrizzleClassificationRepository(db: Db): ClassificationRep
             .update(categories)
             .set({ name })
             .where(and(eq(categories.tenantId, tenantId), eq(categories.id, id)));
-          await tx.insert(auditEvents).values({
+          await audit(tx, {
             tenantId,
             actorId: actor,
             action: "category.create",
@@ -173,7 +188,7 @@ export function createDrizzleClassificationRepository(db: Db): ClassificationRep
     async listCategoryViews(tenantId, filter) {
       const where = and(
         eq(categories.tenantId, tenantId),
-        filter.q ? ilike(categories.name, `%${filter.q}%`) : undefined,
+        filter.q ? ilike(categories.name, `%${filter.q.replace(/[\\%_]/g, "\\$&")}%`) : undefined,
       );
       const [total] = await db.select({ total: count() }).from(categories).where(where);
       const sort = { name: categories.name, createdAt: categories.createdAt, documentCount }[

@@ -1,4 +1,8 @@
-import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
+import {
+  appendTransactionalAudit,
+  createActivityService,
+  createDrizzleActivityRepository,
+} from "@archiva/activity";
 import { createCatalogService, createDrizzleCatalogRepository } from "@archiva/catalog";
 import {
   createClassificationService,
@@ -55,7 +59,7 @@ const catalog = createCatalogService({
 });
 
 const classification = createClassificationService({
-  repository: createDrizzleClassificationRepository(dbHandle.db),
+  repository: createDrizzleClassificationRepository(dbHandle.db, appendTransactionalAudit),
   clock: systemClock,
 });
 

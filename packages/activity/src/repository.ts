@@ -13,6 +13,13 @@ export interface ActivityRepository {
   readRollups(tenantId: TenantId): Promise<Record<string, number>>;
 }
 
+export async function appendTransactionalAudit(
+  db: Pick<Db, "insert">,
+  event: AuditEvent,
+): Promise<void> {
+  await db.insert(schema.auditEvents).values(event);
+}
+
 export function createDrizzleActivityRepository(db: Db): ActivityRepository {
   return {
     async append(tenantId, event) {

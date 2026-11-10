@@ -1,5 +1,6 @@
 import type { ClassificationService } from "@archiva/classification";
 import { AppError, asCategoryId, one, page } from "@archiva/shared";
+import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import type { AppEnv } from "../middleware/context.ts";
 import {
@@ -36,7 +37,7 @@ async function assertCategoryInTenant(c: Context<AppEnv>, categoryId: string): P
 }
 
 /** api-specs/06-categories.md. Cards BE-S3-03, BE-S5-03, FE-S3-02, FE-S5-03. */
-export const createCategoryRoutes = (classification: ClassificationService) =>
+export const createCategoryRoutes = (classification: ClassificationService): OpenAPIHono<AppEnv> =>
   createRouter()
     .openapi(listCategories, async (c) => {
       const tenantId = c.get("principal").tenantId;

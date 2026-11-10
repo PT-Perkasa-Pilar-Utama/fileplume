@@ -61,7 +61,18 @@ export const createCategoryRoutes = (classification: ClassificationService) =>
         c.req.valid("json").name,
         principal.userId,
       );
-      if (!result.ok) throw new AppError("DUPLICATE_NAME");
+      if (!result.ok) {
+        await c.get("activity").record({
+          tenantId: principal.tenantId,
+          actorId: principal.userId,
+          action: "access.denied",
+          subjectType: "category",
+          subjectId: null,
+          outcome: "denied",
+          metadata: { reason: "DuplicateName" },
+        });
+        throw new AppError("DUPLICATE_NAME");
+      }
       c.header("Location", `/api/v1/categories/${result.value.id}`);
       return c.json(one(result.value), 201);
     })
@@ -76,9 +87,6 @@ export const createCategoryRoutes = (classification: ClassificationService) =>
         principal.userId,
       );
       if (!result.ok) {
-        if (result.error.kind === "DuplicateName") throw new AppError("DUPLICATE_NAME");
-        if (result.error.kind === "SystemCategoryImmutable")
-          throw new AppError("SYSTEM_CATEGORY_IMMUTABLE");
         await c.get("activity").record({
           tenantId: principal.tenantId,
           actorId: principal.userId,
@@ -86,8 +94,14 @@ export const createCategoryRoutes = (classification: ClassificationService) =>
           subjectType: "category",
           subjectId: null,
           outcome: "denied",
-          metadata: { attemptedId: id },
+          metadata:
+            result.error.kind === "NotFound"
+              ? { attemptedId: id }
+              : { attemptedId: id, reason: result.error.kind },
         });
+        if (result.error.kind === "DuplicateName") throw new AppError("DUPLICATE_NAME");
+        if (result.error.kind === "SystemCategoryImmutable")
+          throw new AppError("SYSTEM_CATEGORY_IMMUTABLE");
         throw new AppError("NOT_FOUND");
       }
       return c.json(one(result.value), 200);

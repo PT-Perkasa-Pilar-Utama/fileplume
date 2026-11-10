@@ -24,6 +24,7 @@ export const listCategoriesQuery = sortableQuery(
   "name",
   "asc",
 ).extend({ q: z.string().optional() });
+export type ListCategoriesQuery = z.infer<typeof listCategoriesQuery>;
 
 /** 6.3, 6.4. No `downloadActive`: a new category is Inactive whatever the client sends. */
 export const categoryNameBody = z.object({ name: z.string().trim().min(1).max(100) });

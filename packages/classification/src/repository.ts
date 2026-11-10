@@ -1,18 +1,19 @@
 import { type Db, schema } from "@archiva/db";
-import type { CategoryId, CategoryView, Result, TenantId, UserId } from "@archiva/shared";
+import type {
+  CategoryId,
+  CategoryView,
+  ListCategoriesQuery,
+  Result,
+  TenantId,
+  UserId,
+} from "@archiva/shared";
 import { asCategoryId, err, ok } from "@archiva/shared";
 import { and, asc, count, desc, eq, ilike, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type * as E from "./errors.ts";
 import type { Category } from "./service.ts";
 
-export type CategoryFilter = {
-  page: number;
-  limit: number;
-  sort: "name" | "createdAt" | "documentCount";
-  order: "asc" | "desc";
-  q?: string | undefined;
-};
+export type CategoryFilter = ListCategoriesQuery;
 
 export interface ClassificationRepository {
   createCategory(

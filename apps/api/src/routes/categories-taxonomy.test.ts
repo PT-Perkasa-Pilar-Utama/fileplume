@@ -38,6 +38,11 @@ describe("category taxonomy", () => {
     );
     expect(duplicate.status).toBe(409);
     expect((await errorOf(duplicate)).message).toBe("Kategori dengan nama tersebut sudah ada");
+    expect(
+      app.activityRepository.events.some(
+        (event) => event.action === "access.denied" && event.metadata?.reason === "DuplicateName",
+      ),
+    ).toBe(true);
     const list = await app.request(request("/categories", "GET", TOKENS.memberA));
     expect((await list.json()).data).toHaveLength(1);
   });

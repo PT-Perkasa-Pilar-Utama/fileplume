@@ -35,8 +35,17 @@ describe("HostedOcrProvider (10-integration-points 10.7)", () => {
         }),
     });
 
-    await expect(ocr.recognize(image, ["ind", "eng"])).rejects.toThrow("aborted");
+    await expect(ocr.recognize(image, ["ind", "eng"])).rejects.toThrow("OCR timed out");
     expect(aborted).toBe(true);
+  });
+
+  test("times out even when the transport ignores cancellation", async () => {
+    const ocr = new HostedOcrProvider({
+      apiKey: "secret",
+      timeoutMs: 5,
+      recognizeImage: () => new Promise(() => {}),
+    });
+    await expect(ocr.recognize(image, ["ind", "eng"])).rejects.toThrow("OCR timed out");
   });
 
   test("refuses an empty page image", async () => {

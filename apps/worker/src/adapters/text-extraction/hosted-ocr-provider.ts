@@ -1,4 +1,5 @@
 import type { OcrProvider } from "@archiva/enrichment";
+import { ProcessTimeoutError } from "./process-runner.ts";
 
 /** technical-specs/10-integration-points.md 10.8 rule 1: OCR is bounded at 180 s per page. */
 export const OCR_TIMEOUT_MS = 180_000;
@@ -35,14 +36,23 @@ export class HostedOcrProvider implements OcrProvider {
   ): Promise<{ text: string; confidence: number }> {
     if (image.byteLength === 0) throw new Error("Hosted OCR received an empty page image");
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        reject(new ProcessTimeoutError(`OCR timed out after ${this.timeoutMs} ms`));
+        controller.abort();
+      }, this.timeoutMs);
+    });
     try {
-      return await this.config.recognizeImage({
-        image,
-        languages,
-        apiKey: this.config.apiKey,
-        signal: controller.signal,
-      });
+      return await Promise.race([
+        this.config.recognizeImage({
+          image,
+          languages,
+          apiKey: this.config.apiKey,
+          signal: controller.signal,
+        }),
+        timeout,
+      ]);
     } finally {
       clearTimeout(timer);
     }

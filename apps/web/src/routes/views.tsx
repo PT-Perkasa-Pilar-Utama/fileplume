@@ -132,25 +132,8 @@ export function DocumentsView(): JSX.Element {
   );
 }
 
+export { PermissionCategoryView } from "../features/categories/permission-category-view.tsx";
 export { DocumentDetailView } from "../features/documents/document-detail-view.tsx";
-
-// SCAFFOLD: FE-S3-01 implements category management and download permissions.
-export function PermissionCategoryView(): JSX.Element {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Kategori & Izin</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Manajemen Kategori</CardTitle>
-          <CardDescription>Atur kategori dan izin unduh dokumen</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Daftar kategori tenant Anda.</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 // SCAFFOLD: FE-S5-04 implements activity audit trail table and filters.
 export function AuditTrailView(): JSX.Element {

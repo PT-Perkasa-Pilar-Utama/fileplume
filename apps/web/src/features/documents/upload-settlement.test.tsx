@@ -42,7 +42,7 @@ function createTestQueryClient(): QueryClient {
       mutations: { retry: false },
     },
   });
-  client.setQueryData(["documents", undefined], {
+  client.setQueryData(["documents", { unconfirmedOnly: true }], {
     data: [],
     meta: { page: 1, limit: 10, total: 0, totalPages: 0, message: EMPTY_STATE.NO_DOCUMENTS },
   });

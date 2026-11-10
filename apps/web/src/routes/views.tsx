@@ -27,9 +27,15 @@ export interface DashboardViewProps {
 
 export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Element {
   const queryClient = useQueryClient();
-  const documentsQuery = useDocuments();
+  const documentsQuery = useDocuments({ params: { unconfirmedOnly: true } });
   const uploaderName = useAuthStore((state) => state.principal?.user.name);
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDocumentDisplay[]>([]);
+  const [confirmedDocumentIds, setConfirmedDocumentIds] = useState<Set<string>>(new Set());
+
+  const handleCategoryConfirmed = (documentId: string): void => {
+    setUploadedDocs((prev) => prev.filter((doc) => doc.id !== documentId));
+    setConfirmedDocumentIds((prev) => new Set([...prev, documentId]));
+  };
 
   const handleUploadSettled = (_batch: UploadBatch, acceptedItems: readonly TrayItem[]): void => {
     const acceptedDocs: UploadedDocumentDisplay[] = [];
@@ -70,8 +76,8 @@ export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Elemen
 
     const serverIds = new Set(serverDocs.map((doc) => doc.id));
     const pendingUploads = uploadedDocs.filter((doc) => !serverIds.has(doc.id));
-    return [...pendingUploads, ...serverDocs];
-  }, [documentsQuery.data?.data, uploadedDocs]);
+    return [...pendingUploads, ...serverDocs].filter((doc) => !confirmedDocumentIds.has(doc.id));
+  }, [documentsQuery.data?.data, uploadedDocs, confirmedDocumentIds]);
 
   return (
     <div className="space-y-6">
@@ -104,6 +110,7 @@ export function DashboardView({ uploader }: DashboardViewProps = {}): JSX.Elemen
               isError={documentsQuery.isError}
               errorMessage={documentsQuery.error?.message}
               emptyMessage={documentsQuery.data?.meta?.message}
+              onCategoryConfirmed={handleCategoryConfirmed}
             />
           </section>
         </div>

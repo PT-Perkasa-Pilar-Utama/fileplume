@@ -39,7 +39,7 @@ async function renderDashboard(docs: DocumentView[] = [MOCK_DOC]): Promise<strin
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(["documents", undefined], {
+  queryClient.setQueryData(["documents", { unconfirmedOnly: true }], {
     data: docs,
     meta: { page: 1, limit: 10, total: docs.length, totalPages: 1 },
   });

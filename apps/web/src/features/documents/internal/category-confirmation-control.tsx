@@ -63,6 +63,9 @@ export function CategoryConfirmationControl({
     queryKey: AVAILABLE_CATEGORIES_QUERY_KEY,
     queryFn: fetchAvailableCategories,
     staleTime: 60_000,
+    meta: {
+      skipAuthRedirect: true,
+    },
   });
 
   const availableCategories = categoriesQuery.data ?? [];

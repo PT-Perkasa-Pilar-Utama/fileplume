@@ -29,7 +29,7 @@ const isPasswordError = (error: unknown): boolean =>
  * failure (AC-44.04); an unparseable container is unreadable content (AC-44.05).
  */
 export async function openPdf(bytes: Uint8Array): Promise<PdfDocument> {
-  const task = getDocument({ data: bytes, useSystemFonts: true });
+  const task = getDocument({ data: bytes.slice(), useSystemFonts: true });
   let document: Awaited<typeof task.promise>;
   try {
     document = await task.promise;

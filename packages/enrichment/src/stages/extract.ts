@@ -37,7 +37,12 @@ export async function executeExtractStage(
     return err({ kind: "ExtractionUnavailable", cause });
   }
   // Extraction is external work; no database transaction is open here.
-  const extracted = await params.extractor.extract(stream, params.mimeType);
+  let extracted: Awaited<ReturnType<TextExtractor["extract"]>>;
+  try {
+    extracted = await params.extractor.extract(stream, params.mimeType);
+  } catch (cause: unknown) {
+    return err({ kind: "ExtractionUnavailable", cause });
+  }
   if (!extracted.ok) return extracted;
   if (extracted.value.pages.length === 0) return err({ kind: "UnreadableContent" });
   try {

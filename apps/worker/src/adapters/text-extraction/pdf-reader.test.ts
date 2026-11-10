@@ -46,6 +46,17 @@ describe("openPdf (BE-S3-02)", () => {
     }
   });
 
+  test("preserves PDF bytes for OCR after opening the document", async () => {
+    const bytes = await fixture("laporan-keuangan.pdf");
+    const original = bytes.slice();
+    const document = await openPdf(bytes);
+    try {
+      expect(bytes).toEqual(original);
+    } finally {
+      await document.destroy();
+    }
+  });
+
   test("AC-44.04: an encrypted PDF is reported as password protected", async () => {
     const bytes = await fixture("terproteksi-password.pdf");
     await expect(openPdf(bytes)).rejects.toMatchObject({ name: "PasswordProtectedError" });

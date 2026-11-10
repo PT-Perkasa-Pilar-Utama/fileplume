@@ -21,7 +21,7 @@ async function extractDocx(bytes: Uint8Array): Promise<ExtractedText> {
     .map((paragraph) => paragraph.trim())
     .filter((paragraph) => paragraph.length > 0);
   if (paragraphs.length === 0) throw new UnreadableInputError("DOCX contains no readable text");
-  return { pages: paragraphs, method: "native", language: "ind" };
+  return { pages: paragraphs, method: "native" };
 }
 
 /** Each worksheet is one indexable page; each row remains a tab-separated line. */
@@ -46,7 +46,7 @@ async function extractXlsx(bytes: Uint8Array): Promise<ExtractedText> {
   if (pages.length === 0 || pages.every((page) => page.length === 0)) {
     throw new UnreadableInputError("XLSX contains no readable worksheets");
   }
-  return { pages, method: "native", language: "ind" };
+  return { pages, method: "native" };
 }
 
 function cellText(value: unknown): string {
@@ -56,6 +56,9 @@ function cellText(value: unknown): string {
   }
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(cellText).filter(Boolean).join(" ");
+  if (typeof value === "object" && "richText" in value && Array.isArray(value.richText)) {
+    return value.richText.map(cellText).join("");
+  }
   if (typeof value === "object" && "text" in value && typeof value.text === "string") {
     return value.text;
   }
@@ -74,7 +77,7 @@ function textFile(bytes: Uint8Array): ExtractedText {
     throw new UnreadableInputError("TXT is not valid UTF-8", { cause });
   }
   if (text.length === 0) throw new UnreadableInputError("TXT contains no readable text");
-  return { pages: text.split(/\n+/), method: "native", language: "ind" };
+  return { pages: text.split(/\n+/), method: "native" };
 }
 
 /** Native PDF, DOCX, XLSX, and TXT extraction behind the enrichment port. */

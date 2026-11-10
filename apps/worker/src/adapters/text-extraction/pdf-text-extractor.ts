@@ -1,7 +1,6 @@
 import type { OcrProvider, PdfPageRenderer, TextExtractor } from "@archiva/enrichment";
 import { err, ok } from "@archiva/shared";
 import { extractionFailure } from "./extraction-errors.ts";
-import { ProcessTimeoutError } from "./process-runner.ts";
 
 export type PdfTextExtractorDeps = {
   renderer: PdfPageRenderer;
@@ -59,7 +58,6 @@ async function extractPages(
   return ok({
     pages,
     method: nativePages > 0 && ocrPages > 0 ? "mixed" : nativePages > 0 ? "native" : "ocr",
-    language: "ind",
   });
 }
 
@@ -76,29 +74,17 @@ async function pageTextOrEmpty(document: PdfDocument, pageNumber: number): Promi
 }
 
 /**
- * One page's OCR. A page that cannot be rendered or recognised is recorded as
- * empty and the document keeps its other pages. A timeout is not a property of
- * the page, so it propagates and the stage retries the document.
+ * An unrenderable page stays empty; infrastructure errors reach the stage
+ * instead of being reported as unreadable input.
  */
 async function recognizePage(
   deps: PdfTextExtractorDeps,
   bytes: Uint8Array,
   pageNumber: number,
 ): Promise<string> {
-  let image: Uint8Array;
-  try {
-    image = await deps.renderer.render(bytes, pageNumber);
-  } catch (error: unknown) {
-    if (error instanceof ProcessTimeoutError) throw error;
-    return "";
-  }
+  const image = await deps.renderer.render(bytes, pageNumber);
   if (image.byteLength === 0) return "";
-  try {
-    return (await deps.ocr.recognize(image, ["ind", "eng"])).text.trim();
-  } catch (error: unknown) {
-    if (error instanceof ProcessTimeoutError) throw error;
-    return "";
-  }
+  return (await deps.ocr.recognize(image, ["ind", "eng"])).text.trim();
 }
 
 /** The PDF reader surface the extractor needs, so the unit test can supply one. */

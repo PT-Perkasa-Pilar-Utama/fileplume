@@ -100,6 +100,21 @@ describe("executeExtractStage (BE-S3-02)", () => {
     expect(harness.persisted).toEqual([]);
   });
 
+  test("a stream read failure from the extractor returns a transient failure", async () => {
+    const harness = createHarness({ ok: true, value: { pages: ["x"], method: "native" } });
+    const cause = new Error("stream disconnected");
+    harness.params.extractor = {
+      async extract() {
+        throw cause;
+      },
+    };
+    expect(await executeExtractStage(harness.params)).toEqual({
+      ok: false,
+      error: { kind: "ExtractionUnavailable", cause },
+    });
+    expect(harness.persisted).toEqual([]);
+  });
+
   test("a persistence failure is transient and does not claim extraction succeeded", async () => {
     const harness = createHarness(
       { ok: true, value: { pages: ["x"], method: "native" } },

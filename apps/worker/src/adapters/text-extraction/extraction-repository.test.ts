@@ -151,6 +151,23 @@ describe("createExtractionRepository", () => {
     expect(text[0]).toMatchObject({ extractionMethod: "mixed", language: null, charCount: 7 });
   });
 
+  test("rejects mismatched tenant or document before changing version text", async () => {
+    const repository = createExtractionRepository(db);
+    const first = await seedVersion();
+    const second = await seedVersion();
+    await repository.replaceExtractedText({ ...first, pages: ["Original"], method: "native" });
+    for (const invalid of [
+      { ...first, tenantId: second.tenantId },
+      { ...first, documentId: second.documentId },
+    ]) {
+      await expect(
+        repository.replaceExtractedText({ ...invalid, pages: ["Wrong"], method: "ocr" }),
+      ).rejects.toThrow("Extraction version does not belong to document and tenant");
+    }
+    expect(await pageText(first.versionId)).toEqual(["Original"]);
+    expect(await pageCount(first.versionId)).toBe(1);
+  });
+
   test("AC-33.01: a newer version never overwrites the text of the version it supersedes", async () => {
     const repository = createExtractionRepository(db);
     const first = await seedVersion();

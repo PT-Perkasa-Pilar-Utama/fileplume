@@ -12,6 +12,18 @@ export function createExtractionRepository(db: Db): ExtractionRepository {
     async replaceExtractedText(input: ExtractedDocument): Promise<void> {
       const charCount = input.pages.reduce((count, page) => count + page.length, 0);
       await db.transaction(async (tx) => {
+        const [version] = await tx
+          .select({ id: schema.documentVersions.id })
+          .from(schema.documentVersions)
+          .where(
+            and(
+              eq(schema.documentVersions.tenantId, input.tenantId),
+              eq(schema.documentVersions.documentId, input.documentId),
+              eq(schema.documentVersions.id, input.versionId),
+            ),
+          )
+          .for("update");
+        if (!version) throw new Error("Extraction version does not belong to document and tenant");
         await tx
           .delete(schema.documentPages)
           .where(

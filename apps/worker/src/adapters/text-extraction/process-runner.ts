@@ -60,7 +60,7 @@ export function runProcess(
     child.once("error", (error: Error) => {
       settle(error);
     });
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       if (code !== 0) {
         settle(
           new ProcessFailedError(

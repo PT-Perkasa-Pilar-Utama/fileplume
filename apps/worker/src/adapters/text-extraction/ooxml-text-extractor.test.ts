@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TextExtractor } from "@archiva/enrichment";
+import ExcelJS from "exceljs";
 import { createNativeTextExtractor } from "./ooxml-text-extractor.ts";
 import { EXTRACTABLE_MIME } from "./pdf-reader.ts";
 
@@ -38,7 +39,6 @@ describe("createNativeTextExtractor (BE-S3-02)", () => {
       value: {
         pages: ["Paragraf satu", "Paragraf dua"],
         method: "native",
-        language: "ind",
       },
     });
   });
@@ -52,7 +52,19 @@ describe("createNativeTextExtractor (BE-S3-02)", () => {
     );
     expect(result).toEqual({
       ok: true,
-      value: { pages: ["Header\tValue\nMetric\t42"], method: "native", language: "ind" },
+      value: { pages: ["Header\tValue\nMetric\t42"], method: "native" },
+    });
+  });
+
+  test("extracts all rich text runs from XLSX cells", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Report");
+    sheet.getCell("A1").value = { richText: [{ text: "Annual " }, { text: "report" }] };
+    const bytes = new Uint8Array(await workbook.xlsx.writeBuffer());
+    const result = await extract(createNativeTextExtractor(noPdf), bytes, EXTRACTABLE_MIME.xlsx);
+    expect(result).toEqual({
+      ok: true,
+      value: { pages: ["Annual report"], method: "native" },
     });
   });
 
@@ -71,7 +83,7 @@ describe("createNativeTextExtractor (BE-S3-02)", () => {
     );
     expect(result).toEqual({
       ok: true,
-      value: { pages: ["Baris satu", "Baris dua"], method: "native", language: "ind" },
+      value: { pages: ["Baris satu", "Baris dua"], method: "native" },
     });
   });
 

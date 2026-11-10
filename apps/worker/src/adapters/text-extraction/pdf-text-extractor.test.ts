@@ -18,7 +18,7 @@ function createOcr(texts: Map<number, string>, failures = new Set<number>()): Oc
   return {
     async recognize(image) {
       const pageNumber = image[0] ?? 0;
-      if (failures.has(pageNumber)) throw new Error("page OCR unavailable");
+      if (failures.has(pageNumber)) return { text: "", confidence: 0 };
       return { text: texts.get(pageNumber) ?? "", confidence: 0.92 };
     },
   };
@@ -27,7 +27,7 @@ function createOcr(texts: Map<number, string>, failures = new Set<number>()): Oc
 function createRenderer(failures = new Set<number>()): PdfPageRenderer {
   return {
     async render(_pdf, pageNumber) {
-      if (failures.has(pageNumber)) throw new Error("page cannot render");
+      if (failures.has(pageNumber)) return new Uint8Array();
       return new Uint8Array([pageNumber]);
     },
   };
@@ -52,7 +52,7 @@ describe("createPdfTextExtractor (BE-S3-02)", () => {
     const result = await extractor(bytes);
     expect(result).toEqual({
       ok: true,
-      value: { pages: ["Teks native", "Hasil OCR"], method: "mixed", language: "ind" },
+      value: { pages: ["Teks native", "Hasil OCR"], method: "mixed" },
     });
     expect(calls).toEqual([2]);
   });
@@ -69,7 +69,7 @@ describe("createPdfTextExtractor (BE-S3-02)", () => {
     const result = await extractor(bytes);
     expect(result).toEqual({
       ok: true,
-      value: { pages: ["Halaman terbaca", "", ""], method: "ocr", language: "ind" },
+      value: { pages: ["Halaman terbaca", "", ""], method: "ocr" },
     });
   });
 
@@ -80,6 +80,22 @@ describe("createPdfTextExtractor (BE-S3-02)", () => {
     );
 
     expect(await extractor(bytes)).toEqual({ ok: false, error: { kind: "UnreadableContent" } });
+  });
+
+  test("OCR infrastructure failure does not become unreadable content", async () => {
+    const cause = new Error("OCR unavailable");
+    const extractor = createPdfTextExtractor(
+      {
+        renderer: createRenderer(),
+        ocr: {
+          async recognize() {
+            throw cause;
+          },
+        },
+      },
+      async () => pdfDocument([""]),
+    );
+    await expect(extractor(bytes)).rejects.toBe(cause);
   });
 
   test("an OCR timeout propagates as retryable extraction timeout", async () => {

@@ -12,7 +12,8 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-ind \
     && rm -rf /var/lib/apt/lists/* \
     && pdftoppm -v 2>&1 | head -n 1 \
-    && tesseract --list-langs 2>&1 | grep -E '^eng$|^ind$'
+    && tesseract --list-langs 2>&1 | grep -x 'eng' \
+    && tesseract --list-langs 2>&1 | grep -x 'ind'
 COPY --from=deps /app /app
 USER bun
 CMD ["bun", "run", "apps/worker/src/index.ts"]

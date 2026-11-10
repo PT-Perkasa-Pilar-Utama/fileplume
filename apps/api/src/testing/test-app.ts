@@ -8,6 +8,10 @@ import {
   inMemoryBlobStore,
   inMemoryCatalogRepository,
 } from "@archiva/catalog";
+import {
+  createClassificationService,
+  inMemoryClassificationRepository,
+} from "@archiva/classification";
 import type { Config } from "@archiva/config";
 import type { SeededSession, UserRow } from "@archiva/identity";
 import {
@@ -99,6 +103,7 @@ export const TOKENS = {
   headOfTeamA: "token-head-of-team-a",
   adminA: "token-admin-a",
   memberB: "token-member-b",
+  headOfTeamB: "token-head-of-team-b",
   superAdmin: "token-super-admin",
   idleA: "token-idle-a",
 } as const;
@@ -205,6 +210,7 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     seeded(TOKENS.headOfTeamA, "head_of_team", TENANT_A),
     seeded(TOKENS.adminA, "admin_tenant", TENANT_A),
     seeded(TOKENS.memberB, "member", TENANT_B),
+    seeded(TOKENS.headOfTeamB, "head_of_team", TENANT_B),
     seeded(TOKENS.superAdmin, "super_admin", null),
     seeded(TOKENS.idleA, "member", TENANT_A, new Date("2026-09-13T08:00:00.000Z")),
   ];
@@ -267,6 +273,10 @@ export function buildTestApp(config: Config = BASE_CONFIG, options?: TestAppOpti
     identity,
     activity,
     catalog,
+    classification: createClassificationService({
+      repository: inMemoryClassificationRepository(),
+      clock,
+    }),
     rateLimitStores: () => new MemoryStore<AppEnv>(),
     probes: options?.probes ?? [],
     resetRunner: options?.resetRunner,

@@ -1,11 +1,12 @@
 import type { CatalogService } from "@archiva/catalog";
+import type { ClassificationService } from "@archiva/classification";
 import type { IdentityService } from "@archiva/identity";
 import type { TenancyService } from "@archiva/tenancy";
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { AppEnv } from "../middleware/context.ts";
 import { analyticsRoutes, auditRoutes } from "./activity.ts";
 import { authRoutes } from "./auth.ts";
-import { categoryRoutes } from "./categories.ts";
+import { createCategoryRoutes } from "./categories.ts";
 import { createConfigurationRoutes } from "./configuration.ts";
 import { createDocumentRoutes } from "./documents.ts";
 import { searchRoutes } from "./search.ts";
@@ -26,6 +27,7 @@ export type RouteMountDeps = {
   >;
   identity: IdentityService;
   catalog: CatalogService;
+  classification: ClassificationService;
 };
 
 /** Every resource file from docs/api-specs/, mounted under /api/v1. */
@@ -35,7 +37,7 @@ export function activityRoutesMount(api: OpenAPIHono<AppEnv>, deps: RouteMountDe
   api.route("/configuration", createConfigurationRoutes(deps.tenancy));
   api.route("/storage", storageRoutes(deps.tenancy));
   api.route("/documents", createDocumentRoutes(deps.catalog, deps.tenancy));
-  api.route("/categories", categoryRoutes);
+  api.route("/categories", createCategoryRoutes(deps.classification));
   api.route("/search", searchRoutes);
   api.route("/tags", tagRoutes);
   api.route("/audit-events", auditRoutes);

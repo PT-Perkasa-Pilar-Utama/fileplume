@@ -135,6 +135,9 @@
       "dependencies": {
         "@archiva/shared": "workspace:*",
       },
+      "devDependencies": {
+        "@archiva/catalog": "workspace:*",
+      },
     },
     "packages/identity": {
       "name": "@archiva/identity",

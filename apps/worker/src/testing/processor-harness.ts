@@ -2,12 +2,32 @@ import {
   inMemoryBlobStore,
   inMemoryCatalogRepository,
   inMemoryProcessingRepository,
+  type StoredDocument,
 } from "@archiva/catalog";
 import { AlwaysCleanScanner, type PipelineStage, type ProcessingRun } from "@archiva/enrichment";
-import { asTenantId, asUserId, ok } from "@archiva/shared";
-import { createDocumentProcessor } from "../jobs/document-processor.ts";
+import {
+  asTenantId,
+  asUserId,
+  type DocumentId,
+  ok,
+  type TenantId,
+  type VersionId,
+} from "@archiva/shared";
+import { createDocumentProcessor, type DocumentProcessorDeps } from "../jobs/document-processor.ts";
 
-export async function processorHarness() {
+type ProcessorHarness = {
+  doc: StoredDocument;
+  tenantId: TenantId;
+  documentId: DocumentId;
+  versionId: VersionId;
+  calls: string[];
+  deps: Omit<DocumentProcessorDeps, "catalogRepo"> & {
+    catalogRepo: ReturnType<typeof inMemoryCatalogRepository>;
+  };
+  readonly process: ReturnType<typeof createDocumentProcessor>;
+};
+
+export async function processorHarness(): Promise<ProcessorHarness> {
   const tenantId = asTenantId(crypto.randomUUID());
   const catalogRepo = inMemoryCatalogRepository();
   const blobStore = inMemoryBlobStore();

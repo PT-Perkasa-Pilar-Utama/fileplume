@@ -8,6 +8,9 @@ import {
 } from "@archiva/enrichment";
 import { Queue } from "bullmq";
 
+const PRODUCER_MAX_RETRIES_PER_REQUEST = 1;
+const PRODUCER_CONNECT_TIMEOUT_MS = 5000;
+
 export function createDocumentJobQueue(
   url: string,
   options: { prefix?: string; reportError(error: Error): void },
@@ -15,9 +18,9 @@ export function createDocumentJobQueue(
   const queue = new Queue(DOCUMENT_QUEUE, {
     connection: {
       ...valkeyConnection(url),
-      maxRetriesPerRequest: 1,
+      maxRetriesPerRequest: PRODUCER_MAX_RETRIES_PER_REQUEST,
       enableOfflineQueue: false,
-      connectTimeout: 5000,
+      connectTimeout: PRODUCER_CONNECT_TIMEOUT_MS,
     },
     prefix: options.prefix,
   });

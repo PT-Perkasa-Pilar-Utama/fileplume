@@ -8,5 +8,8 @@
   },
   "dependencies": {
     "@archiva/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@archiva/catalog": "workspace:*"
   }
 }

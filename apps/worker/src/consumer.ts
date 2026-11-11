@@ -3,6 +3,7 @@ import {
   DOCUMENT_QUEUE,
   documentJobOptions,
   PROCESS_DOCUMENT_JOB,
+  PROCESSING_ATTEMPTS,
   requeueFinishedJob,
   valkeyConnection,
 } from "@archiva/enrichment";
@@ -44,7 +45,7 @@ export function createDocumentConsumer(deps: {
           : undefined;
       const outcome = await deps.process(asDocumentId(parsed.data.id), {
         attempt: job.attemptsMade + 1,
-        maxAttempts: job.opts.attempts ?? 3,
+        maxAttempts: job.opts.attempts ?? PROCESSING_ATTEMPTS,
         ...(version?.success ? { expectedVersionId: asVersionId(version.data.id) } : {}),
         async claimVersion(versionId) {
           await job.updateProgress({ claimedVersionId: versionId });

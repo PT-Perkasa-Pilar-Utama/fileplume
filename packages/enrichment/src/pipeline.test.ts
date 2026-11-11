@@ -150,6 +150,42 @@ describe("document pipeline", () => {
     expect(h.doc.processingState).toBe("queued");
   });
 
+  test("a thrown final-stage attempt cleans up before failing the current version", async () => {
+    const h = await harness();
+    h.deps.classify = async () => {
+      throw new Error("stage failed");
+    };
+    await expect(createPipeline(h.deps)(h.run, 1, 3)).rejects.toThrow("stage failed");
+    expect(h.doc.processingState).toBe("processing");
+    expect(await createPipeline(h.deps)(h.run, 3, 3)).toBe("failed");
+    expect(h.doc.processingState).toBe("failed");
+    expect(h.calls).toEqual(["extract", "extract", "cleanup"]);
+  });
+
+  test("a thrown final-stage failure cannot clean up a superseded run", async () => {
+    const h = await harness();
+    h.deps.extract = async () => {
+      h.doc.currentVersionId = asVersionId(crypto.randomUUID());
+      h.doc.processingState = "queued";
+      throw new Error("stage failed");
+    };
+    expect(await createPipeline(h.deps)(h.run, 3, 3)).toBe("stale");
+    expect(h.calls).not.toContain("cleanup");
+    expect(h.doc.processingState).toBe("queued");
+  });
+
+  test("a cleanup error after a thrown final stage remains visible", async () => {
+    const h = await harness();
+    h.deps.extract = async () => {
+      throw new Error("stage failed");
+    };
+    h.deps.derivedData.removeIfCurrent = async () => {
+      throw new Error("Cleanup unavailable");
+    };
+    await expect(createPipeline(h.deps)(h.run, 3, 3)).rejects.toThrow("Cleanup unavailable");
+    expect(h.doc.processingState).toBe("processing");
+  });
+
   test("cleanup failure cannot produce a falsely recorded terminal state", async () => {
     const h = await harness();
     h.deps.extract = async () => err({ reason: "unreadable_content", retryable: false });

@@ -76,6 +76,7 @@ export function createTestHarness(options?: {
   quotaBytes?: number;
   sessionValid?: boolean;
   session?: SessionPort;
+  queue?: JobQueue;
 }) {
   let now = new Date("2026-09-14T08:00:00.000Z");
   const clock = { now: () => now };
@@ -86,7 +87,7 @@ export function createTestHarness(options?: {
   const revertedReservations: QuotaReservationToken[] = [];
   const versionCountsAtQuotaCommit: number[] = [];
   const enqueuedJobs: string[] = [];
-  const auditEvents: unknown[] = [];
+  const auditEvents: Parameters<AuditPort["record"]>[0][] = [];
   let usedBytes = 0;
   let commitQuotaError: Error | null = null;
   // Outstanding reservations carry their expiry so a slow batch is modelled
@@ -166,7 +167,7 @@ export function createTestHarness(options?: {
     blobStore,
     clock,
     quota,
-    queue,
+    queue: options?.queue ?? queue,
     audit,
     session,
   });

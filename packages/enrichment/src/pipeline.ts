@@ -11,7 +11,7 @@ export interface PipelineStatePort {
     tenantId: TenantId,
     documentId: DocumentId,
     versionId: VersionId,
-    outcome: { state: "ready" } | { state: "failed"; reason: FailureReason },
+    outcome: { state: "ready" } | { state: "failed"; reason: FailureReason | null },
   ): Promise<boolean>;
 }
 
@@ -36,7 +36,19 @@ export function createPipeline(
     const { tenantId, documentId, versionId } = run;
     for (const stage of [deps.extract, deps.classify, deps.index]) {
       if (!(await deps.state.isCurrentRun(tenantId, documentId, versionId))) return "stale";
-      const result = await stage(run);
+      let result: Result<void, StageFailure>;
+      try {
+        result = await stage(run);
+      } catch (error: unknown) {
+        if (attempt < maxAttempts) throw error;
+        console.error({ msg: "document pipeline stage failed", error });
+        if (!(await deps.derivedData.removeIfCurrent(run))) return "stale";
+        const finished = await deps.state.finishVersion(tenantId, documentId, versionId, {
+          state: "failed",
+          reason: null,
+        });
+        return finished ? "failed" : "stale";
+      }
       if (result.ok) continue;
       if (!(await deps.state.isCurrentRun(tenantId, documentId, versionId))) return "stale";
       const permanent =

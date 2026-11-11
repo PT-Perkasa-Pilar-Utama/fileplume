@@ -91,7 +91,10 @@ export async function addVersion(
     throw commitErr;
   }
 
-  await deps.queue.enqueue(documentId);
+  reportSettled(
+    await Promise.allSettled([deps.queue.enqueue(documentId)]),
+    "version enqueue failed; queued document awaits recovery",
+  );
   // SCAFFOLD: removing the previous version's pages from the index (05-documents.md 5.7 step 7) lands in BE-S4-01.
 
   await deps.audit.record({

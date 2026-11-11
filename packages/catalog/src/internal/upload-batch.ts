@@ -69,7 +69,10 @@ async function emitPostBatch(
   for (const doc of docs) {
     // Quota already committed per file when each landed; only the
     // irreversible fan-out remains: enqueue (state `queued`), then audit.
-    await deps.queue.enqueue(doc.id);
+    reportSettled(
+      await Promise.allSettled([deps.queue.enqueue(doc.id)]),
+      "document enqueue failed; queued document awaits recovery",
+    );
     await deps.audit.record({
       tenantId,
       actorId: uploaderId,

@@ -1,0 +1,66 @@
+import type { CategoryView, DocumentView } from "@archiva/shared";
+
+export const MOCK_CATEGORIES: CategoryView[] = [
+  {
+    id: "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+    name: "Technical Spec",
+    isSystem: false,
+    downloadActive: false,
+    documentCount: 3,
+    createdBy: null,
+    createdAt: "2026-09-01T08:00:00.000Z",
+    permissionUpdatedAt: null,
+    permissionUpdatedBy: null,
+  },
+  {
+    id: "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
+    name: "Proposal",
+    isSystem: false,
+    downloadActive: false,
+    documentCount: 5,
+    createdBy: null,
+    createdAt: "2026-09-01T08:00:00.000Z",
+    permissionUpdatedAt: null,
+    permissionUpdatedBy: null,
+  },
+  {
+    id: "0000aaaa-1111-4bbb-8ccc-ddddeeeeffff",
+    name: "Uncategorized",
+    isSystem: true,
+    downloadActive: false,
+    documentCount: 0,
+    createdBy: null,
+    createdAt: "2026-09-01T08:00:00.000Z",
+    permissionUpdatedAt: null,
+    permissionUpdatedBy: null,
+  },
+];
+
+export const SUGGESTED_DOC: DocumentView = {
+  id: "3c7e5b21-9a04-4d18-b6f2-8e0a1c2d3e4f",
+  title: "spesifikasi-sistem.pdf",
+  filename: "spesifikasi-sistem.pdf",
+  mimeType: "application/pdf",
+  fileType: "pdf",
+  sizeBytes: 1048576,
+  pageCount: 10,
+  versionNumber: 1,
+  versionCount: 1,
+  processingState: "ready",
+  processingLabel: "Siap",
+  failureReason: null,
+  uploader: {
+    id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    name: "Budi Santoso",
+  },
+  category: {
+    id: "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+    name: "Technical Spec",
+    isSuggestion: true,
+    isSystem: false,
+  },
+  documentType: "Technical Specification",
+  tags: ["spec"],
+  downloadAllowed: true,
+  createdAt: "2026-09-01T08:30:00.000Z",
+};

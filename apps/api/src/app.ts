@@ -1,5 +1,6 @@
 import type { ActivityService } from "@archiva/activity";
 import type { CatalogService } from "@archiva/catalog";
+import type { ClassificationService } from "@archiva/classification";
 import type { Config } from "@archiva/config";
 import type { IdentityService } from "@archiva/identity";
 import type { DependencyProbe, ResetRunner } from "@archiva/platform";
@@ -25,6 +26,7 @@ export type AppDeps = {
   identity: IdentityService;
   activity: ActivityService;
   catalog: CatalogService;
+  classification: ClassificationService;
   rateLimitStores: RateLimitStoreFactory;
   probes: DependencyProbe[];
   resetRunner?: ResetRunner;
@@ -60,6 +62,7 @@ export function createApp(config: Config, deps: AppDeps): OpenAPIHono<AppEnv> {
     tenancy: deps.tenancy,
     identity: deps.identity,
     catalog: deps.catalog,
+    classification: deps.classification,
   });
   app.route("/api/v1", api);
 

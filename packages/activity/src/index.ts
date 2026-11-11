@@ -1,7 +1,7 @@
 export type * as ActivityErrors from "./errors.ts";
 export type { Clock } from "./ports.ts";
 export type { ActivityRepository } from "./repository.ts";
-export { createDrizzleActivityRepository } from "./repository.ts";
+export { appendTransactionalAudit, createDrizzleActivityRepository } from "./repository.ts";
 export type {
   ActivityService,
   AnalyticsMetric,

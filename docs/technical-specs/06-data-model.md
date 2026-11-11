@@ -199,7 +199,7 @@ Grooming D5, rendered as the decision the code implements. Concurrency detail is
 |---|---|---|---|---|---|
 | id | uuid | no | gen_random_uuid() | PK | |
 | tenant_id | uuid | no | | FK, IDX | |
-| name | text | no | | UQ with tenant_id | AC-45.02 rejects duplicates |
+| name | citext | no | | UQ with tenant_id | AC-45.02 rejects duplicates |
 | is_system | boolean | no | false | | true for the reserved `Uncategorized` row |
 | created_by | uuid | no | | FK users | |
 | created_at | timestamptz | no | now() | | |

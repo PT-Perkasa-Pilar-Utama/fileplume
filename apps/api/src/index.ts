@@ -1,5 +1,13 @@
-import { createActivityService, createDrizzleActivityRepository } from "@archiva/activity";
+import {
+  appendTransactionalAudit,
+  createActivityService,
+  createDrizzleActivityRepository,
+} from "@archiva/activity";
 import { createCatalogService, createDrizzleCatalogRepository } from "@archiva/catalog";
+import {
+  createClassificationService,
+  createDrizzleClassificationRepository,
+} from "@archiva/classification";
 import { loadConfig } from "@archiva/config";
 import { createDb } from "@archiva/db";
 import { createDrizzleIdentityRepository, createIdentityService } from "@archiva/identity";
@@ -50,6 +58,11 @@ const catalog = createCatalogService({
   session: createIdentitySessionAdapter(identity),
 });
 
+const classification = createClassificationService({
+  repository: createDrizzleClassificationRepository(dbHandle.db, appendTransactionalAudit),
+  clock: systemClock,
+});
+
 const probes = createDependencyProbes({ config, dbHandle, redisClient });
 const resetRunner = config.ENABLE_RESET_API
   ? new ResetRunner({
@@ -63,6 +76,7 @@ const app = createApp(config, {
   identity,
   activity,
   catalog,
+  classification,
   rateLimitStores: createValkeyRateLimitStores(redisClient),
   probes,
   resetRunner,

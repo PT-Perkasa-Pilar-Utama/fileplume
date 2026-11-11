@@ -80,9 +80,9 @@ The at-a-glance build state. Task cards and Tech Lead stubs sync against this ta
 
 | Operation | Spec | Sprint | Status |
 |---|---|---|---|
-| `GET /categories` | [06 6.2](06-categories.md) | 3 | SCAFFOLD |
-| `POST /categories` | [06 6.3](06-categories.md) | 3 | SCAFFOLD |
-| `PATCH /categories/:id` | [06 6.4](06-categories.md) | 3 | SCAFFOLD |
+| `GET /categories` | [06 6.2](06-categories.md) | 3 | OK |
+| `POST /categories` | [06 6.3](06-categories.md) | 3 | OK |
+| `PATCH /categories/:id` | [06 6.4](06-categories.md) | 3 | OK |
 | `PUT /categories/:id/download-permission` | [06 6.5](06-categories.md) | 5 | SCAFFOLD |
 | `PUT /documents/:id/classification` | [06 6.6](06-categories.md) | 3 | SCAFFOLD |
 | `GET /documents/unconfirmed` | [06 6.8](06-categories.md) | 3 | SCAFFOLD |

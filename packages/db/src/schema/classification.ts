@@ -1,6 +1,7 @@
 import { boolean, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { documents } from "./catalog.ts";
 import { users } from "./identity.ts";
+import { citext } from "./internal/citext.ts";
 import { tenants } from "./tenancy.ts";
 
 /** technical-specs/06-data-model.md 6.7. */
@@ -11,7 +12,7 @@ export const categories = pgTable(
     tenantId: uuid("tenant_id")
       .notNull()
       .references(() => tenants.id),
-    name: text("name").notNull(),
+    name: citext("name").notNull(),
     isSystem: boolean("is_system").notNull().default(false),
     createdBy: uuid("created_by")
       .notNull()

@@ -1,7 +1,15 @@
-import type { CategoryId, DocumentId, Result, TenantId, UserId } from "@archiva/shared";
+import type {
+  CategoryId,
+  CategoryView,
+  DocumentId,
+  Result,
+  TenantId,
+  UserId,
+} from "@archiva/shared";
+import { asCategoryId, ok } from "@archiva/shared";
 import type * as E from "./errors.ts";
 import type { Clock } from "./ports.ts";
-import type { ClassificationRepository } from "./repository.ts";
+import type { CategoryFilter, ClassificationRepository } from "./repository.ts";
 
 export const RESERVED_CATEGORY = "Uncategorized";
 
@@ -19,6 +27,21 @@ export interface ClassificationService {
     actor: UserId,
   ): Promise<Result<Category, E.DuplicateName>>;
   listCategories(tenantId: TenantId): Promise<Category[]>;
+  listCategoryViews(
+    tenantId: TenantId,
+    filter: CategoryFilter,
+  ): Promise<{ rows: CategoryView[]; total: number }>;
+  createCategoryView(
+    tenantId: TenantId,
+    name: string,
+    actor: UserId,
+  ): Promise<Result<CategoryView, E.DuplicateName>>;
+  renameCategory(
+    tenantId: TenantId,
+    categoryId: CategoryId,
+    name: string,
+    actor: UserId,
+  ): Promise<Result<CategoryView, E.DuplicateName | E.NotFound | E.SystemCategoryImmutable>>;
   setDownloadPermission(
     tenantId: TenantId,
     categoryId: CategoryId,
@@ -33,11 +56,37 @@ export interface ClassificationService {
   ): Promise<Result<void, E.NotFound | E.NotOwner>>;
 }
 
-export function createClassificationService(_deps: {
+export function createClassificationService(deps: {
   repository: ClassificationRepository;
   clock: Clock;
 }): ClassificationService {
-  throw new Error("SCAFFOLD: implement in BE-S3-03, BE-S3-05, BE-S5-03");
+  return {
+    async createCategory(tenantId, name, actor) {
+      const result = await deps.repository.createCategory(tenantId, name, actor);
+      if (!result.ok) return result;
+      const category = result.value;
+      return ok({
+        id: asCategoryId(category.id),
+        name: category.name,
+        isSystem: category.isSystem,
+        downloadActive: category.downloadActive,
+      });
+    },
+    listCategories: (tenantId) => deps.repository.listCategories(tenantId),
+    listCategoryViews: (tenantId, filter) => deps.repository.listCategoryViews(tenantId, filter),
+    createCategoryView: (tenantId, name, actor) =>
+      deps.repository.createCategory(tenantId, name, actor),
+    renameCategory: (tenantId, id, name, actor) =>
+      deps.repository.renameCategory(tenantId, id, name, actor),
+    async setDownloadPermission() {
+      throw new Error("SCAFFOLD: implement in BE-S5-03");
+    },
+    canDownloadCategory: (tenantId, categoryId) =>
+      deps.repository.isDownloadActive(tenantId, categoryId),
+    async confirm() {
+      throw new Error("SCAFFOLD: implement in BE-S3-05");
+    },
+  };
 }
 
 /**

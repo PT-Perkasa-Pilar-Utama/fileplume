@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
-import type { CategoryView } from "@archiva/shared";
+import { CATEGORY_MESSAGES, type CategoryView } from "@archiva/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -141,7 +141,7 @@ describe("PermissionCategoryView (FE-S3-02)", () => {
     });
 
     expect(fetchSpy).toHaveBeenCalled();
-    expect(container.textContent).toContain("Kategori berhasil ditambahkan");
+    expect(container.textContent).toContain(CATEGORY_MESSAGES.CATEGORY_CREATED);
     expect(container.textContent).toContain("REPORTING");
     expect(
       container.querySelector(

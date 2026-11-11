@@ -1,4 +1,5 @@
 import {
+  CATEGORY_MESSAGES,
   type CategoryNameBody,
   type CategoryView,
   categoryNameBody,
@@ -126,7 +127,7 @@ export function PermissionCategoryView(): JSX.Element {
       {success && (
         <Alert variant="success" role="status" data-testid="category-success-alert">
           <CheckCircle2 className="size-4" />
-          <AlertDescription>Kategori berhasil ditambahkan</AlertDescription>
+          <AlertDescription>{CATEGORY_MESSAGES.CATEGORY_CREATED}</AlertDescription>
         </Alert>
       )}
 

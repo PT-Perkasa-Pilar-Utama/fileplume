@@ -59,7 +59,7 @@ describe("categories api client (FE-S3-02)", () => {
     const [calledUrl, calledInit] = fetchSpy.mock.calls[0] ?? [];
     expect(calledUrl).toBe("/api/v1/categories");
     expect(calledInit?.method).toBe("POST");
-    expect(JSON.parse(calledInit?.body as string)).toEqual({ name: "Reporting" });
+    expect(calledInit?.body).toBe(JSON.stringify({ name: "Reporting" }));
     expect(result.id).toBe(MOCK_CATEGORY.id);
     expect(result.downloadActive).toBe(false);
   });

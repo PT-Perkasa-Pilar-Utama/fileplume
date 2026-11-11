@@ -62,6 +62,11 @@ export const UPLOAD_MESSAGES = {
   FILE_ACCEPTED: "File diterima untuk diproses",
 } as const;
 
+/** api-specs/06-categories.md 6.3. Client-side outcome message for a created category. */
+export const CATEGORY_MESSAGES = {
+  CATEGORY_CREATED: "Kategori berhasil ditambahkan",
+} as const;
+
 /** The Indonesian labels AC-44.01 enumerates. Served, never mapped client-side. */
 export const STATE_LABEL: Record<ProcessingState, string> = {
   queued: "Antre",

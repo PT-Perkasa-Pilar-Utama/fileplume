@@ -195,14 +195,37 @@ describe("ClamAvScanner (BE-S2-07)", () => {
     }
   });
 
-  test("returns the verdict when clamd answers before a large chunk is sent", async () => {
+  test("fails closed when the server closes without a verdict", async () => {
     const server = Bun.listen({
       hostname: "127.0.0.1",
       port: 0,
       socket: {
         data(socket) {
-          socket.write("stream: Eicar-Test-Signature FOUND\0");
           socket.end();
+        },
+      },
+    });
+    const scanner = new ClamAvScanner({ host: "127.0.0.1", port: server.port, timeoutMs: 5000 });
+    try {
+      await expect(scanner.scan(createStream("data"))).rejects.toThrow(
+        "ClamAV socket closed before scan completed",
+      );
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("returns the verdict when clamd answers before a large chunk is sent", async () => {
+    let answered = false;
+    const server = Bun.listen({
+      hostname: "127.0.0.1",
+      port: 0,
+      socket: {
+        data(socket) {
+          if (!answered) {
+            answered = true;
+            socket.write("stream: Eicar-Test-Signature FOUND\0");
+          }
         },
       },
     });

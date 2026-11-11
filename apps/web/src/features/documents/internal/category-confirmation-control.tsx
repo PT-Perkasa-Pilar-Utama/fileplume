@@ -1,4 +1,4 @@
-import { type CategoryView, ERROR_MESSAGES } from "@archiva/shared";
+import { type CategoryView, type DocumentView, ERROR_MESSAGES } from "@archiva/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown } from "lucide-react";
 import { type JSX, useState } from "react";
@@ -17,12 +17,7 @@ import { DOCUMENTS_QUERY_KEY } from "../use-documents.ts";
 
 export interface CategoryConfirmationControlProps {
   readonly documentId: string;
-  readonly category: {
-    readonly id: string;
-    readonly name: string;
-    readonly isSuggestion: boolean;
-    readonly isSystem?: boolean;
-  };
+  readonly category: NonNullable<DocumentView["category"]>;
   readonly onConfirmed?: (documentId: string) => void;
 }
 
@@ -47,7 +42,7 @@ export function getCategoryPillClasses(name: string): string {
 
 /**
  * Category confirmation and picker control (AC-02.01, AC-02.02, AC-02.03, AC-02.04).
- * Defaults to "Uncategorized" per Figma mockup while displaying suggestion badge.
+ * Preselects the suggested category prop and displays the suggestion badge.
  */
 export function CategoryConfirmationControl({
   documentId,
@@ -67,10 +62,8 @@ export function CategoryConfirmationControl({
 
   const availableCategories = categoriesQuery.data ?? [];
   const selectableCategories = availableCategories.filter((item) => !item.isSystem);
-  const uncategorized = availableCategories.find((item) => item.isSystem);
-  const currentSelection =
-    selectedCategory ?? (uncategorized ? { id: uncategorized.id, name: uncategorized.name } : null);
-  const displayName = currentSelection?.name ?? "Uncategorized";
+  const currentSelection = selectedCategory ?? { id: category.id, name: category.name };
+  const displayName = currentSelection.name;
 
   const confirmMutation = useMutation({
     mutationFn: (catId: string) => confirmDocumentCategoryRequest(documentId, catId),
@@ -120,7 +113,7 @@ export function CategoryConfirmationControl({
                 <p className="px-2 py-1.5 text-xs text-muted-foreground">Tidak ada kategori</p>
               )}
             {selectableCategories.map((cat) => {
-              const isSelected = cat.id === currentSelection?.id;
+              const isSelected = cat.id === currentSelection.id;
               return (
                 <DropdownMenuItem
                   key={cat.id}
@@ -164,9 +157,9 @@ export function CategoryConfirmationControl({
         type="button"
         size="sm"
         data-testid={`confirm-category-btn-${documentId}`}
-        disabled={confirmMutation.isPending || !currentSelection}
+        disabled={confirmMutation.isPending}
         onClick={() => {
-          if (currentSelection) confirmMutation.mutate(currentSelection.id);
+          confirmMutation.mutate(currentSelection.id);
         }}
         className="w-full h-7 text-xs font-medium"
       >

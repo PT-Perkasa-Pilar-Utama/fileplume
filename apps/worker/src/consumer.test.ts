@@ -9,6 +9,7 @@ import { asDocumentId, type asTenantId, err } from "@archiva/shared";
 import { Queue } from "bullmq";
 import { GenericContainer, type StartedTestContainer, Wait } from "testcontainers";
 import { createDocumentConsumer } from "./consumer.ts";
+import { createDocumentWorker } from "./document-worker.ts";
 import { processorHarness } from "./testing/processor-harness.ts";
 
 let container: StartedTestContainer | undefined;
@@ -42,12 +43,11 @@ test("AC-44.02: real BullMQ retries with increasing delays while preserving proc
   };
   const prefix = `test-${crypto.randomUUID()}`;
   const errors: Error[] = [];
-  const consumer = createDocumentConsumer({
+  const consumer = createDocumentWorker({
+    ...h.deps,
     url,
     prefix,
     concurrency: 1,
-    processing: h.deps.processing,
-    process: h.process,
     reportError: (error) => errors.push(error),
   });
   const queue = new Queue(DOCUMENT_QUEUE, { connection: valkeyConnection(url), prefix });

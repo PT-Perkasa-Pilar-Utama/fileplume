@@ -20,8 +20,10 @@
     "@archiva/shared": "workspace:*",
     "@archiva/tenancy": "workspace:*",
     "@hono/zod-openapi": "1.6.3",
+    "bullmq": "6.7.1",
     "hono": "4.13.7",
     "hono-rate-limiter": "0.5.4",
+    "ioredis": "6.0.0",
     "zod": "4.6.2"
   },
   "devDependencies": {

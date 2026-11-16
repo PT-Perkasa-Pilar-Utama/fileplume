@@ -24,7 +24,6 @@ import type { OpenAPIHono } from "@hono/zod-openapi";
 import { MemoryStore } from "hono-rate-limiter";
 import { createActivityAuditAdapter } from "../adapters/activity-audit-adapter.ts";
 import { createIdentitySessionAdapter } from "../adapters/identity-session-adapter.ts";
-import { nullJobQueue } from "../adapters/null-job-queue.ts";
 import { createTenancyQuotaAdapter } from "../adapters/tenancy-quota-adapter.ts";
 import { createApp } from "../app.ts";
 import type { AppEnv } from "../middleware/context.ts";
@@ -34,6 +33,7 @@ import {
   MOCK_TENANT_B_DOC_ID,
   MOCK_TENANT_B_ID,
 } from "../routes/mocks.ts";
+import { nullJobQueue } from "./null-job-queue.ts";
 
 export const BASE_CONFIG: Config = {
   APP_ENV: "dev",

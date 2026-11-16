@@ -9,8 +9,8 @@ import { RedisClient } from "bun";
 import { createActivityAuditAdapter } from "./adapters/activity-audit-adapter.ts";
 import { bunPasswordHasher } from "./adapters/bun-password-hasher.ts";
 import { createDependencyProbes } from "./adapters/dependency-probes.ts";
+import { createDocumentJobQueue } from "./adapters/document-job-queue.ts";
 import { createIdentitySessionAdapter } from "./adapters/identity-session-adapter.ts";
-import { nullJobQueue } from "./adapters/null-job-queue.ts";
 import { createS3BlobStore } from "./adapters/s3-blob-store.ts";
 import { createS3Client } from "./adapters/s3-client.ts";
 import { systemClock } from "./adapters/system-clock.ts";
@@ -45,7 +45,9 @@ const catalog = createCatalogService({
   blobStore: createS3BlobStore(s3Client),
   clock: systemClock,
   quota: createTenancyQuotaAdapter(tenancy),
-  queue: nullJobQueue,
+  queue: createDocumentJobQueue(config.VALKEY_URL, {
+    reportError: () => console.error(JSON.stringify({ msg: "document queue unavailable" })),
+  }),
   audit: createActivityAuditAdapter(activity),
   session: createIdentitySessionAdapter(identity),
 });

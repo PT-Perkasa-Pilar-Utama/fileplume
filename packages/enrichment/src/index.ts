@@ -1,4 +1,24 @@
 export type * as EnrichmentErrors from "./errors.ts";
+export {
+  DOCUMENT_QUEUE,
+  documentJobOptions,
+  PROCESS_DOCUMENT_JOB,
+  PROCESSING_ATTEMPTS,
+  PROCESSING_BACKOFF_MS,
+  valkeyConnection,
+} from "./internal/queue-options.ts";
+export type { FinishedJob } from "./internal/requeue-finished.ts";
+export { requeueFinishedJob } from "./internal/requeue-finished.ts";
+export type {
+  DerivedDataPort,
+  PipelineDeps,
+  PipelineOutcome,
+  PipelineStage,
+  PipelineStatePort,
+  ProcessingRun,
+  StageFailure,
+} from "./pipeline.ts";
+export { createPipeline } from "./pipeline.ts";
 export type {
   AiProvider,
   JobQueue,

@@ -10,6 +10,33 @@ import {
 } from "./testing/test-harness.ts";
 
 describe("upload batch acceptance criteria", () => {
+  test("committed uploads remain accepted and audited when enqueue fails", async () => {
+    const h = createTestHarness({
+      queue: {
+        async enqueue() {
+          throw new Error("queue unavailable");
+        },
+      },
+    });
+    const first = pdfStream("queue unavailable first");
+    const second = pdfStream("queue unavailable second");
+    const result = await h.service.uploadBatch(TENANT_ID, USER_ID, [
+      { filename: "first.pdf", ...first },
+      { filename: "second.pdf", ...second },
+    ]);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.accepted).toBe(2);
+    expect(h.repository.documents.map((doc) => doc.processingState)).toEqual(["queued", "queued"]);
+    expect(h.committedReservations).toHaveLength(2);
+    expect(h.auditEvents.map((event) => event.action)).toEqual([
+      "document.upload",
+      "document.upload",
+    ]);
+    expect(h.auditEvents.map((event) => event.subjectId)).toEqual(
+      h.repository.documents.map((doc) => doc.id),
+    );
+  });
   test("AC-01.01: single valid PDF is accepted with queued state and Antre label", async () => {
     const { service } = createTestHarness();
     const file = pdfStream("laporan keuangan q3");

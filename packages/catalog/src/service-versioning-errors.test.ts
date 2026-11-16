@@ -22,6 +22,41 @@ function versionInput(filename: string, file: { stream: ReadableStream; sizeByte
 }
 
 describe("document versioning error paths (BE-S2-04)", () => {
+  test("a committed version remains queued and audited when enqueue fails", async () => {
+    let fail = false;
+    const harness = createTestHarness({
+      queue: {
+        async enqueue() {
+          if (fail) throw new Error("queue unavailable");
+        },
+      },
+    });
+    const initial = await harness.service.upload({
+      tenantId: TENANT_ID,
+      uploaderId: USER_ID,
+      filename: "initial.pdf",
+      ...pdfStream("initial version"),
+    });
+    if (!initial.ok) throw new Error("Upload failed");
+    fail = true;
+    const result = await harness.service.addVersion(
+      initial.value.id,
+      versionInput("version.pdf", pdfStream("new version")),
+      VIEWER,
+      PENDING_DAYS,
+    );
+    expect(result.ok).toBe(true);
+    expect(harness.repository.documents[0]?.processingState).toBe("queued");
+    expect(harness.repository.versions).toHaveLength(2);
+    expect(harness.committedReservations).toHaveLength(2);
+    expect(harness.auditEvents).toHaveLength(2);
+    expect(harness.auditEvents[1]).toMatchObject({
+      action: "document.version_add",
+      subjectId: initial.value.id,
+      metadata: { filename: "version.pdf", versionNumber: 2 },
+    });
+  });
+
   test("error: adding a version to an unknown document returns NotFound", async () => {
     const { service } = createTestHarness();
     const file = pdfStream("konten");

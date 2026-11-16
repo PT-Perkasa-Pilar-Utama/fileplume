@@ -1,4 +1,4 @@
-import type { CatalogRepository } from "@archiva/catalog";
+import type { CatalogRepository, DocumentProcessingRecord } from "@archiva/catalog";
 import type {
   MalwareScanner,
   ScanAuditPort,
@@ -22,7 +22,10 @@ export type ProcessDocumentDeps = {
   scanner: MalwareScanner;
 };
 
-export type ProcessDocumentHandler = (job: ProcessDocumentJob) => Promise<ProcessDocumentOutcome>;
+export type ProcessDocumentHandler = (
+  job: ProcessDocumentJob,
+  claimed?: DocumentProcessingRecord,
+) => Promise<ProcessDocumentOutcome>;
 
 /**
  * Factory for the document processing handler.
@@ -30,13 +33,15 @@ export type ProcessDocumentHandler = (job: ProcessDocumentJob) => Promise<Proces
  * Cards BE-S2-07, BE-S3-01.
  */
 export function createProcessDocumentHandler(deps: ProcessDocumentDeps): ProcessDocumentHandler {
-  return async function processDocument(job: ProcessDocumentJob): Promise<ProcessDocumentOutcome> {
-    const tenantId = await deps.catalogRepo.findTenantByDocumentId(job.documentId);
+  return async function processDocument(job, claimed): Promise<ProcessDocumentOutcome> {
+    const tenantId =
+      claimed?.tenantId ?? (await deps.catalogRepo.findTenantByDocumentId(job.documentId));
     if (!tenantId) {
       return "noop";
     }
 
-    const doc = await deps.catalogRepo.findDocumentForProcessing(tenantId, job.documentId);
+    const doc =
+      claimed ?? (await deps.catalogRepo.findDocumentForProcessing(tenantId, job.documentId));
     if (!doc) {
       return "noop";
     }
@@ -46,7 +51,7 @@ export function createProcessDocumentHandler(deps: ProcessDocumentDeps): Process
     }
 
     // Claim only a queued row. A stale job cannot move another state forward.
-    if (doc.processingState === "queued") {
+    if (!claimed && doc.processingState === "queued") {
       const claimed = await deps.catalogRepo.claimQueuedDocument(tenantId, job.documentId);
       if (!claimed) return "noop";
     }
@@ -79,12 +84,4 @@ export function createProcessDocumentHandler(deps: ProcessDocumentDeps): Process
 
     return "clean";
   };
-}
-
-/**
- * The worker entry point stub for BullMQ.
- * technical-specs/12-document-processing-pipeline.md 12.3. Card BE-S3-01.
- */
-export async function processDocument(_job: ProcessDocumentJob): Promise<void> {
-  throw new Error("SCAFFOLD: implement in BE-S3-01");
 }

@@ -11,6 +11,11 @@
     "@archiva/catalog": "workspace:*",
     "@archiva/config": "workspace:*",
     "@archiva/enrichment": "workspace:*",
-    "@archiva/shared": "workspace:*"
+    "@archiva/shared": "workspace:*",
+    "bullmq": "6.7.1",
+    "ioredis": "6.0.0"
+  },
+  "devDependencies": {
+    "testcontainers": "12.1.0"
   }
 }

@@ -105,9 +105,16 @@ test.describe("Authentication end to end (FE-S1-05)", () => {
     await page.waitForLoadState("networkidle");
     await page.locator("#email").fill(VALID_EMAIL);
     await page.locator("#password").fill(VALID_PASSWORD);
+    const categoriesResponse = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/categories" &&
+        response.request().method() === "GET",
+    );
     await page.getByRole("button", { name: "Login" }).click();
 
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByTestId(/^category-confirmation-/).first()).toBeVisible();
+    expect((await categoriesResponse).status()).toBe(200);
 
     // 2. Simulate session expiry / revocation on the server by invalidating the cookie token.
     // The session cookie is `__Host-` prefixed, so it must stay host-only:

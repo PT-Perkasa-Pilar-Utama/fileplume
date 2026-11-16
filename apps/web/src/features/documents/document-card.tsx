@@ -5,6 +5,7 @@ import { Badge } from "../../components/ui/badge.tsx";
 import { Card } from "../../components/ui/card.tsx";
 import { cn } from "../../lib/cn.ts";
 import { formatBytes, formatDocumentDate } from "../../lib/format.ts";
+import { CategoryConfirmationControl } from "./internal/category-confirmation-control.tsx";
 import { FileTypeIcon } from "./internal/file-type-icon.tsx";
 import type { UploadedDocumentDisplay } from "./types.ts";
 import { useProcessingStatus } from "./use-processing-status.ts";
@@ -14,6 +15,7 @@ export type DocumentCardItem = DocumentView | UploadedDocumentDisplay;
 export interface DocumentCardProps {
   readonly document: DocumentCardItem;
   readonly className?: string;
+  readonly onCategoryConfirmed?: (documentId: string) => void;
 }
 
 /**
@@ -40,7 +42,11 @@ function getProcessingBadgeVariant(
  * Renders file-type icon, title, upload date, uploader name, and processing status.
  * Clicking navigates to /documents/$id.
  */
-export function DocumentCard({ document, className }: DocumentCardProps): JSX.Element {
+export function DocumentCard({
+  document,
+  className,
+  onCategoryConfirmed,
+}: DocumentCardProps): JSX.Element {
   const isPending =
     document.processingState === "queued" || document.processingState === "processing";
   const { state, label, failureReason } = useProcessingStatus({
@@ -70,7 +76,7 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
     <Card
       data-testid={`document-card-${document.id}`}
       className={cn(
-        "group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm focus-within:ring-2 focus-within:ring-ring",
+        "group relative flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm focus-within:ring-2 focus-within:ring-ring",
         className,
       )}
     >
@@ -129,6 +135,25 @@ export function DocumentCard({ document, className }: DocumentCardProps): JSX.El
           </div>
         </div>
       </Link>
+
+      {"category" in document && document.category?.isSuggestion && (
+        <div className="mt-3">
+          <CategoryConfirmationControl
+            documentId={document.id}
+            category={document.category}
+            onConfirmed={onCategoryConfirmed}
+          />
+        </div>
+      )}
+
+      {"category" in document && document.category && !document.category.isSuggestion && (
+        <div
+          data-testid={`document-category-${document.id}`}
+          className="mt-2 text-2xs font-medium text-muted-foreground truncate"
+        >
+          {document.category.name}
+        </div>
+      )}
     </Card>
   );
 }

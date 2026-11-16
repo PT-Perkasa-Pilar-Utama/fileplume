@@ -13,6 +13,7 @@ export interface DocumentCardGridViewProps {
   readonly errorMessage?: string | null;
   readonly emptyMessage?: string | null;
   readonly className?: string;
+  readonly onCategoryConfirmed?: (documentId: string) => void;
 }
 
 /**
@@ -25,6 +26,7 @@ export function DocumentCardGridView({
   errorMessage,
   emptyMessage,
   className,
+  onCategoryConfirmed,
 }: DocumentCardGridViewProps): JSX.Element {
   if (isLoading) {
     return (
@@ -74,7 +76,7 @@ export function DocumentCardGridView({
       )}
     >
       {documents.map((doc) => (
-        <DocumentCard key={doc.id} document={doc} />
+        <DocumentCard key={doc.id} document={doc} onCategoryConfirmed={onCategoryConfirmed} />
       ))}
     </div>
   );

@@ -1,4 +1,9 @@
 import {
+  type CategoryView,
+  type ClassifiedDocument,
+  categorySchema,
+  classificationBody,
+  classifiedDocumentSchema,
   collectionOf,
   type DocumentView,
   dataOf,
@@ -178,5 +183,35 @@ export async function fetchDocuments(params?: DocumentQueryParams): Promise<Docu
  */
 export async function fetchProcessingStatus(id: string): Promise<ProcessingStatusView> {
   const res = await apiFetch(`/documents/${id}/processing`, dataOf(processingStatusSchema));
+  return res.data;
+}
+
+/**
+ * GET /api/v1/categories
+ * api-specs/06-categories.md 6.2.
+ */
+export async function fetchAvailableCategories(): Promise<CategoryView[]> {
+  const res = await apiFetch("/categories?limit=100", collectionOf(categorySchema));
+  return res.data;
+}
+
+/**
+ * PUT /api/v1/documents/:id/classification
+ * Confirms or overrides suggested document category (api-specs/06-categories.md 6.6).
+ */
+export async function confirmDocumentCategoryRequest(
+  documentId: string,
+  categoryId: string,
+): Promise<ClassifiedDocument> {
+  const payload = classificationBody.parse({ categoryId });
+  const res = await apiFetch(
+    `/documents/${documentId}/classification`,
+    dataOf(classifiedDocumentSchema),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
   return res.data;
 }
